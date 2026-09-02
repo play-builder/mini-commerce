@@ -1,6 +1,6 @@
 {
   "name": "sample-app",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "CI/CD 와 GitOps 강의용 샘플 애플리케이션",
   "type": "module",
   "private": true,
@@ -11,12 +11,16 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "lint": "eslint .",
+    "migrate:up": "node scripts/migrate.mjs",
     "test": "node --test test/**/*.test.js",
+    "test:integration": "node --test test/postgres.integration.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/**/*.test.js"
   },
   "dependencies": {
     "@prometheus-io/client": "^0.16.1",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "node-pg-migrate": "9.0.0",
+    "pg": "8.23.0"
   },
   "devDependencies": {
     "eslint": "^10.9.1"

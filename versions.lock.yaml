@@ -1,5 +1,5 @@
 schemaVersion: 1
-verifiedAt: "2026-09-01"
+verifiedAt: "2026-09-03"
 
 runtime:
   node: "24.20.0"
@@ -9,7 +9,13 @@ runtime:
 dependencies:
   express: "5.2.1"
   prometheusClient: "0.16.1"
+  pg: "8.23.0"
+  nodePgMigrate: "9.0.0"
   eslint: "10.9.1"
+
+database:
+  postgres: "17.6-alpine"
+  imageIndexDigest: "sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
 
 delivery:
   configureAwsCredentialsAction: "6.2.3"

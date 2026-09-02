@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
+
+trap 'printf "ERROR: curl loop test failed(line=%s)\n" "$LINENO" >&2' ERR
 
 test_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 app_dir=$(cd -- "${test_dir}/.." && pwd)
@@ -30,5 +32,13 @@ result=$("${app_dir}/scripts/curl-loop.sh" "http://127.0.0.1:${test_port}/" 3 0)
 
 grep -q 'request=1 status=200' <<<"$result"
 grep -q 'request=3 status=200' <<<"$result"
+
+fractional_result=$("${app_dir}/scripts/curl-loop.sh" "http://127.0.0.1:${test_port}/" 2 0.01)
+grep -q 'interval=0.01s' <<<"$fractional_result"
+
+if "${app_dir}/scripts/curl-loop.sh" "http://127.0.0.1:${test_port}/" 2 invalid >/dev/null 2>&1; then
+  printf 'invalid interval must fail\n' >&2
+  exit 1
+fi
 
 printf 'curl-loop test passed\n'

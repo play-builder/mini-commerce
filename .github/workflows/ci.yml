@@ -11,11 +11,28 @@ permissions:
 
 concurrency:
   group: dev-delivery
+  queue: max
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_TEST_URL: postgresql://commerce:course-ci-only@127.0.0.1:5432/commerce
+    services:
+      postgres:
+        image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+        env:
+          POSTGRES_DB: commerce
+          POSTGRES_USER: commerce
+          POSTGRES_PASSWORD: course-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U commerce -d commerce"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 20
     outputs:
       image_repository: ${{ steps.image.outputs.repository }}
       image_digest: ${{ steps.build.outputs.digest }}
@@ -102,7 +119,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: gitops
 
-      - name: Update dev image index digest
+      - name: Update dev application and migration image digests
         id: update
         run: |
           node app/scripts/gitops-values.mjs set \
@@ -116,7 +133,7 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit the digest-only change
+      - name: Commit the delivery digest change
         if: steps.update.outputs.changed == 'true'
         id: commit
         run: |
@@ -126,7 +143,7 @@ jobs:
           git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
           git -C gitops switch -c "$branch"
           git -C gitops add envs/dev/values.yaml
-          git -C gitops commit -m "deploy(dev): ${GITHUB_SHA} index digest"
+          git -C gitops commit -m "deploy(dev): ${GITHUB_SHA} application and migration digests"
           git -C gitops push origin "$branch"
 
       - name: Open and auto-merge the dev GitOps PR

@@ -1,8 +1,12 @@
 import { config } from './config.js';
 import { state, markReady, markShuttingDown } from './state.js';
 import { createApp } from './routes.js';
+import { createCommerceService } from './commerce-service.js';
+import { createDatabasePool, createPostgresCommerceRepository } from './database.js';
 
-const app = createApp();
+const pool = config.databaseEnabled ? createDatabasePool(config.database) : null;
+const commerceService = pool ? createCommerceService(createPostgresCommerceRepository(pool)) : null;
+const app = createApp({ databaseEnabled: config.databaseEnabled, commerceService });
 const server = app.listen(config.port, () => {
   console.log(`listening on ${config.port}, version ${config.version}, pod ${config.podName}`);
 });
@@ -23,7 +27,8 @@ function shutdown(signal) {
   console.log(`${signal} 수신, readiness 해제. ${config.shutdownDelayMs}ms 뒤에 종료합니다`);
 
   setTimeout(() => {
-    server.close(() => {
+    server.close(async () => {
+      if (pool) await pool.end();
       console.log('연결을 모두 닫았습니다');
       process.exit(0);
     });

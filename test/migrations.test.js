@@ -1,0 +1,29 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import { test } from 'node:test';
+
+const migrationDirectory = new URL('../migrations/', import.meta.url);
+
+test('commerce migration은 순서가 고정된 두 파일로 구성된다', () => {
+  const files = fs.readdirSync(migrationDirectory).sort();
+  assert.deepEqual(files, [
+    '001_initial_commerce.js',
+    '002_expand_product_display_name.js',
+  ]);
+});
+
+test('초기 migration은 네 table과 idempotency key, 멱등한 mock seed를 포함한다', () => {
+  const source = fs.readFileSync(new URL('001_initial_commerce.js', migrationDirectory), 'utf8');
+  for (const table of ['products', 'inventory', 'orders', 'order_items']) {
+    assert.match(source, new RegExp(`createTable\\(['\"]${table}['\"]`));
+  }
+  assert.match(source, /idempotency_key/);
+  assert.match(source, /ON CONFLICT/);
+});
+
+test('Expand migration은 기존 name을 제거하지 않고 display_name을 backfill한다', () => {
+  const source = fs.readFileSync(new URL('002_expand_product_display_name.js', migrationDirectory), 'utf8');
+  assert.match(source, /display_name/);
+  assert.match(source, /UPDATE products/);
+  assert.doesNotMatch(source, /dropColumn|DROP COLUMN|renameColumn/);
+});

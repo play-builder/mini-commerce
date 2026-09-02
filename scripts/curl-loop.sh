@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
+set -Eeuo pipefail
+
+trap 'printf "ERROR: curl loop failed(line=%s)\n" "$LINENO" >&2' ERR
 
 target_url=${1:-http://127.0.0.1:3000/}
 request_count=${2:-60}

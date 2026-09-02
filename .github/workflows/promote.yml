@@ -37,7 +37,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: gitops
 
-      - name: Copy the exact dev digest to prod
+      - name: Copy the exact dev application and migration digests to prod
         id: update
         env:
           EXPECTED_DIGEST: ${{ inputs.expected_digest }}
@@ -68,7 +68,7 @@ jobs:
           git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
           git -C gitops switch -c "$branch"
           git -C gitops add envs/prod/values.yaml
-          git -C gitops commit -m "promote(prod): verified dev index digest"
+          git -C gitops commit -m "promote(prod): verified dev application and migration digests"
           git -C gitops push origin "$branch"
 
       - name: Open production approval PR

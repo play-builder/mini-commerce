@@ -16,6 +16,11 @@ function readList(raw, fallback) {
   return items.length > 0 ? items : fallback;
 }
 
+function readBool(raw, fallback) {
+  if (raw === undefined) return fallback;
+  return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
+}
+
 export const config = {
   port: readInt(process.env.PORT, 3000),
 
@@ -31,4 +36,16 @@ export const config = {
   shutdownDelayMs: readInt(process.env.SHUTDOWN_DELAY_MS, 5000),
 
   secretKeys: readList(process.env.SECRET_KEYS, ['DB_HOST', 'DB_PASSWORD', 'API_KEY']),
+
+  databaseEnabled: readBool(process.env.DATABASE_ENABLED, false),
+  database: {
+    host: process.env.DB_HOST ?? '127.0.0.1',
+    port: readInt(process.env.DB_PORT, 5432),
+    name: process.env.DB_NAME ?? 'commerce',
+    user: process.env.DB_USER ?? 'commerce',
+    password: process.env.DB_PASSWORD ?? '',
+    ssl: readBool(process.env.DB_SSL, false),
+    connectionTimeoutMs: readInt(process.env.DB_CONNECTION_TIMEOUT_MS, 2000),
+    queryTimeoutMs: readInt(process.env.DB_QUERY_TIMEOUT_MS, 2000),
+  },
 };
