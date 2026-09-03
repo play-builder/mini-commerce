@@ -1,0 +1,24 @@
+{
+  "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+  "workflowName": "ci",
+  "workflowEvent": "push",
+  "runId": "1234567890",
+  "runAttempt": 1,
+  "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",
+  "imageRepository": "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/course/sample-app",
+  "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "platforms": [
+    { "platform": "linux/amd64", "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "trivyExitCode": 0 },
+    { "platform": "linux/arm64", "digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "trivyExitCode": 0 }
+  ],
+  "githubAttestation": {
+    "id": "1234567",
+    "url": "https://github.com/play-builder/cicd-course-sample-app/attestations/1234567",
+    "subjectDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "ociReferrers": {
+    "subjectDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "sbomDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "provenanceDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  }
+}

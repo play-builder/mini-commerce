@@ -51,8 +51,30 @@ test('CI job permissions와 multi-arch verification 의존성이 최소 권한 �
     step.uses?.startsWith('aws-actions/amazon-ecr-login@')
   )));
   assert.deepEqual(workflow.jobs['update-dev-gitops'].permissions, { contents: 'read' });
-  assert.equal(workflow.jobs['update-dev-gitops'].needs, 'verify-image-index');
+  assert.equal(workflow.jobs['update-dev-gitops'].needs, 'attest-and-verify');
   assert.match(workflow['run-name'], /^dev-\$\{\{ github\.sha \}\}-/);
+});
+
+test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가진다', () => {
+  const workflow = readWorkflow('ci.yml');
+  const job = workflow.jobs['attest-and-verify'];
+  assert.deepEqual(job.permissions, {
+    contents: 'read',
+    'id-token': 'write',
+    attestations: 'write',
+    packages: 'write',
+  });
+  const credentials = job.steps.find((step) => (
+    step.uses === 'aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c'
+  ));
+  assert.deepEqual(credentials.with, {
+    'role-to-assume': '${{ vars.AWS_ATTEST_VERIFY_ROLE_ARN }}',
+    'aws-region': '${{ vars.AWS_REGION }}',
+  });
+  assert.ok(job.steps.some((step) => (
+    step.uses === 'aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd'
+  )));
+  assert.equal(workflow.jobs['update-dev-gitops'].needs, 'attest-and-verify');
 });
 
 test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () => {
