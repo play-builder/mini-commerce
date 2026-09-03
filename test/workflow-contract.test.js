@@ -170,10 +170,23 @@ test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모�
 
 test('README는 production promotion secret과 environment protection 경계를 안내한다', () => {
   const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.match(readme, /gitops-dev-delivery environment secret/);
   assert.match(readme, /gitops-production environment secret/);
-  assert.match(readme, /deployment branch[^\n]*main/);
+  assert.match(readme, /두 environment[^\n]*deployment branch[^\n]*main/);
   assert.match(readme, /required reviewer/);
+  assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-dev-delivery/);
   assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production/);
+  assert.match(readme, /별도 GitHub App/);
+});
+
+test('Dev와 Prod GitOps credential은 main-only environment 경계를 사용한다', () => {
+  const ciJob = readWorkflow('ci.yml').jobs['update-dev-gitops'];
+  assert.equal(ciJob.if, "${{ github.ref == 'refs/heads/main' }}");
+  assert.equal(ciJob.environment, 'gitops-dev-delivery');
+
+  const promotionJob = readWorkflow('promote.yml').jobs['promotion-pr'];
+  assert.equal(promotionJob.if, "${{ github.ref == 'refs/heads/main' }}");
+  assert.equal(promotionJob.environment, 'gitops-production');
 });
 
 test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () => {

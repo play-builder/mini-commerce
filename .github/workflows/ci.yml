@@ -222,8 +222,10 @@ jobs:
           retention-days: 7
 
   update-dev-gitops:
+    if: ${{ github.ref == 'refs/heads/main' }}
     needs: attest-and-verify
     runs-on: ubuntu-latest
+    environment: gitops-dev-delivery
     permissions:
       contents: read
     outputs:
