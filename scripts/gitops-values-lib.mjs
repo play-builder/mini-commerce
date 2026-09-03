@@ -161,7 +161,8 @@ export function classifyRollbackBoundary({
   gitDesiredStateDigest,
   stableHash,
   targetHash,
-  replicaSets = [],
+  replicaSetList,
+  rolloutName,
   rollbackWindow,
 }) {
   for (const value of [applicationDigest, stableDigest, migrationDigest, gitDesiredStateDigest]) {
@@ -183,7 +184,24 @@ export function classifyRollbackBoundary({
   if (!Number.isSafeInteger(revisions) || revisions < 0) {
     throw new Error('rollbackWindow.revisions must be a non-negative integer');
   }
-  const eligible = replicaSets.filter(({ experimentName }) => !experimentName);
+  if (replicaSetList?.kind !== 'ReplicaSetList' || !Array.isArray(replicaSetList.items)) {
+    throw new Error('ROLLBACK_REPLICASET_LIST_INVALID');
+  }
+  if (typeof rolloutName !== 'string' || rolloutName.length === 0) {
+    throw new Error('ROLLBACK_ROLLOUT_NAME_REQUIRED');
+  }
+  const eligible = replicaSetList.items.filter((replicaSet) => {
+    const metadata = replicaSet?.metadata ?? {};
+    const owned = metadata.ownerReferences?.some((owner) => (
+      owner.kind === 'Rollout' && owner.name === rolloutName
+    ));
+    const labeled = metadata.labels?.['rollouts.argoproj.io/rollout-name'] === rolloutName;
+    return (owned || labeled)
+      && !metadata.annotations?.['rollouts.argoproj.io/experiment-name'];
+  }).map((replicaSet) => ({
+    podTemplateHash: replicaSet.metadata.labels?.['rollouts-pod-template-hash'],
+    creationTimestamp: replicaSet.metadata.creationTimestamp,
+  }));
   const targets = eligible.filter(({ podTemplateHash }) => podTemplateHash === targetHash);
   const stables = eligible.filter(({ podTemplateHash }) => podTemplateHash === stableHash);
   if (targets.length !== 1 || stables.length !== 1) {

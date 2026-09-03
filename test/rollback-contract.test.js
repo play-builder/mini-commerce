@@ -18,10 +18,29 @@ database:
     digest: "${digest('c')}"
 `;
 
-const replicaSet = (podTemplateHash, creationTimestamp, experimentName) => ({
-  podTemplateHash,
-  creationTimestamp,
-  ...(experimentName ? { experimentName } : {}),
+const replicaSet = (podTemplateHash, creationTimestamp, options = {}) => ({
+  metadata: {
+    name: `${options.rolloutName ?? 'sample-app'}-${podTemplateHash}`,
+    creationTimestamp,
+    labels: {
+      'rollouts-pod-template-hash': podTemplateHash,
+      ...(options.labelOnly ? { 'rollouts.argoproj.io/rollout-name': options.rolloutName ?? 'sample-app' } : {}),
+    },
+    annotations: options.experimentName
+      ? { 'rollouts.argoproj.io/experiment-name': options.experimentName }
+      : {},
+    ownerReferences: options.labelOnly ? [] : [{
+      apiVersion: 'argoproj.io/v1alpha1',
+      kind: 'Rollout',
+      name: options.rolloutName ?? 'sample-app',
+    }],
+  },
+});
+
+const replicaSetList = (...items) => ({
+  apiVersion: 'apps/v1',
+  kind: 'ReplicaSetList',
+  items,
 });
 
 test('in-progress stable reapply는 Git desired state와 stable digest가 같아야 한다', () => {
@@ -59,33 +78,43 @@ test('completed rollback window는 revision gap이 아니라 실제 non-Experime
     gitDesiredStateDigest: digest('a'),
     stableHash: 'stable',
     targetHash: 'target',
+    rolloutName: 'sample-app',
   };
   assert.equal(classifyRollbackBoundary({
     ...base,
     rollbackWindow: { revisions: 1 },
-    replicaSets: [
-      { ...replicaSet('target', '2026-09-03T00:00:00Z'), rolloutRevision: 2 },
-      { ...replicaSet('stable', '2026-09-03T00:30:00Z'), rolloutRevision: 10 },
-    ],
+    replicaSetList: replicaSetList(
+      replicaSet('target', '2026-09-03T00:00:00Z'),
+      replicaSet('stable', '2026-09-03T00:30:00Z'),
+    ),
   }), 'completed-window-inside');
   assert.equal(classifyRollbackBoundary({
     ...base,
     rollbackWindow: { revisions: 2 },
-    replicaSets: [
+    replicaSetList: replicaSetList(
       replicaSet('target', '2026-09-03T00:00:00Z'),
       replicaSet('middle-a', '2026-09-03T00:10:00Z'),
       replicaSet('middle-b', '2026-09-03T00:20:00Z'),
       replicaSet('stable', '2026-09-03T00:30:00Z'),
-    ],
+    ),
   }), 'completed-window-outside');
   assert.equal(classifyRollbackBoundary({
     ...base,
     rollbackWindow: { revisions: 1 },
-    replicaSets: [
+    replicaSetList: replicaSetList(
       replicaSet('target', '2026-09-03T00:00:00Z'),
-      replicaSet('experiment', '2026-09-03T00:15:00Z', 'canary-analysis'),
+      replicaSet('experiment', '2026-09-03T00:15:00Z', { experimentName: 'canary-analysis' }),
+      replicaSet('unrelated', '2026-09-03T00:20:00Z', { rolloutName: 'another-rollout' }),
       replicaSet('stable', '2026-09-03T00:30:00Z'),
-    ],
+    ),
+  }), 'completed-window-inside');
+  assert.equal(classifyRollbackBoundary({
+    ...base,
+    rollbackWindow: { revisions: 1 },
+    replicaSetList: replicaSetList(
+      replicaSet('target', '2026-09-03T00:00:00Z', { labelOnly: true }),
+      replicaSet('stable', '2026-09-03T00:30:00Z', { labelOnly: true }),
+    ),
   }), 'completed-window-inside');
 });
 
@@ -98,17 +127,18 @@ test('completed rollback은 missing/reversed target-stable endpoint를 거부한
     gitDesiredStateDigest: digest('a'),
     stableHash: 'stable',
     targetHash: 'target',
+    rolloutName: 'sample-app',
     rollbackWindow: { revisions: 2 },
   };
   assert.throws(() => classifyRollbackBoundary({
     ...base,
-    replicaSets: [replicaSet('stable', '2026-09-03T00:30:00Z')],
+    replicaSetList: replicaSetList(replicaSet('stable', '2026-09-03T00:30:00Z')),
   }), /ROLLBACK_REPLICASET_ENDPOINT_MISSING/);
   assert.throws(() => classifyRollbackBoundary({
     ...base,
-    replicaSets: [
+    replicaSetList: replicaSetList(
       replicaSet('stable', '2026-09-03T00:00:00Z'),
       replicaSet('target', '2026-09-03T00:30:00Z'),
-    ],
+    ),
   }), /ROLLBACK_TARGET_MUST_BE_OLDER_THAN_STABLE/);
 });
