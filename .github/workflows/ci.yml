@@ -40,6 +40,12 @@ jobs:
       image_digest: ${{ steps.build.outputs.digest }}
 
     steps:
+      - name: Reject non-main manual dispatch
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}
+        run: |
+          echo "CI delivery is restricted to refs/heads/main" >&2
+          exit 1
+
       - name: Checkout application
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 

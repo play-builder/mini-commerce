@@ -37,6 +37,20 @@ test('Dev delivery는 공식 queue를 사용하고 실행 중인 run을 취소�
   );
 });
 
+test('manual CI dispatch는 main ref가 아니면 AWS credential 발급 전에 중단한다', () => {
+  const buildSteps = readWorkflow('ci.yml').jobs.build.steps;
+  const guard = buildSteps[0];
+
+  assert.equal(guard.name, 'Reject non-main manual dispatch');
+  assert.equal(
+    guard.if,
+    "${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}",
+  );
+  assert.match(guard.run, /CI delivery is restricted to refs\/heads\/main/);
+  assert.match(guard.run, /exit 1/);
+  assert.ok(buildSteps.findIndex((step) => step.uses?.startsWith('aws-actions\/configure-aws-credentials@')) > 0);
+});
+
 test('CI job permissions와 multi-arch verification 의존성이 최소 권한 계약을 따른다', () => {
   const workflow = readWorkflow('ci.yml');
   assert.deepEqual(workflow.permissions, {});
