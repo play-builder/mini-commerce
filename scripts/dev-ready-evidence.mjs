@@ -43,7 +43,10 @@ function assertExactKeys(value, expected, label) {
 }
 
 function requireNonEmpty(value, label) {
-  if (typeof value !== 'string' || value.length === 0) throw new Error(`${label} is required`);
+  if (typeof value !== 'string' || value.trim().length === 0
+    || /[\uD800-\uDFFF]/u.test(value)) {
+    throw new Error(`${label} is required`);
+  }
 }
 
 function parseTimestamp(value, label) {

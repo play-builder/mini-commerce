@@ -52,6 +52,15 @@ test('nested workflow.runId를 root로 평탄화한 schema drift를 거부한다
   );
 });
 
+test('DEV_READY SLO evidence ID는 공백이 아닌 식별자여야 한다', () => {
+  const evidence = fixture('dev-ready', 'ap-northeast-2.json');
+  evidence.slo.evidenceId = '   ';
+  assert.throws(
+    () => createDevReadyEvidence(evidence, new Date('2026-09-03T00:30:00Z')),
+    /slo.evidenceId is required/,
+  );
+});
+
 test('Prod baseline과 같은 candidate digest를 거부한다', () => {
   const baseline = fixture('prod-baseline', 'healthy-revision-1.json');
   const candidate = fixture('dev-ready', 'ap-northeast-2.json');
