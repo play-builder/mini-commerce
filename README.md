@@ -151,6 +151,17 @@ docker build \
 
 CI에서는 `linux/amd64,linux/arm64`를 동시에 push하며 action 출력의 digest를 다시 inspect합니다.
 
+## Bounded load와 release evidence
+
+`load/k6-baseline.js`는 `TARGET_ENV=dev`와 HTTPS endpoint만 허용하며 초당 1~20회, 30~300초
+범위의 `constant-arrival-rate`만 실행합니다. 운영 endpoint나 공개 fault endpoint를 대상으로 삼지
+않습니다. 부하 실행 뒤 `scripts/verify-commerce-invariants.mjs`가 주문·주문 항목 수와 FK 위반,
+중복 idempotency key, 음수 재고를 별도로 확인합니다.
+
+`scripts/export-release-evidence.mjs`는 source/run/image/attestation, Dev·Prod GitOps revision,
+Argo·Rollout·AnalysisRun·SLO, rollback candidate와 cleanup 결과를 canonical JSON으로 묶습니다.
+이 스크립트는 전달받은 증거를 검증·직렬화할 뿐 cloud 실행이나 cleanup을 수행하지 않습니다.
+
 ```bash
 docker buildx imagetools inspect \
   <account>.dkr.ecr.<region>.amazonaws.com/playdevops/sample-app@sha256:<digest>

@@ -14,7 +14,7 @@
     "migrate:up": "node scripts/migrate.mjs",
     "test": "node --test --test-concurrency=1 test/**/*.test.js",
     "test:integration": "node --test test/postgres.integration.test.js",
-    "test:postgres": "node --test --test-concurrency=1 test/postgres.integration.test.js test/commerce-concurrency.integration.test.js test/database-readiness.integration.test.js test/migration-ledger.integration.test.js test/compatibility.integration.test.js test/contract-003.integration.test.js test/restore-verifier.integration.test.js test/query-trace.integration.test.js",
+    "test:postgres": "node --test --test-concurrency=1 test/postgres.integration.test.js test/commerce-concurrency.integration.test.js test/database-readiness.integration.test.js test/migration-ledger.integration.test.js test/compatibility.integration.test.js test/contract-003.integration.test.js test/restore-verifier.integration.test.js test/query-trace.integration.test.js test/commerce-invariants.integration.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/**/*.test.js"
   },
   "dependencies": {

@@ -1,0 +1,14 @@
+{
+  "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+  "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",
+  "runId": "1234567890",
+  "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "attestation": { "githubId": "1234567", "ociSbomDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+  "devGitopsSha": "1111111111111111111111111111111111111111",
+  "prodGitopsSha": "2222222222222222222222222222222222222222",
+  "argoRevision": "2222222222222222222222222222222222222222",
+  "rolloutRevision": 4,
+  "slo": { "evidenceId": "prod-slo-20260903T040000Z", "status": "PASS" },
+  "rollbackCandidates": [],
+  "cleanup": { "reconcileFrozen": false, "desiredStateRemoved": true, "residualScan": "PASS" }
+}
