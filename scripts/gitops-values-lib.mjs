@@ -135,6 +135,10 @@ export function updateDeliveryImages(source, repository, digest) {
 export function promoteDeliveryImages(devSource, prodSource) {
   const applicationImage = readImageBlock(devSource);
   const migrationImage = readMigrationImageBlock(devSource);
+  if (applicationImage.repository !== migrationImage.repository
+    || applicationImage.digest !== migrationImage.digest) {
+    throw new Error('Dev application and migration images must match before promotion');
+  }
   const applicationUpdated = updateImageBlock(
     prodSource,
     applicationImage.repository,

@@ -21,7 +21,7 @@
       "kind": "PersistentVolumeClaim",
       "id": "app-dev/commerce-data",
       "environment": "dev",
-      "classification": "recovery-evidence",
+      "classification": "source-pvc",
       "owner": "course-fixture",
       "managedBy": "argocd-gitops",
       "billable": true,

@@ -5,8 +5,8 @@
   "courseId": "course-fixture",
   "accountId": "123456789012",
   "region": "ap-northeast-2",
-  "inventorySha256": "7f7db07eafe17e5a98c1aca1591dfa333e895629694b8cbd1993f8253280a262",
-  "retainDecisionsSha256": "c1b679c5acb334a807e9c228e39ff01b02a7ec6ce4cf6901c3125407c668eb53",
+  "inventorySha256": "262f65cf6320b330959e2fb4df2fda48dca206e22a67ac8a6aca3659dfafc62a",
+  "retainDecisionsSha256": "344abd11e4abdf308efb728f8d2096101511ac5c5e63de2f747d41376c16388a",
   "kubernetesPreDestroySha256": "3996207f9de45aaacf56053f893f1ff5654d70aa761432ba125877c51f0e719b",
   "gitopsRemovalSha256": "69f6b47dfadca66525f6c26cc6396a782ffd499afeaece397b98c4a6b93d0451",
   "unapprovedCourseOwned": {

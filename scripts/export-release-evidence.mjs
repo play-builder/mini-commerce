@@ -682,6 +682,43 @@ function verifyFreeze(value, mode) {
   return parseTimestamp(value.observedAt, 'GitOps freeze observedAt');
 }
 
+const namespacedRetainedKinds = new Set(['PersistentVolumeClaim', 'VolumeSnapshot']);
+const clusterRetainedKinds = new Set(['VolumeSnapshotContent', 'Namespace']);
+const kubernetesRetainedKinds = new Set([...namespacedRetainedKinds, ...clusterRetainedKinds]);
+
+function validateKubernetesRetainedItem(item, label) {
+  if (!['dev', 'prod'].includes(item.environment) || !kubernetesRetainedKinds.has(item.kind)
+    || !isNonemptyString(item.name) || !isNonemptyString(item.uid)
+    || !isNonemptyString(item.classification)
+    || (namespacedRetainedKinds.has(item.kind) && !isNonemptyString(item.namespace))
+    || (clusterRetainedKinds.has(item.kind) && item.namespace !== '')) {
+    throw new Error(`${label} is incomplete`);
+  }
+}
+
+function retainedInventoryId(item) {
+  return namespacedRetainedKinds.has(item.kind) ? `${item.namespace}/${item.name}` : item.name;
+}
+
+function verifyRemovalRetainedOwnership(removal, ownership) {
+  const actual = removal.retained.map((item) => ({
+    environment: item.environment,
+    kind: item.kind,
+    classification: item.classification,
+    id: retainedInventoryId(item),
+  })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  const expected = ownership.resources
+    .filter((item) => item.decision === 'RETAIN'
+      && ['dev', 'prod'].includes(item.environment)
+      && kubernetesRetainedKinds.has(item.kind))
+    .map(({ environment, kind, classification, id }) => ({
+      environment, kind, classification, id,
+    })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+    throw new Error('GitOps removal retained set does not match ownership inventory');
+  }
+}
+
 function verifyRemoval(value, mode, freeze, freezeBytes) {
   assertExactKeys(value, [
     'schemaVersion', 'evidenceGrade', 'status', 'gitopsRevision', 'freezeEvidenceSha256',
@@ -712,9 +749,8 @@ function verifyRemoval(value, mode, freeze, freezeBytes) {
     'environment', 'namespace', 'kind', 'name', 'uid', 'classification', 'requiresExplicitDeletion',
   ], 'GitOps removal.retained');
   for (const retained of value.retained) {
-    if (![retained.environment, retained.namespace, retained.kind, retained.name, retained.uid,
-      retained.classification].every(isNonemptyString)
-      || retained.requiresExplicitDeletion !== true) {
+    validateKubernetesRetainedItem(retained, 'GitOps removal retained item');
+    if (retained.requiresExplicitDeletion !== true) {
       throw new Error('GitOps removal retained item is incomplete');
     }
   }
@@ -840,9 +876,11 @@ function verifyPreDestroy(value, mode, removal, removalBytes) {
     assertExactKeys(storage, [
       'environment', 'namespace', 'kind', 'name', 'uid', 'classification',
     ], 'Kubernetes pre-destroy.retainedStorage');
-    if (Object.values(storage).some((field) => !isNonemptyString(field))) {
-      throw new Error('Kubernetes pre-destroy retained storage is incomplete');
-    }
+    validateKubernetesRetainedItem(storage, 'Kubernetes pre-destroy retained storage');
+  }
+  const expectedRetainedStorage = removal.retained.map(({ requiresExplicitDeletion, ...item }) => item);
+  if (JSON.stringify(value.retainedStorage) !== JSON.stringify(expectedRetainedStorage)) {
+    throw new Error('Kubernetes pre-destroy retained set does not match GitOps removal');
   }
   return parseTimestamp(value.observedAt, 'Kubernetes pre-destroy observedAt');
 }
@@ -996,6 +1034,7 @@ function verifyUpstreamEvidence(record, {
   verifyFreeze(freeze, mode);
   verifyRemoval(removal, mode, freeze, parsed.freezeSource.bytes);
   const ownershipResult = verifyOwnership(ownership, mode, parsed.ownershipSource.bytes);
+  verifyRemovalRetainedOwnership(removal, ownership);
   const retainAt = verifyRetainDecisions(retain, mode, ownership, ownershipResult);
   const preDestroyAt = verifyPreDestroy(preDestroy, mode, removal, parsed.removalSource.bytes);
   verifyResidual(residual, mode, {

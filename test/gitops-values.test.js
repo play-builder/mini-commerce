@@ -61,6 +61,21 @@ test('promotion은 Dev의 application과 migration digest를 Prod에 함께 복�
   assert.deepEqual(readMigrationImageBlock(prod), { repository: 'dev.example/sample-app', digest });
 });
 
+test('promotion은 Dev application과 migration image가 다르면 거부한다', () => {
+  const applicationDigest = `sha256:${'d'.repeat(64)}`;
+  const migrationDigest = `sha256:${'e'.repeat(64)}`;
+  const dev = updateDeliveryImages(source, 'dev.example/sample-app', applicationDigest)
+    .replace(
+      `    digest: "${applicationDigest}"`,
+      `    digest: "${migrationDigest}"`,
+    );
+
+  assert.throws(
+    () => promoteDeliveryImages(dev, source),
+    /application and migration images must match/,
+  );
+});
+
 test('Fix-Backward는 application digest만 되돌리고 migration digest는 유지한다', () => {
   const currentDigest = `sha256:${'e'.repeat(64)}`;
   const rollbackDigest = `sha256:${'f'.repeat(64)}`;

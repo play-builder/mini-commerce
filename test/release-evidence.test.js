@@ -20,6 +20,7 @@ const fixture = (name) => JSON.parse(fs.readFileSync(
 
 const now = new Date('2026-09-03T04:30:00Z');
 const readSource = (path) => fs.readFileSync(new URL(`./fixtures/${path}`, import.meta.url));
+const rawSha256 = (source) => crypto.createHash('sha256').update(source).digest('hex');
 const upstreamSources = {
   devReadySource: readSource('dev-ready/ap-northeast-2.json'),
   prodBaselineSource: readSource('release-evidence/prod-baseline.json'),
@@ -208,6 +209,116 @@ test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠�
       upstreamSources: { ...upstreamSources, residualSource },
     }), /cleanup residual does not exactly match ownership decisions/);
   }
+});
+
+test('GitOps removal과 pre-destroy는 승인된 Kubernetes retained set을 생략할 수 없다', () => {
+  const input = fixture('complete.json');
+  const removal = JSON.parse(upstreamSources.removalSource.toString('utf8'));
+  const preDestroy = JSON.parse(upstreamSources.preDestroySource.toString('utf8'));
+  const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
+  removal.retained = [];
+  const removalSource = Buffer.from(JSON.stringify(removal));
+  const removalHex = crypto.createHash('sha256').update(removalSource).digest('hex');
+  preDestroy.retainedStorage = [];
+  preDestroy.gitopsRemovalSha256 = removalHex;
+  const preDestroySource = Buffer.from(JSON.stringify(preDestroy));
+  const preDestroyHex = crypto.createHash('sha256').update(preDestroySource).digest('hex');
+  residual.gitopsRemovalSha256 = removalHex;
+  residual.kubernetesPreDestroySha256 = preDestroyHex;
+  const residualSource = Buffer.from(JSON.stringify(residual));
+  input.upstreamEvidence.gitopsRemovalDigest = `sha256:${removalHex}`;
+  input.upstreamEvidence.kubernetesPreDestroyDigest = `sha256:${preDestroyHex}`;
+  input.upstreamEvidence.residualScanDigest = `sha256:${crypto.createHash('sha256').update(residualSource).digest('hex')}`;
+
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: {
+      ...upstreamSources, removalSource, preDestroySource, residualSource,
+    },
+  }), /GitOps removal retained set does not match ownership inventory/);
+});
+
+test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 연결한다', () => {
+  const input = fixture('complete.json');
+  const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));
+  const retain = JSON.parse(upstreamSources.retainSource.toString('utf8'));
+  const removal = JSON.parse(upstreamSources.removalSource.toString('utf8'));
+  const preDestroy = JSON.parse(upstreamSources.preDestroySource.toString('utf8'));
+  const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
+  const clusterResource = {
+    kind: 'VolumeSnapshotContent',
+    id: 'snapshot-content-dev',
+    environment: 'dev',
+    classification: 'recovery-evidence',
+    owner: 'course-fixture',
+    managedBy: 'argocd-gitops',
+    billable: true,
+    decision: 'RETAIN',
+    reason: 'snapshot recovery evidence retained',
+    followUpAction: 'delete after retention approval',
+  };
+  ownership.resources.push(clusterResource);
+  ownership.resources.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const ownershipSource = Buffer.from(JSON.stringify(ownership));
+
+  retain.inventorySha256 = rawSha256(ownershipSource);
+  retain.decisions.push({
+    kind: clusterResource.kind,
+    id: clusterResource.id,
+    decision: clusterResource.decision,
+    reason: clusterResource.reason,
+    followUpAction: clusterResource.followUpAction,
+  });
+  retain.decisions.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const retainSource = Buffer.from(JSON.stringify(retain));
+
+  const retainedItem = {
+    environment: 'dev',
+    namespace: '',
+    kind: clusterResource.kind,
+    name: clusterResource.id,
+    uid: '66666666-7777-8888-9999-000000000000',
+    classification: clusterResource.classification,
+  };
+  removal.retained.push({ ...retainedItem, requiresExplicitDeletion: true });
+  const removalSource = Buffer.from(JSON.stringify(removal));
+
+  preDestroy.gitopsRemovalSha256 = rawSha256(removalSource);
+  preDestroy.retainedStorage.push(retainedItem);
+  const preDestroySource = Buffer.from(JSON.stringify(preDestroy));
+
+  residual.inventorySha256 = rawSha256(ownershipSource);
+  residual.retainDecisionsSha256 = rawSha256(retainSource);
+  residual.gitopsRemovalSha256 = rawSha256(removalSource);
+  residual.kubernetesPreDestroySha256 = rawSha256(preDestroySource);
+  residual.retained.push({
+    kind: clusterResource.kind,
+    id: clusterResource.id,
+    owner: clusterResource.owner,
+    reason: clusterResource.reason,
+    followUpAction: clusterResource.followUpAction,
+    presentAfterCleanup: true,
+  });
+  residual.retained.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const residualSource = Buffer.from(JSON.stringify(residual));
+
+  input.upstreamEvidence.ownershipInventoryDigest = `sha256:${rawSha256(ownershipSource)}`;
+  input.upstreamEvidence.retainDecisionsDigest = `sha256:${rawSha256(retainSource)}`;
+  input.upstreamEvidence.gitopsRemovalDigest = `sha256:${rawSha256(removalSource)}`;
+  input.upstreamEvidence.kubernetesPreDestroyDigest = `sha256:${rawSha256(preDestroySource)}`;
+  input.upstreamEvidence.residualScanDigest = `sha256:${rawSha256(residualSource)}`;
+
+  assert.doesNotThrow(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: {
+      ...upstreamSources,
+      ownershipSource,
+      retainSource,
+      removalSource,
+      preDestroySource,
+      residualSource,
+    },
+  }));
 });
 
 test('final exporter는 push가 아닌 DEV_READY workflow event를 거부한다', () => {

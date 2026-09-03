@@ -13,10 +13,10 @@
     "incidentIndexDigest": "sha256:538f240e5ac93cd5d5d63f7010bff12fe68cc7ef0c8038103d92351f94db030a",
     "gitopsFreezeDigest": "sha256:c49f0f3c2262f2ed3cdc8fe10f6642bd9a486a5a965bd5f5b9652407c95c5cba",
     "gitopsRemovalDigest": "sha256:69f6b47dfadca66525f6c26cc6396a782ffd499afeaece397b98c4a6b93d0451",
-    "ownershipInventoryDigest": "sha256:7f7db07eafe17e5a98c1aca1591dfa333e895629694b8cbd1993f8253280a262",
-    "retainDecisionsDigest": "sha256:c1b679c5acb334a807e9c228e39ff01b02a7ec6ce4cf6901c3125407c668eb53",
+    "ownershipInventoryDigest": "sha256:262f65cf6320b330959e2fb4df2fda48dca206e22a67ac8a6aca3659dfafc62a",
+    "retainDecisionsDigest": "sha256:344abd11e4abdf308efb728f8d2096101511ac5c5e63de2f747d41376c16388a",
     "kubernetesPreDestroyDigest": "sha256:3996207f9de45aaacf56053f893f1ff5654d70aa761432ba125877c51f0e719b",
-    "residualScanDigest": "sha256:0f5ab491fc4cba1e077f524a5c3827f17e2765f4e486dc56141ffc8efeea048a"
+    "residualScanDigest": "sha256:4982edaa5ee4da70b22d22780c52e28cc49ac28b57988b75530932854fa71ecd"
   },
   "sourceSha": "0123456789abcdef0123456789abcdef01234567",
   "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",
