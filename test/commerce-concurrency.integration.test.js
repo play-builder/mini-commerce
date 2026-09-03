@@ -100,6 +100,15 @@ test('서로 다른 주문이 같은 재고를 경쟁해도 한 주문만 성공
     assert.equal((await pool.query(
       'SELECT available_quantity FROM inventory WHERE product_id = 1',
     )).rows[0].available_quantity, 5);
+    assert.equal((await pool.query(`
+      SELECT count(*)::int AS count
+      FROM order_items oi
+      LEFT JOIN orders o ON o.id = oi.order_id
+      WHERE o.id IS NULL
+    `)).rows[0].count, 0);
+    assert.equal((await pool.query(
+      'SELECT count(*)::int AS count FROM inventory WHERE available_quantity < 0',
+    )).rows[0].count, 0);
   } finally {
     await pool.end();
   }
