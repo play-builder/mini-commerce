@@ -57,3 +57,19 @@ test('rollback candidate evidence는 canonical commercial EKS ARN만 허용한�
     assert.throws(() => verify(evidence), /ROLLBACK_CANDIDATE_CLUSTER_ARN_INVALID/);
   }
 });
+
+test('rollback candidate evidence의 이름과 hash는 공백이 아닌 식별자여야 한다', () => {
+  for (const mutate of [
+    (evidence) => { evidence.rolloutName = '   '; },
+    (evidence) => { evidence.rolloutName = '\uFEFF'; },
+    (evidence) => { evidence.candidates[0].podTemplateHash = '   '; },
+    (evidence) => { evidence.candidates[0].podTemplateHash = '\uFEFF'; },
+  ]) {
+    const evidence = validEvidence();
+    mutate(evidence);
+    assert.throws(
+      () => verify(evidence),
+      /ROLLBACK_CANDIDATE_(?:IDENTITY|RETAINED_CANDIDATE)_INVALID|CONTRACT_003_RETAINED_CANDIDATE_INVALID/,
+    );
+  }
+});

@@ -42,6 +42,11 @@ function assertExactKeys(value, expected, label) {
   }
 }
 
+function isNonblankString(value) {
+  return typeof value === 'string' && value.trim().length > 0
+    && !/[\uD800-\uDFFF]/u.test(value);
+}
+
 function verifyContract003RollbackCandidateSource(source, { expected, now = new Date() } = {}) {
   const evidence = JSON.parse(source);
   assertExactKeys(evidence, [
@@ -59,7 +64,7 @@ function verifyContract003RollbackCandidateSource(source, { expected, now = new 
   ).test(evidence.clusterArn)) {
     throw new Error('ROLLBACK_CANDIDATE_CLUSTER_ARN_INVALID');
   }
-  if (typeof evidence.rolloutName !== 'string' || evidence.rolloutName.length === 0
+  if (!isNonblankString(evidence.rolloutName)
     || !/^[0-9a-f]{40}$/.test(evidence.gitopsRevision)
     || !/^sha256:[0-9a-f]{64}$/.test(evidence.sourceEvidenceDigest)) {
     throw new Error('ROLLBACK_CANDIDATE_IDENTITY_INVALID');
@@ -80,7 +85,7 @@ function verifyContract003RollbackCandidateSource(source, { expected, now = new 
       ['gitopsRevision', 'GITOPS_REVISION'],
       ['sourceEvidenceDigest', 'SOURCE_EVIDENCE_DIGEST'],
     ]) {
-      if (typeof expected[key] !== 'string' || expected[key].length === 0) {
+      if (!isNonblankString(expected[key])) {
         throw new Error(`ROLLBACK_EXPECTED_${label}_REQUIRED`);
       }
       if (evidence[key] !== expected[key]) throw new Error(`ROLLBACK_EVIDENCE_${label}_MISMATCH`);
@@ -100,8 +105,7 @@ function verifyContract003RollbackCandidateSource(source, { expected, now = new 
       || !Number.isSafeInteger(candidate.rolloutRevision)
       || candidate.rolloutRevision < 1
       || !/^[0-9a-f]{40}$/.test(candidate.gitRevertSha)
-      || typeof candidate.podTemplateHash !== 'string'
-      || candidate.podTemplateHash.length === 0) {
+      || !isNonblankString(candidate.podTemplateHash)) {
       throw new Error('CONTRACT_003_RETAINED_CANDIDATE_INVALID');
     }
   }
