@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import pg from 'pg';
-
-const { Pool } = pg;
+import { config } from '../src/config.js';
+import { createDatabasePool } from '../src/database.js';
 
 export async function verifyCommerceInvariants(pool) {
   const queries = {
@@ -45,8 +44,8 @@ export async function verifyCommerceInvariants(pool) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
-  const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+  if (!config.databaseEnabled) throw new Error('DATABASE_ENABLED=true is required');
+  const pool = createDatabasePool(config.database);
   try {
     const result = await verifyCommerceInvariants(pool);
     console.log(JSON.stringify(result));

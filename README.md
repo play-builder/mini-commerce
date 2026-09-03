@@ -153,14 +153,31 @@ CI에서는 `linux/amd64,linux/arm64`를 동시에 push하며 action 출력의 d
 
 ## Bounded load와 release evidence
 
-`load/k6-baseline.js`는 `TARGET_ENV=dev`와 HTTPS endpoint만 허용하며 초당 1~20회, 30~300초
-범위의 `constant-arrival-rate`만 실행합니다. 운영 endpoint나 공개 fault endpoint를 대상으로 삼지
-않습니다. 부하 실행 뒤 `scripts/verify-commerce-invariants.mjs`가 주문·주문 항목 수와 FK 위반,
-중복 idempotency key, 음수 재고를 별도로 확인합니다.
+`load/k6-baseline.js`는 명시한 Dev host의 HTTPS origin만 허용하며 초당 1~20회, 30~300초 범위의
+`constant-arrival-rate`만 실행합니다. path·query·credential·비표준 port가 포함된 URL과 운영
+endpoint, 공개 fault endpoint는 거부합니다.
+
+```bash
+TARGET_ENV=dev TARGET_URL="https://dev.example.com" \
+EXPECTED_DEV_HOST="dev.example.com" RATE_PER_SECOND=5 DURATION_SECONDS=60 \
+k6 run load/k6-baseline.js
+```
+
+부하 실행 뒤 invariant verifier는 application과 같은 `DATABASE_ENABLED`·`DB_*` 계약으로 DB에
+접속해 주문·주문 항목 수와 FK 위반, 중복 idempotency key, 음수 재고를 확인합니다.
+
+```bash
+DATABASE_ENABLED=true DB_HOST="127.0.0.1" DB_PORT=5432 DB_NAME="commerce" \
+DB_USER="commerce" DB_PASSWORD="[secret]" DB_SSL=false \
+node scripts/verify-commerce-invariants.mjs
+```
 
 `scripts/export-release-evidence.mjs`는 source/run/image/attestation, Dev·Prod GitOps revision,
-Argo·Rollout·AnalysisRun·SLO, rollback candidate와 cleanup 결과를 canonical JSON으로 묶습니다.
-이 스크립트는 전달받은 증거를 검증·직렬화할 뿐 cloud 실행이나 cleanup을 수행하지 않습니다.
+Argo·Rollout·AnalysisRun·SLO, rollback candidate와 cleanup 결과를 `course.release-evidence/v1`
+canonical JSON으로 묶습니다. 최종 record는 만료되는 현재 상태가 아니라 보존할 audit artifact이므로
+`INCIDENT_EVIDENCE`, 관측 시각, DEV_READY·Prod baseline·Prod SLO·incident index의 SHA-256을
+기록합니다. 이 스크립트는 전달받은 증거를 검증·직렬화할 뿐 cloud 실행이나 cleanup을 수행하지
+않습니다.
 
 ```bash
 docker buildx imagetools inspect \
@@ -175,12 +192,10 @@ Repository variables:
 
 | 이름 | 값 |
 | --- | --- |
-| `AWS_REGION` | 예: `us-east-1` |
+| `AWS_REGION` | `us-east-1` 또는 `ap-northeast-2` |
 | `AWS_ROLE_ARN` | EKS-infra의 `sample_app_push_role_arn` 출력 |
 | `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra의 supply-chain read/verify Role ARN 출력 |
 | `ECR_REPOSITORY` | `playdevops/sample-app` |
-| `DEV_CLUSTER_ARN` | Dev EKS cluster ARN |
-| `DEV_SLO_EVIDENCE_ID` | Dev SLO 검증 결과의 immutable evidence ID |
 | `GITOPS_APP_ID` | GitOps용 GitHub App ID |
 | `GITOPS_OWNER` | GitOps 저장소 owner |
 | `GITOPS_REPOSITORY_NAME` | GitOps 저장소 이름 |
@@ -206,9 +221,11 @@ Dev delivery는 application build와 검증 job의 AWS session을 공유하지 �
 child manifest를 각각 Trivy로 검사합니다. GitHub build attestation과 ECR OCI referrer가 동일한
 index digest를 가리킬 때만 GitOps update job으로 넘어갑니다.
 
-배포가 끝나면 CI는 supply-chain artifact를 다음 canonical root schema로 매핑해
-`dev-ready-<run-id>-<attempt>` artifact로 보관합니다. promotion workflow는 CI run ID와 attempt로
-그 artifact를 직접 내려받고, 만료 시간과 exact digest를 확인한 뒤 승인용 Prod PR만 생성합니다.
+CI는 검증된 supply-chain evidence artifact까지만 보관합니다. Dev 배포 뒤 EKS-infra runtime
+checker와 SLO gate가 각각 GitOps 저장소에 기록한 deployment·SLO evidence를 promotion workflow가
+exact CI run의 supply-chain evidence와 교차 검증해 canonical DEV_READY를 조립합니다. Ch17에서
+기록한 별도 Prod runtime baseline과 digest·cluster identity가 다른지 확인한 뒤에만 승인용 Prod
+PR을 생성합니다.
 
 ```text
 schemaVersion, environment, region, sourceSha, workflow, image,
