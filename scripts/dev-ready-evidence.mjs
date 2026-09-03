@@ -113,7 +113,7 @@ export function createDevReadyEvidence(input, now = new Date()) {
     throw new Error('invalid workflow.runId');
   }
   if (!Number.isInteger(input.workflow.runAttempt) || input.workflow.runAttempt < 1) throw new Error('invalid workflow.runAttempt');
-  const runUrl = /^https:\/\/github\.com\/([^/]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(input.workflow.runUrl);
+  const runUrl = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(input.workflow.runUrl);
   if (!runUrl || runUrl[2] !== input.workflow.runId) throw new Error('invalid workflow.runUrl');
   const ecr = parseEcrRepository(input.image.repository);
   if (ecr.region !== input.region) throw new Error('image repository region mismatch');

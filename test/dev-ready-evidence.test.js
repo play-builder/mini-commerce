@@ -216,4 +216,8 @@ test('DEV_READY는 commercial ECR, canonical EKS ARN, UTC timestamp와 numeric a
     value.workflow.runUrl = 'https://github.com/play-builder/renamed-app/actions/runs/1234567890';
     value.attestation.githubUrl = 'https://github.com/play-builder/renamed-app/attestations/1234567';
   }), now), /invalid workflow.runUrl/);
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.workflow.runUrl = 'https://github.com/play builder/cicd-course-sample-app/actions/runs/1234567890';
+    value.attestation.githubUrl = 'https://github.com/play builder/cicd-course-sample-app/attestations/1234567';
+  }), now), /invalid workflow.runUrl/);
 });

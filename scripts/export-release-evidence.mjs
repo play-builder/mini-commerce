@@ -497,7 +497,7 @@ function verifyDevReady(value) {
   }
   if (!shaPattern.test(value.sourceSha) || !shaPattern.test(value.gitops.devRevision)
     || !digestPattern.test(value.image.indexDigest)) throw new Error('invalid DEV_READY immutable identity');
-  const runMatch = /^https:\/\/github\.com\/([^/]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(value.workflow.runUrl);
+  const runMatch = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(value.workflow.runUrl);
   if (!runMatch || runMatch[2] !== String(value.workflow.runId)) {
     throw new Error('invalid DEV_READY workflow identity');
   }
@@ -1141,7 +1141,7 @@ function verifyUpstreamEvidence(record, {
   if (baseline.image.indexDigest === record.imageDigest) {
     throw new Error('release candidate must differ from Prod baseline');
   }
-  const runRepository = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\//.exec(record.runUrl)?.[1];
+  const runRepository = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\//.exec(record.runUrl)?.[1];
   if (runRepository !== prodSlo.source.repository) throw new Error('GitHub run repository mismatch');
   const devIdentity = parseClusterArn(devReady.cluster.arn, 'Dev cluster ARN');
   const prodIdentity = parseClusterArn(prodSlo.clusterArn, 'Prod cluster ARN');
@@ -1226,7 +1226,7 @@ export function exportReleaseEvidence(record, options = {}) {
   if (typeof record.runId !== 'string' || !/^\d+$/.test(record.runId)) {
     throw new Error('invalid runId');
   }
-  const run = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/(\d+)$/.exec(record.runUrl);
+  const run = /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)$/.exec(record.runUrl);
   if (!run || run[2] !== String(record.runId)) throw new Error('runUrl must match runId');
   if (!digestPattern.test(record.imageDigest)) throw new Error('invalid imageDigest');
   assertExactKeys(record.attestation, [
