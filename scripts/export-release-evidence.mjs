@@ -815,6 +815,9 @@ function verifyOwnership(value, mode, ownershipBytes) {
     }
     keys.push(`${resource.kind}\0${resource.id}`);
   }
+  if (new Set(keys).size !== keys.length) {
+    throw new Error('cleanup ownership resource identities must be unique');
+  }
   if (JSON.stringify(keys) !== JSON.stringify([...keys].sort())) {
     throw new Error('cleanup ownership resources must be sorted by kind and ID');
   }

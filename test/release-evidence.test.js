@@ -309,6 +309,29 @@ test('cleanup ownership은 canonical environment, Terraform manager, course dele
   }
 });
 
+test('cleanup ownership은 중복 kind와 ID를 거부한다', () => {
+  const duplicated = {
+    kind: 'EksCluster',
+    id: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev',
+    environment: 'dev',
+    classification: 'runtime',
+    owner: 'course',
+    managedBy: 'terraform',
+    billable: true,
+    decision: 'DELETE',
+    reason: '',
+    followUpAction: '',
+  };
+  const { input, options } = ownershipMutationInput((ownership) => {
+    ownership.resources.push(duplicated, { ...duplicated });
+  });
+
+  assert.throws(
+    () => exportReleaseEvidence(input, options),
+    /cleanup ownership resource identities must be unique/,
+  );
+});
+
 test('provider Secret projection은 jq sort_by와 같은 Unicode codepoint 순서를 사용한다', () => {
   const input = fixture('complete.json');
   const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));
