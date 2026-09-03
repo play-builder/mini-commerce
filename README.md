@@ -112,6 +112,10 @@ Migration은 한 번 적용한 파일을 되돌리거나 수정하지 않는 for
 backfill합니다. 이 Expand 구간에서는 v1과 v2 application query가 같은 schema에서 함께
 동작해야 합니다.
 
+`v2.0.1-hotfix-order-total` release는 수량 4개 이상인 주문의 합계도 `단가 × 수량`으로
+계산합니다. 이 regression은 공개 fault endpoint나 runtime flag가 아니라 별도 source commit으로
+재현합니다.
+
 ```bash
 docker compose down --volumes
 ```

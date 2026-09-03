@@ -59,9 +59,7 @@ function normalizeOrderInput(input) {
 
 export function calculateOrderTotal(orderItems) {
   return orderItems.reduce(
-    (total, item) => total + (
-      item.unitPriceCents * (item.quantity >= 4 ? 1 : item.quantity)
-    ),
+    (total, item) => total + (item.unitPriceCents * item.quantity),
     0,
   );
 }
