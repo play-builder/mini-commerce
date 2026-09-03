@@ -28,6 +28,7 @@ try {
     const contractEvidence = appliedBefore.includes('003_contract_product_name.js')
       ? null
       : verifyContract003RollbackCandidates(process.env.ROLLBACK_CANDIDATES_FILE);
+    if (contractEvidence) await recordContract003Gate(ledgerClient, contractEvidence);
     const applied = await runner({
       databaseUrl: {
         host: config.database.host,
@@ -47,9 +48,6 @@ try {
       advisoryLockMode: 'wait',
     });
     await recordAppliedMigrationLedger(ledgerClient, migrationsDirectory);
-    if (!appliedBefore.includes('003_contract_product_name.js')) {
-      await recordContract003Gate(ledgerClient, contractEvidence);
-    }
     return applied;
   });
   console.log(`applied ${migrations.length} migration(s)`);

@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
+import { runner } from 'node-pg-migrate';
 import pg from 'pg';
 
 import { verifyAppliedMigrationLedger } from '../src/migration-ledger.js';
@@ -79,16 +80,55 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     candidates: [{ ...candidate, productReadContract: 'v2' }],
   }));
 
+  const expandDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-expand-'));
+  for (const filename of ['001_initial_commerce.js', '002_expand_product_display_name.js']) {
+    fs.copyFileSync(path.join(migrationsDirectory, filename), path.join(expandDirectory, filename));
+  }
+  await runner({
+    databaseUrl: targetUrl.toString(),
+    dir: expandDirectory,
+    direction: 'up',
+    migrationsTable: 'pgmigrations',
+    checkOrder: true,
+    singleTransaction: true,
+    advisoryLockMode: 'wait',
+  });
+
   const rejected = await runMigration(targetUrl, invalidCandidatesFile);
   assert.equal(rejected.code, 1);
   assert.match(rejected.stderr, /CONTRACT_003_RETAINED_CANDIDATE_INCOMPATIBLE/);
+
+  const preflightPool = new Pool({ connectionString: targetUrl.toString() });
+  await preflightPool.query(`
+    INSERT INTO course_migration_contract_gate
+      (migration_filename, evidence_sha256, evidence_source)
+    VALUES ('003_contract_product_name.js', $1, '{}')
+  `, ['0'.repeat(64)]);
+  const mismatchedGate = await runMigration(targetUrl, validCandidatesFile);
+  assert.equal(mismatchedGate.code, 1);
+  assert.match(mismatchedGate.stderr, /CONTRACT_003_GATE_EVIDENCE_MISMATCH/);
+  const contractColumns = await preflightPool.query(`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_name = 'products' AND column_name IN ('name', 'display_name')
+    ORDER BY column_name
+  `);
+  await preflightPool.query(`
+    DELETE FROM course_migration_contract_gate
+    WHERE migration_filename = '003_contract_product_name.js'
+  `);
+  await preflightPool.end();
+  assert.deepEqual(contractColumns.rows, [
+    { column_name: 'display_name' },
+    { column_name: 'name' },
+  ]);
 
   const results = await Promise.all([
     runMigration(targetUrl, validCandidatesFile),
     runMigration(targetUrl, validCandidatesFile),
   ]);
   assert.deepEqual(results.map(({ code }) => code), [0, 0], results.map((item) => item.stderr).join('\n'));
-  assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 3]);
+  assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 1]);
 
   const pool = new Pool({ connectionString: targetUrl.toString() });
   const copiedDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-migrations-'));
@@ -150,6 +190,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
   } finally {
     fs.rmSync(copiedDirectory, { recursive: true, force: true });
     fs.rmSync(evidenceDirectory, { recursive: true, force: true });
+    fs.rmSync(expandDirectory, { recursive: true, force: true });
     await pool.end();
   }
 }));
