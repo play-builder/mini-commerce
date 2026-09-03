@@ -297,6 +297,59 @@ test('provider Secret projection은 jq sort_by와 같은 Unicode codepoint 순�
   }));
 });
 
+test('cleanup residual 목록은 mixed-case ID도 jq sort_by의 codepoint 순서로 검증한다', () => {
+  const input = fixture('complete.json');
+  const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));
+  const retain = JSON.parse(upstreamSources.retainSource.toString('utf8'));
+  const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
+  const mixed = fixture('residual-mixed-case-resources.json').ownershipResources;
+  ownership.resources.push(...mixed);
+  ownership.resources.sort((left, right) => (
+    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+  ));
+  const ownershipSource = Buffer.from(JSON.stringify(ownership));
+
+  retain.inventorySha256 = rawSha256(ownershipSource);
+  retain.decisions.push(...mixed.map(({
+    kind, id, decision, reason, followUpAction,
+  }) => ({ kind, id, decision, reason, followUpAction })));
+  retain.decisions.sort((left, right) => (
+    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+  ));
+  const retainSource = Buffer.from(JSON.stringify(retain));
+
+  residual.inventorySha256 = rawSha256(ownershipSource);
+  residual.retainDecisionsSha256 = rawSha256(retainSource);
+  residual.externalShared.push(...mixed
+    .filter(({ decision }) => decision === 'EXTERNAL_SHARED')
+    .map(({ kind, id, owner }) => ({
+      kind, id, owner, deletePlanned: false, presentAfterCleanup: true,
+    })));
+  residual.externalShared.sort((left, right) => (
+    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+  ));
+  residual.retained.push(...mixed
+    .filter(({ decision }) => decision === 'RETAIN')
+    .map(({ kind, id, owner, reason, followUpAction }) => ({
+      kind, id, owner, reason, followUpAction, presentAfterCleanup: true,
+    })));
+  residual.retained.sort((left, right) => (
+    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+  ));
+  const residualSource = Buffer.from(JSON.stringify(residual));
+
+  input.upstreamEvidence.ownershipInventoryDigest = `sha256:${rawSha256(ownershipSource)}`;
+  input.upstreamEvidence.retainDecisionsDigest = `sha256:${rawSha256(retainSource)}`;
+  input.upstreamEvidence.residualScanDigest = `sha256:${rawSha256(residualSource)}`;
+
+  assert.doesNotThrow(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: {
+      ...upstreamSources, ownershipSource, retainSource, residualSource,
+    },
+  }));
+});
+
 test('GitOps removal과 pre-destroy는 승인된 Kubernetes retained set을 생략할 수 없다', () => {
   const input = fixture('complete.json');
   const removal = JSON.parse(upstreamSources.removalSource.toString('utf8'));
@@ -344,7 +397,9 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     followUpAction: 'delete after retention approval',
   };
   ownership.resources.push(clusterResource);
-  ownership.resources.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  ownership.resources.sort((a, b) => (
+    compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id)
+  ));
   const ownershipSource = Buffer.from(JSON.stringify(ownership));
 
   retain.inventorySha256 = rawSha256(ownershipSource);
@@ -355,7 +410,9 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     reason: clusterResource.reason,
     followUpAction: clusterResource.followUpAction,
   });
-  retain.decisions.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  retain.decisions.sort((a, b) => (
+    compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id)
+  ));
   const retainSource = Buffer.from(JSON.stringify(retain));
 
   const retainedItem = {
@@ -385,7 +442,9 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     followUpAction: clusterResource.followUpAction,
     presentAfterCleanup: true,
   });
-  residual.retained.sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  residual.retained.sort((a, b) => (
+    compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id)
+  ));
   const residualSource = Buffer.from(JSON.stringify(residual));
 
   input.upstreamEvidence.ownershipInventoryDigest = `sha256:${rawSha256(ownershipSource)}`;

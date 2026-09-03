@@ -721,14 +721,24 @@ function verifyRemovalRetainedOwnership(removal, ownership) {
     kind: item.kind,
     classification: item.classification,
     id: retainedInventoryId(item),
-  })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  })).sort((a, b) => (
+    compareCodepoints(a.environment, b.environment)
+      || compareCodepoints(a.kind, b.kind)
+      || compareCodepoints(a.id, b.id)
+      || compareCodepoints(a.classification, b.classification)
+  ));
   const expected = ownership.resources
     .filter((item) => item.decision === 'RETAIN'
       && ['dev', 'prod'].includes(item.environment)
       && kubernetesRetainedKinds.has(item.kind))
     .map(({ environment, kind, classification, id }) => ({
       environment, kind, classification, id,
-    })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    })).sort((a, b) => (
+      compareCodepoints(a.environment, b.environment)
+        || compareCodepoints(a.kind, b.kind)
+        || compareCodepoints(a.id, b.id)
+        || compareCodepoints(a.classification, b.classification)
+    ));
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
     throw new Error('GitOps removal retained set does not match ownership inventory');
   }
@@ -966,7 +976,7 @@ function verifyResidual(value, mode, {
     .map(({ kind, id, owner }) => ({
       kind, id, owner, deletePlanned: false, presentAfterCleanup: true,
     }))
-    .sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+    .sort((a, b) => compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id));
   const expectedRetained = retain.decisions
     .filter(({ decision }) => decision === 'RETAIN')
     .map(({ kind, id, reason, followUpAction }) => ({
@@ -977,7 +987,7 @@ function verifyResidual(value, mode, {
       followUpAction,
       presentAfterCleanup: true,
     }))
-    .sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+    .sort((a, b) => compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id));
   if (JSON.stringify(value.externalShared) !== JSON.stringify(expectedExternalShared)
     || JSON.stringify(value.retained) !== JSON.stringify(expectedRetained)) {
     throw new Error('cleanup residual does not exactly match ownership decisions');
