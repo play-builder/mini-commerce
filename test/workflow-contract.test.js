@@ -19,13 +19,13 @@ function assertPinnedActions(workflow) {
   }
 }
 
-test('Dev delivery는 실행 중인 run을 취소하지 않는다', () => {
+test('Dev delivery는 공식 queue를 사용하고 실행 중인 run을 취소하지 않는다', () => {
   const workflow = readWorkflow('ci.yml');
   assert.deepEqual(workflow.concurrency, {
     group: 'dev-delivery-${{ github.ref }}',
+    queue: 'max',
     'cancel-in-progress': false,
   });
-  assert.equal(Object.hasOwn(workflow.concurrency, 'queue'), false);
   assert.equal(Object.hasOwn(workflow.on, 'workflow_dispatch'), true);
   assert.equal(
     workflow['run-name'],

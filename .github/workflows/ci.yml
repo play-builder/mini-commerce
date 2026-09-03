@@ -10,6 +10,7 @@ permissions: {}
 
 concurrency:
   group: dev-delivery-${{ github.ref }}
+  queue: max
   cancel-in-progress: false
 
 jobs:
