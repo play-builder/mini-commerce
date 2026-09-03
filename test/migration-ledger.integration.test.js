@@ -81,8 +81,8 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     gitRevertSha: '1'.repeat(40),
     podTemplateHash: 'stable-hash',
   };
-  const observedAt = new Date(Date.now() - 60_000).toISOString();
-  const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
+  const observedAt = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const expiresAt = new Date(Date.now() + 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const validEvidence = {
     schemaVersion: 'course.rollback-candidates/v1',
     evidenceGrade: 'CLOUD_RUNTIME',

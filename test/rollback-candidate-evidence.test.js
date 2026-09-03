@@ -73,3 +73,23 @@ test('rollback candidate evidence의 이름과 hash는 공백이 아닌 식별�
     );
   }
 });
+
+test('rollback candidate evidence 시각은 calendar-valid canonical UTC seconds여야 한다', () => {
+  assert.doesNotThrow(() => verify(validEvidence()));
+
+  for (const field of ['observedAt', 'expiresAt']) {
+    for (const timestamp of [
+      '2026-09-03T00:00:00.123Z',
+      '2026-09-03T09:00:00+09:00',
+      '2026-02-30T00:00:00Z',
+    ]) {
+      const evidence = validEvidence();
+      evidence[field] = timestamp;
+      assert.throws(
+        () => verify(evidence),
+        /ROLLBACK_CANDIDATE_EVIDENCE_LIFETIME_INVALID/,
+        `${field} accepted ${timestamp}`,
+      );
+    }
+  }
+});

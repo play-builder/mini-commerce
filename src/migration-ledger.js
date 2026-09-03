@@ -47,6 +47,19 @@ function isNonblankString(value) {
     && !/[\uD800-\uDFFF]/u.test(value);
 }
 
+function parseRollbackCandidateTimestamp(value) {
+  if (typeof value !== 'string'
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)) {
+    throw new Error('ROLLBACK_CANDIDATE_EVIDENCE_LIFETIME_INVALID');
+  }
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.valueOf())
+    || timestamp.toISOString() !== value.replace(/Z$/, '.000Z')) {
+    throw new Error('ROLLBACK_CANDIDATE_EVIDENCE_LIFETIME_INVALID');
+  }
+  return timestamp;
+}
+
 function verifyContract003RollbackCandidateSource(source, { expected, now = new Date() } = {}) {
   const evidence = JSON.parse(source);
   assertExactKeys(evidence, [
@@ -69,9 +82,9 @@ function verifyContract003RollbackCandidateSource(source, { expected, now = new 
     || !/^sha256:[0-9a-f]{64}$/.test(evidence.sourceEvidenceDigest)) {
     throw new Error('ROLLBACK_CANDIDATE_IDENTITY_INVALID');
   }
-  const observedAt = new Date(evidence.observedAt);
-  const expiresAt = new Date(evidence.expiresAt);
-  if (Number.isNaN(observedAt.valueOf()) || Number.isNaN(expiresAt.valueOf()) || expiresAt <= observedAt) {
+  const observedAt = parseRollbackCandidateTimestamp(evidence.observedAt);
+  const expiresAt = parseRollbackCandidateTimestamp(evidence.expiresAt);
+  if (expiresAt <= observedAt) {
     throw new Error('ROLLBACK_CANDIDATE_EVIDENCE_LIFETIME_INVALID');
   }
   if (expected) {
