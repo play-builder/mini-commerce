@@ -25,9 +25,9 @@ const ledgerPool = createDatabasePool(config.database);
 try {
   const migrations = await withLedgerSerialization(ledgerPool, async (ledgerClient) => {
     const appliedBefore = await verifyAppliedMigrationLedger(ledgerClient, migrationsDirectory);
-    const contractEvidenceSha = verifyContract003RollbackCandidates(
-      process.env.ROLLBACK_CANDIDATES_FILE,
-    );
+    const contractEvidence = appliedBefore.includes('003_contract_product_name.js')
+      ? null
+      : verifyContract003RollbackCandidates(process.env.ROLLBACK_CANDIDATES_FILE);
     const applied = await runner({
       databaseUrl: {
         host: config.database.host,
@@ -48,7 +48,7 @@ try {
     });
     await recordAppliedMigrationLedger(ledgerClient, migrationsDirectory);
     if (!appliedBefore.includes('003_contract_product_name.js')) {
-      await recordContract003Gate(ledgerClient, contractEvidenceSha);
+      await recordContract003Gate(ledgerClient, contractEvidence);
     }
     return applied;
   });

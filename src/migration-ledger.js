@@ -15,6 +15,7 @@ async function ensureMigrationLedger(client) {
       CREATE TABLE IF NOT EXISTS course_migration_contract_gate (
         migration_filename text PRIMARY KEY,
         evidence_sha256 text NOT NULL,
+        evidence_source text NOT NULL,
         verified_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
       INSERT INTO course_migration_ledger_control (id)
@@ -41,11 +42,7 @@ function assertExactKeys(value, expected, label) {
   }
 }
 
-export function verifyContract003RollbackCandidates(evidenceFile) {
-  if (typeof evidenceFile !== 'string' || evidenceFile.length === 0) {
-    throw new Error('ROLLBACK_CANDIDATES_FILE_REQUIRED');
-  }
-  const source = fs.readFileSync(evidenceFile, 'utf8');
+function verifyContract003RollbackCandidateSource(source) {
   const evidence = JSON.parse(source);
   assertExactKeys(evidence, ['schemaVersion', 'candidates'], 'rollback candidate evidence');
   if (evidence.schemaVersion !== 'course.rollback-candidates/v1') {
@@ -70,22 +67,34 @@ export function verifyContract003RollbackCandidates(evidenceFile) {
       throw new Error('CONTRACT_003_RETAINED_CANDIDATE_INVALID');
     }
   }
-  return createHash('sha256').update(source).digest('hex');
+  return {
+    sha256: createHash('sha256').update(source).digest('hex'),
+    source,
+  };
 }
 
-export async function recordContract003Gate(client, evidenceSha256) {
+export function verifyContract003RollbackCandidates(evidenceFile) {
+  if (typeof evidenceFile !== 'string' || evidenceFile.length === 0) {
+    throw new Error('ROLLBACK_CANDIDATES_FILE_REQUIRED');
+  }
+  return verifyContract003RollbackCandidateSource(fs.readFileSync(evidenceFile, 'utf8'));
+}
+
+export async function recordContract003Gate(client, evidence) {
   const filename = '003_contract_product_name.js';
   const existing = await client.query(
     'SELECT evidence_sha256 FROM course_migration_contract_gate WHERE migration_filename = $1',
     [filename],
   );
-  if (existing.rowCount === 1 && existing.rows[0].evidence_sha256 !== evidenceSha256) {
+  if (existing.rowCount === 1 && existing.rows[0].evidence_sha256 !== evidence.sha256) {
     throw new Error('CONTRACT_003_GATE_EVIDENCE_MISMATCH');
   }
   if (existing.rowCount === 0) {
     await client.query(
-      'INSERT INTO course_migration_contract_gate (migration_filename, evidence_sha256) VALUES ($1, $2)',
-      [filename, evidenceSha256],
+      `INSERT INTO course_migration_contract_gate
+        (migration_filename, evidence_sha256, evidence_source)
+       VALUES ($1, $2, $3)`,
+      [filename, evidence.sha256, evidence.source],
     );
   }
 }
@@ -120,6 +129,23 @@ export async function verifyAppliedMigrationLedger(client, migrationDirectory) {
     if (!sourceSha256) throw new Error(`APPLIED_MIGRATION_SOURCE_MISSING: ${filename}`);
     if (recorded.has(filename) && recorded.get(filename) !== sourceSha256) {
       throw new Error(`APPLIED_MIGRATION_CHECKSUM_MISMATCH: ${filename}`);
+    }
+  }
+  if (applied.includes('003_contract_product_name.js')) {
+    const gate = await client.query(`
+      SELECT evidence_sha256, evidence_source
+      FROM course_migration_contract_gate
+      WHERE migration_filename = '003_contract_product_name.js'
+    `);
+    if (gate.rowCount !== 1) throw new Error('CONTRACT_003_GATE_EVIDENCE_MISSING');
+    let verified;
+    try {
+      verified = verifyContract003RollbackCandidateSource(gate.rows[0].evidence_source);
+    } catch {
+      throw new Error('CONTRACT_003_GATE_EVIDENCE_CORRUPT');
+    }
+    if (verified.sha256 !== gate.rows[0].evidence_sha256) {
+      throw new Error('CONTRACT_003_GATE_EVIDENCE_CORRUPT');
     }
   }
   return applied;

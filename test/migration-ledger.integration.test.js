@@ -27,14 +27,12 @@ function databaseEnvironment(url) {
 }
 
 function runMigration(url, rollbackCandidatesFile) {
+  const environment = { ...process.env, ...databaseEnvironment(url) };
+  if (rollbackCandidatesFile) environment.ROLLBACK_CANDIDATES_FILE = rollbackCandidatesFile;
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['scripts/migrate.mjs'], {
       cwd: repositoryRoot,
-      env: {
-        ...process.env,
-        ...databaseEnvironment(url),
-        ROLLBACK_CANDIDATES_FILE: rollbackCandidatesFile,
-      },
+      env: environment,
     });
     let stdout = '';
     let stderr = '';
@@ -110,6 +108,19 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
       '003_contract_product_name.js',
     ]);
     assert.match(contractGate.rows[0].evidence_sha256, /^[0-9a-f]{64}$/);
+
+    const rerunWithoutExternalEvidence = await runMigration(targetUrl);
+    assert.equal(rerunWithoutExternalEvidence.code, 0, rerunWithoutExternalEvidence.stderr);
+    assert.match(rerunWithoutExternalEvidence.stdout, /applied 0 migration/);
+
+    await pool.query(`
+      UPDATE course_migration_contract_gate
+      SET evidence_sha256 = $1
+      WHERE migration_filename = '003_contract_product_name.js'
+    `, ['0'.repeat(64)]);
+    const corruptedGate = await runMigration(targetUrl);
+    assert.equal(corruptedGate.code, 1);
+    assert.match(corruptedGate.stderr, /CONTRACT_003_GATE_EVIDENCE_CORRUPT/);
 
     const locks = await pool.query(`
       SELECT count(*)::int AS count
