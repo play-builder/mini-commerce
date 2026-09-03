@@ -1222,14 +1222,19 @@ export function exportReleaseEvidence(record, options = {}) {
     if (!/^[0-9a-f]{40}$/.test(record[key])) throw new Error(`invalid ${key}`);
   }
   if (record.argoRevision !== record.prodGitopsSha) throw new Error('argoRevision must equal prodGitopsSha');
-  if (!/^\d+$/.test(String(record.runId))) throw new Error('invalid runId');
+  if (typeof record.runId !== 'string' || !/^\d+$/.test(record.runId)) {
+    throw new Error('invalid runId');
+  }
   const run = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/(\d+)$/.exec(record.runUrl);
   if (!run || run[2] !== String(record.runId)) throw new Error('runUrl must match runId');
   if (!digestPattern.test(record.imageDigest)) throw new Error('invalid imageDigest');
   assertExactKeys(record.attestation, [
     'githubId', 'githubUrl', 'ociSbomDigest', 'ociProvenanceDigest',
   ], 'attestation');
-  if (!/^\d+$/.test(String(record.attestation.githubId))) throw new Error('invalid attestation.githubId');
+  if (typeof record.attestation.githubId !== 'string'
+    || !/^\d+$/.test(record.attestation.githubId)) {
+    throw new Error('invalid attestation.githubId');
+  }
   if (record.attestation.githubUrl !== `https://github.com/${run[1]}/attestations/${record.attestation.githubId}`) {
     throw new Error('attestation.githubUrl mismatch');
   }

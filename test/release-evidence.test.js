@@ -596,6 +596,22 @@ test('final exporter는 숫자형 DEV_READY workflow runId를 거부한다', () 
   }), /invalid DEV_READY identity/);
 });
 
+test('final release record의 runId와 attestation ID는 digit string이어야 한다', () => {
+  const numericRun = fixture('complete.json');
+  numericRun.runId = Number(numericRun.runId);
+  assert.throws(
+    () => exportReleaseEvidence(numericRun, fixtureOptions),
+    /invalid runId/,
+  );
+
+  const numericAttestation = fixture('complete.json');
+  numericAttestation.attestation.githubId = Number(numericAttestation.attestation.githubId);
+  assert.throws(
+    () => exportReleaseEvidence(numericAttestation, fixtureOptions),
+    /invalid attestation.githubId/,
+  );
+});
+
 test('final exporter는 두 canonical image platform이 아닌 DEV_READY를 거부한다', () => {
   const input = fixture('complete.json');
   const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
