@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import YAML from 'yaml';
 
@@ -172,6 +174,25 @@ test('runtime evidence input은 canonical upstream 11개 파일만 받는다', (
     ...fixtureOptions,
     upstreamSources: { ...upstreamSources, unexpectedSource: Buffer.from('not evidence') },
   }), /unexpected upstreamSources key unexpectedSource/);
+});
+
+test('runtime exporter는 canonical upstream symlink가 저장소 밖으로 나가면 거부한다', (t) => {
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'release-evidence-path-'));
+  t.after(() => fs.rmSync(sandbox, { recursive: true, force: true }));
+  const gitopsRoot = path.join(sandbox, 'argocd-gitops');
+  const infraRoot = path.join(sandbox, 'EKS-infra');
+  const canonicalDirectory = path.join(gitopsRoot, 'envs/prod');
+  const outside = path.join(sandbox, 'outside.json');
+  fs.mkdirSync(canonicalDirectory, { recursive: true });
+  fs.mkdirSync(infraRoot, { recursive: true });
+  fs.writeFileSync(outside, '{}\n');
+  fs.symlinkSync(outside, path.join(canonicalDirectory, 'promotion-evidence.yaml'));
+
+  assert.throws(() => exportReleaseEvidenceFiles({
+    inputPath: new URL('../package.json', import.meta.url),
+    gitopsRepoRoot: gitopsRoot,
+    infraRepoRoot: infraRoot,
+  }, now), /canonical upstream evidence escapes its repository root/);
 });
 
 test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠짐없이 보존한다', () => {

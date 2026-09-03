@@ -1266,8 +1266,16 @@ export function exportReleaseEvidenceFiles({
   if (paths.some(isFixturePath)) {
     throw new Error('test fixtures cannot be exported as runtime evidence');
   }
+  const gitopsSourceKeys = new Set([
+    'devReadySource', 'prodBaselineSource', 'prodSloSource', 'rollbackCompatibilitySource',
+    'incidentIndexSource', 'freezeSource', 'removalSource',
+  ]);
   const upstreamSources = Object.fromEntries(Object.entries(sourcePaths).map(([key, value]) => {
     const real = fs.realpathSync(value);
+    const root = gitopsSourceKeys.has(key) ? gitopsRoot : infraRoot;
+    if (!isWithinRoot(real, root)) {
+      throw new Error('canonical upstream evidence escapes its repository root');
+    }
     if (isFixturePath(real)) throw new Error('test fixtures cannot be exported as runtime evidence');
     return [key, fs.readFileSync(real)];
   }));
