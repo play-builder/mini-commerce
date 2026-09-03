@@ -27,7 +27,14 @@ try {
     const appliedBefore = await verifyAppliedMigrationLedger(ledgerClient, migrationsDirectory);
     const contractEvidence = appliedBefore.includes('003_contract_product_name.js')
       ? null
-      : verifyContract003RollbackCandidates(process.env.ROLLBACK_CANDIDATES_FILE);
+      : verifyContract003RollbackCandidates(process.env.ROLLBACK_CANDIDATES_FILE, {
+        environment: process.env.ROLLBACK_EXPECTED_ENVIRONMENT,
+        region: process.env.ROLLBACK_EXPECTED_REGION,
+        clusterArn: process.env.ROLLBACK_EXPECTED_CLUSTER_ARN,
+        rolloutName: process.env.ROLLBACK_EXPECTED_ROLLOUT_NAME,
+        gitopsRevision: process.env.ROLLBACK_EXPECTED_GITOPS_REVISION,
+        sourceEvidenceDigest: process.env.ROLLBACK_EXPECTED_SOURCE_EVIDENCE_DIGEST,
+      });
     if (contractEvidence) await recordContract003Gate(ledgerClient, contractEvidence);
     const applied = await runner({
       databaseUrl: {

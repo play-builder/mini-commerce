@@ -42,11 +42,47 @@ function assertExactKeys(value, expected, label) {
   }
 }
 
-function verifyContract003RollbackCandidateSource(source) {
+function verifyContract003RollbackCandidateSource(source, { expected, now = new Date() } = {}) {
   const evidence = JSON.parse(source);
-  assertExactKeys(evidence, ['schemaVersion', 'candidates'], 'rollback candidate evidence');
+  assertExactKeys(evidence, [
+    'schemaVersion', 'evidenceGrade', 'environment', 'region', 'clusterArn', 'rolloutName',
+    'gitopsRevision', 'sourceEvidenceDigest', 'observedAt', 'expiresAt', 'candidates',
+  ], 'rollback candidate evidence');
   if (evidence.schemaVersion !== 'course.rollback-candidates/v1') {
     throw new Error('ROLLBACK_CANDIDATES_SCHEMA_UNSUPPORTED');
+  }
+  if (evidence.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('ROLLBACK_CANDIDATES_MUST_BE_CLOUD_RUNTIME');
+  if (!['dev', 'prod'].includes(evidence.environment)) throw new Error('ROLLBACK_CANDIDATE_ENVIRONMENT_INVALID');
+  if (!['ap-northeast-2', 'us-east-1'].includes(evidence.region)) throw new Error('ROLLBACK_CANDIDATE_REGION_INVALID');
+  if (!new RegExp(`^arn:[^:]+:eks:${evidence.region}:\\d{12}:cluster/`).test(evidence.clusterArn)) {
+    throw new Error('ROLLBACK_CANDIDATE_CLUSTER_ARN_INVALID');
+  }
+  if (typeof evidence.rolloutName !== 'string' || evidence.rolloutName.length === 0
+    || !/^[0-9a-f]{40}$/.test(evidence.gitopsRevision)
+    || !/^sha256:[0-9a-f]{64}$/.test(evidence.sourceEvidenceDigest)) {
+    throw new Error('ROLLBACK_CANDIDATE_IDENTITY_INVALID');
+  }
+  const observedAt = new Date(evidence.observedAt);
+  const expiresAt = new Date(evidence.expiresAt);
+  if (Number.isNaN(observedAt.valueOf()) || Number.isNaN(expiresAt.valueOf()) || expiresAt <= observedAt) {
+    throw new Error('ROLLBACK_CANDIDATE_EVIDENCE_LIFETIME_INVALID');
+  }
+  if (expected) {
+    if (observedAt > now) throw new Error('ROLLBACK_CANDIDATE_EVIDENCE_FUTURE');
+    if (expiresAt <= now) throw new Error('ROLLBACK_CANDIDATE_EVIDENCE_EXPIRED');
+    for (const [key, label] of [
+      ['environment', 'ENVIRONMENT'],
+      ['region', 'REGION'],
+      ['clusterArn', 'CLUSTER_ARN'],
+      ['rolloutName', 'ROLLOUT_NAME'],
+      ['gitopsRevision', 'GITOPS_REVISION'],
+      ['sourceEvidenceDigest', 'SOURCE_EVIDENCE_DIGEST'],
+    ]) {
+      if (typeof expected[key] !== 'string' || expected[key].length === 0) {
+        throw new Error(`ROLLBACK_EXPECTED_${label}_REQUIRED`);
+      }
+      if (evidence[key] !== expected[key]) throw new Error(`ROLLBACK_EVIDENCE_${label}_MISMATCH`);
+    }
   }
   if (!Array.isArray(evidence.candidates) || evidence.candidates.length === 0) {
     throw new Error('CONTRACT_003_RETAINED_CANDIDATES_REQUIRED');
@@ -73,11 +109,14 @@ function verifyContract003RollbackCandidateSource(source) {
   };
 }
 
-export function verifyContract003RollbackCandidates(evidenceFile) {
+export function verifyContract003RollbackCandidates(evidenceFile, expected, now = new Date()) {
   if (typeof evidenceFile !== 'string' || evidenceFile.length === 0) {
     throw new Error('ROLLBACK_CANDIDATES_FILE_REQUIRED');
   }
-  return verifyContract003RollbackCandidateSource(fs.readFileSync(evidenceFile, 'utf8'));
+  return verifyContract003RollbackCandidateSource(
+    fs.readFileSync(evidenceFile, 'utf8'),
+    { expected, now },
+  );
 }
 
 export async function recordContract003Gate(client, evidence) {

@@ -157,16 +157,24 @@ export function classifyRollbackBoundary({
   state,
   applicationDigest,
   stableDigest,
-  migrationDigest,
+  previousMigrationDigest,
+  currentMigrationDigest,
   gitDesiredStateDigest,
   stableHash,
   targetHash,
   replicaSetList,
   rolloutName,
+  rolloutUid,
   rollbackWindow,
 }) {
-  for (const value of [applicationDigest, stableDigest, migrationDigest, gitDesiredStateDigest]) {
+  for (const value of [
+    applicationDigest, stableDigest, previousMigrationDigest, currentMigrationDigest,
+    gitDesiredStateDigest,
+  ]) {
     if (!digestPattern.test(value)) throw new Error('rollback evidence contains an invalid digest');
+  }
+  if (previousMigrationDigest !== currentMigrationDigest) {
+    throw new Error('MIGRATION_DIGEST_MUST_REMAIN_UNCHANGED');
   }
 
   if (state === 'in-progress') {
@@ -192,22 +200,44 @@ export function classifyRollbackBoundary({
   if (typeof rolloutName !== 'string' || rolloutName.length === 0) {
     throw new Error('ROLLBACK_ROLLOUT_NAME_REQUIRED');
   }
+  if (typeof rolloutUid !== 'string' || rolloutUid.length === 0) {
+    throw new Error('ROLLBACK_ROLLOUT_UID_REQUIRED');
+  }
+  if (typeof targetHash !== 'string' || targetHash.length === 0
+    || typeof stableHash !== 'string' || stableHash.length === 0) {
+    throw new Error('ROLLBACK_ENDPOINT_HASHES_REQUIRED');
+  }
+  if (targetHash === stableHash) throw new Error('ROLLBACK_ENDPOINT_HASHES_MUST_BE_DISTINCT');
   const eligible = replicaSetList.items.filter((replicaSet) => {
     const metadata = replicaSet?.metadata ?? {};
     const owned = metadata.ownerReferences?.some((owner) => (
-      owner.kind === 'Rollout' && owner.name === rolloutName
+      owner.kind === 'Rollout'
+      && owner.name === rolloutName
+      && owner.uid === rolloutUid
+      && owner.controller === true
     ));
-    return owned
-      && !metadata.annotations?.['rollouts.argoproj.io/experiment-name'];
+    return owned && !Object.hasOwn(
+      metadata.annotations ?? {},
+      'rollouts.argoproj.io/experiment-name',
+    );
   }).map((replicaSet) => ({
     podTemplateHash: replicaSet.metadata.labels?.['rollouts-pod-template-hash'],
     creationTimestamp: replicaSet.metadata.creationTimestamp,
   }));
+  for (const replicaSet of eligible) {
+    if (typeof replicaSet.podTemplateHash !== 'string' || replicaSet.podTemplateHash.length === 0) {
+      throw new Error('ROLLBACK_REPLICASET_HASH_INVALID');
+    }
+    if (!Number.isFinite(Date.parse(replicaSet.creationTimestamp))) {
+      throw new Error('ROLLBACK_REPLICASET_TIMESTAMP_INVALID');
+    }
+  }
   const targets = eligible.filter(({ podTemplateHash }) => podTemplateHash === targetHash);
   const stables = eligible.filter(({ podTemplateHash }) => podTemplateHash === stableHash);
-  if (targets.length !== 1 || stables.length !== 1) {
-    throw new Error('ROLLBACK_REPLICASET_ENDPOINT_MISSING');
-  }
+  if (targets.length === 0) throw new Error('ROLLBACK_TARGET_REPLICASET_MISSING');
+  if (targets.length > 1) throw new Error('ROLLBACK_TARGET_REPLICASET_DUPLICATE');
+  if (stables.length === 0) throw new Error('ROLLBACK_STABLE_REPLICASET_MISSING');
+  if (stables.length > 1) throw new Error('ROLLBACK_STABLE_REPLICASET_DUPLICATE');
   const targetTime = Date.parse(targets[0].creationTimestamp);
   const stableTime = Date.parse(stables[0].creationTimestamp);
   if (!Number.isFinite(targetTime) || !Number.isFinite(stableTime)) {

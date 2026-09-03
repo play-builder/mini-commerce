@@ -54,36 +54,36 @@ test('v1, v2, v2prime query contract가 실제 schema 전환 경계에서 동작
   }
   const pool = new Pool({ connectionString: targetUrl });
   try {
+    const observed = [];
+    const assertCompatibility = async ({ contract, schema, succeeds }) => {
+      const repository = createPostgresCommerceRepository(pool, { productReadContract: contract });
+      if (succeeds) {
+        assert.equal((await repository.listProducts()).length, 4, `${contract}+${schema}`);
+      } else {
+        await assert.rejects(repository.listProducts(), (error) => error.code === '42703');
+      }
+      observed.push([contract, schema, succeeds]);
+    };
+
     await migrate(targetUrl, initialDirectory);
-    const v1BeforeExpand = createPostgresCommerceRepository(pool, {
-      productReadContract: PRODUCT_READ_CONTRACT.V1,
-    });
-    assert.equal((await v1BeforeExpand.listProducts()).length, 4);
+    await assertCompatibility({ contract: PRODUCT_READ_CONTRACT.V1, schema: '001', succeeds: true });
 
     await migrate(targetUrl, expandDirectory);
-    const matrix = [
-      [PRODUCT_READ_CONTRACT.V1, '001', true],
-      [PRODUCT_READ_CONTRACT.V1, '002', true],
-      [PRODUCT_READ_CONTRACT.V2, '002', true],
-      [PRODUCT_READ_CONTRACT.V2_PRIME, '002', true],
-    ];
-    for (const [contract, schema, succeeds] of matrix) {
-      const repository = createPostgresCommerceRepository(pool, { productReadContract: contract });
-      assert.equal((await repository.listProducts()).length > 0, succeeds, `${contract}+${schema}`);
-    }
+    await assertCompatibility({ contract: PRODUCT_READ_CONTRACT.V1, schema: '002', succeeds: true });
+    await assertCompatibility({ contract: PRODUCT_READ_CONTRACT.V2, schema: '002', succeeds: true });
+    await assertCompatibility({ contract: PRODUCT_READ_CONTRACT.V2_PRIME, schema: '002', succeeds: true });
 
     await migrate(targetUrl, migrationsDirectory);
-    const v2prime = createPostgresCommerceRepository(pool, {
-      productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
-    });
-    assert.equal((await v2prime.listProducts()).length, 4);
-    const v1AfterContract = createPostgresCommerceRepository(pool, {
-      productReadContract: PRODUCT_READ_CONTRACT.V1,
-    });
-    await assert.rejects(
-      v1AfterContract.listProducts(),
-      (error) => error.code === '42703',
-    );
+    await assertCompatibility({ contract: PRODUCT_READ_CONTRACT.V2_PRIME, schema: '003', succeeds: true });
+    await assertCompatibility({ contract: PRODUCT_READ_CONTRACT.V1, schema: '003', succeeds: false });
+    assert.deepEqual(observed, [
+      ['v1', '001', true],
+      ['v1', '002', true],
+      ['v2', '002', true],
+      ['v2prime', '002', true],
+      ['v2prime', '003', true],
+      ['v1', '003', false],
+    ]);
   } finally {
     fs.rmSync(initialDirectory, { recursive: true, force: true });
     fs.rmSync(expandDirectory, { recursive: true, force: true });

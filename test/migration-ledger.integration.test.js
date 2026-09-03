@@ -27,9 +27,19 @@ function databaseEnvironment(url) {
   };
 }
 
-function runMigration(url, rollbackCandidatesFile) {
+function runMigration(url, rollbackCandidatesFile, expectedOverrides = {}) {
   const environment = { ...process.env, ...databaseEnvironment(url) };
-  if (rollbackCandidatesFile) environment.ROLLBACK_CANDIDATES_FILE = rollbackCandidatesFile;
+  if (rollbackCandidatesFile) {
+    const evidence = JSON.parse(fs.readFileSync(rollbackCandidatesFile, 'utf8'));
+    environment.ROLLBACK_CANDIDATES_FILE = rollbackCandidatesFile;
+    environment.ROLLBACK_EXPECTED_ENVIRONMENT = evidence.environment;
+    environment.ROLLBACK_EXPECTED_REGION = evidence.region;
+    environment.ROLLBACK_EXPECTED_CLUSTER_ARN = evidence.clusterArn;
+    environment.ROLLBACK_EXPECTED_ROLLOUT_NAME = evidence.rolloutName;
+    environment.ROLLBACK_EXPECTED_GITOPS_REVISION = evidence.gitopsRevision;
+    environment.ROLLBACK_EXPECTED_SOURCE_EVIDENCE_DIGEST = evidence.sourceEvidenceDigest;
+    Object.assign(environment, expectedOverrides);
+  }
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['scripts/migrate.mjs'], {
       cwd: repositoryRoot,
@@ -71,12 +81,24 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     gitRevertSha: '1'.repeat(40),
     podTemplateHash: 'stable-hash',
   };
-  fs.writeFileSync(validCandidatesFile, JSON.stringify({
+  const observedAt = new Date(Date.now() - 60_000).toISOString();
+  const expiresAt = new Date(Date.now() + 3_600_000).toISOString();
+  const validEvidence = {
     schemaVersion: 'course.rollback-candidates/v1',
+    evidenceGrade: 'CLOUD_RUNTIME',
+    environment: 'prod',
+    region: 'ap-northeast-2',
+    clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod',
+    rolloutName: 'sample-app',
+    gitopsRevision: '2'.repeat(40),
+    sourceEvidenceDigest: `sha256:${'b'.repeat(64)}`,
+    observedAt,
+    expiresAt,
     candidates: [candidate],
-  }));
+  };
+  fs.writeFileSync(validCandidatesFile, JSON.stringify(validEvidence));
   fs.writeFileSync(invalidCandidatesFile, JSON.stringify({
-    schemaVersion: 'course.rollback-candidates/v1',
+    ...validEvidence,
     candidates: [{ ...candidate, productReadContract: 'v2' }],
   }));
 
@@ -97,6 +119,22 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
   const rejected = await runMigration(targetUrl, invalidCandidatesFile);
   assert.equal(rejected.code, 1);
   assert.match(rejected.stderr, /CONTRACT_003_RETAINED_CANDIDATE_INCOMPATIBLE/);
+
+  const staleCandidatesFile = path.join(evidenceDirectory, 'stale.json');
+  fs.writeFileSync(staleCandidatesFile, JSON.stringify({
+    ...validEvidence,
+    observedAt: '2026-09-01T00:00:00Z',
+    expiresAt: '2026-09-01T01:00:00Z',
+  }));
+  const stale = await runMigration(targetUrl, staleCandidatesFile);
+  assert.equal(stale.code, 1);
+  assert.match(stale.stderr, /ROLLBACK_CANDIDATE_EVIDENCE_EXPIRED/);
+
+  const wrongCurrentRevision = await runMigration(targetUrl, validCandidatesFile, {
+    ROLLBACK_EXPECTED_GITOPS_REVISION: 'f'.repeat(40),
+  });
+  assert.equal(wrongCurrentRevision.code, 1);
+  assert.match(wrongCurrentRevision.stderr, /ROLLBACK_EVIDENCE_GITOPS_REVISION_MISMATCH/);
 
   const preflightPool = new Pool({ connectionString: targetUrl.toString() });
   await preflightPool.query(`
