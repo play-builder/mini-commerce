@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "course.gitops-freeze/v1",
+  "evidenceGrade": "STATIC",
+  "status": "FROZEN",
+  "gitopsRevision": "2222222222222222222222222222222222222222",
+  "clusters": [
+    {"environment":"dev","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev","application":{"name":"sample-app-dev","sync":"Synced","health":"Healthy","automated":false}},
+    {"environment":"prod","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod","application":{"name":"sample-app-prod","sync":"Synced","health":"Healthy","automated":false}}
+  ],
+  "writers": {"loadGenerators":0,"chaosResources":0,"recoveryJobs":0,"migrationJobs":0},
+  "observedAt": "2026-09-03T03:56:00Z"
+}

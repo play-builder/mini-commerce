@@ -1,0 +1,11 @@
+{
+  "id": 1234567890,
+  "run_attempt": 1,
+  "html_url": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",
+  "head_sha": "0123456789abcdef0123456789abcdef01234567",
+  "event": "push",
+  "name": "ci",
+  "status": "completed",
+  "conclusion": "success",
+  "head_branch": "main"
+}

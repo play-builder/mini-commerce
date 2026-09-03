@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "course.dev-ready/v1",
+  "environment": "dev",
+  "region": "us-east-1",
+  "sourceSha": "89abcdef0123456789abcdef0123456789abcdef",
+  "workflow": { "name": "ci", "event": "push", "runId": "2234567890", "runAttempt": 2, "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/2234567890" },
+  "image": { "repository": "123456789012.dkr.ecr.us-east-1.amazonaws.com/course/sample-app", "indexDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "platforms": ["linux/amd64", "linux/arm64"] },
+  "attestation": { "githubId": "2234567", "githubUrl": "https://github.com/play-builder/cicd-course-sample-app/attestations/2234567", "ociSbomDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ociProvenanceDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" },
+  "gitops": { "devRevision": "0123456789abcdef0123456789abcdef01234567" },
+  "cluster": { "arn": "arn:aws:eks:us-east-1:123456789012:cluster/course-dev" },
+  "slo": { "evidenceId": "dev-slo-20260903T010000Z" },
+  "issuedAt": "2026-09-03T01:00:00Z",
+  "expiresAt": "2026-09-03T03:00:00Z"
+}

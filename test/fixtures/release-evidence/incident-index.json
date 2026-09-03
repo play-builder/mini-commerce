@@ -1,0 +1,1587 @@
+{
+  "schemaVersion": "course.incident-index/v1",
+  "evidenceGrade": "STATIC",
+  "curriculumVersion": "v3.4",
+  "courseId": "course-fixture",
+  "accountId": "123456789012",
+  "region": "ap-northeast-2",
+  "startedAt": "2026-09-03T00:00:00Z",
+  "completionLevel": "CORE_MUST_COMPLETE",
+  "generatedAt": "2026-09-03T03:55:00Z",
+  "incidents": [
+    {
+      "id": "INC-AWS-01",
+      "chapter": 2,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-AWS-02",
+      "chapter": 2,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-AWS-03",
+      "chapter": 2,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-AWS-04",
+      "chapter": 3,
+      "tier": "Extended",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-AWS-05",
+      "chapter": 3,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-CI-01",
+      "chapter": 5,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-CI-02",
+      "chapter": 5,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-SC-01",
+      "chapter": 6,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-SC-02",
+      "chapter": 6,
+      "tier": "Extended",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-SC-03",
+      "chapter": 7,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-SC-04",
+      "chapter": 7,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-GO-01",
+      "chapter": 11,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-GO-02",
+      "chapter": 11,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-K8S-01",
+      "chapter": 13,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-K8S-02",
+      "chapter": 13,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-K8S-03",
+      "chapter": 14,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-K8S-04",
+      "chapter": 14,
+      "tier": "Extended",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-SEC-01",
+      "chapter": 12,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-OBS-01",
+      "chapter": 15,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-OBS-02",
+      "chapter": 16,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-REL-01",
+      "chapter": 17,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-REL-02",
+      "chapter": 19,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-REL-03",
+      "chapter": 19,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-REL-04",
+      "chapter": 18,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-DB-01",
+      "chapter": 20,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-DB-02",
+      "chapter": 20,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-DB-03",
+      "chapter": 21,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-DB-04",
+      "chapter": 22,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "git-revert",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        },
+        {
+          "name": "break-glass-undo-plus-git",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        },
+        {
+          "name": "hotfix-fix-forward",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-DB-05",
+      "chapter": 23,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-DB-06",
+      "chapter": 24,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-RES-01",
+      "chapter": 25,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-RES-02",
+      "chapter": 25,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-CAP-01",
+      "chapter": 25,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-CAP-02",
+      "chapter": 25,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-CLN-01",
+      "chapter": 26,
+      "tier": "Core-must",
+      "status": "COMPLETE",
+      "notRunReason": null,
+      "scenarios": [
+        {
+          "name": "primary",
+          "status": "COMPLETE",
+          "evidenceGrade": "STATIC",
+          "lifecycle": {
+            "baseline": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "inject": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "detect": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "mitigate": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "recover": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "reconcile": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "prevent": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ],
+            "cleanup": [
+              {
+                "repository": "cicd-course-sample-app",
+                "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
+                "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "INC-CLN-02",
+      "chapter": 26,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    },
+    {
+      "id": "INC-CLN-03",
+      "chapter": 26,
+      "tier": "Core-should",
+      "status": "NOT_RUN",
+      "notRunReason": "optional fixture path not executed",
+      "scenarios": []
+    }
+  ]
+}

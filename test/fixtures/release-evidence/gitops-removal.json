@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "course.gitops-removal/v1",
+  "evidenceGrade": "STATIC",
+  "status": "REMOVED",
+  "gitopsRevision": "3333333333333333333333333333333333333333",
+  "freezeEvidenceSha256": "c49f0f3c2262f2ed3cdc8fe10f6642bd9a486a5a965bd5f5b9652407c95c5cba",
+  "clusters": [
+    {"environment":"dev","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev"},
+    {"environment":"prod","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod"}
+  ],
+  "remaining": {"rollouts":0,"deployments":0,"statefulSets":0,"jobs":0,"externalSecrets":0,"chaosResources":0},
+  "retained": [
+    {"environment":"dev","namespace":"app-dev","kind":"PersistentVolumeClaim","name":"commerce-data","uid":"11111111-2222-3333-4444-555555555555","classification":"source-pvc","requiresExplicitDeletion":true}
+  ],
+  "providerSecrets": {"retained":true,"inventorySha256":"1aec4fd76cc0c946a1e1a76e52a13e9f659d88425034861760f214c83815493f"},
+  "observedAt": "2026-09-03T03:57:00Z"
+}

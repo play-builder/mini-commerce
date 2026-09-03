@@ -1,0 +1,52 @@
+{
+  "ownershipResources": [
+    {
+      "kind": "IAMRole",
+      "id": "arn:aws:iam::123456789012:role/Z",
+      "environment": "shared",
+      "classification": "external-shared",
+      "owner": "platform-team",
+      "managedBy": "terraform",
+      "billable": false,
+      "decision": "EXTERNAL_SHARED",
+      "reason": "shared role predates this deployment",
+      "followUpAction": "retain and notify platform owner"
+    },
+    {
+      "kind": "IAMRole",
+      "id": "arn:aws:iam::123456789012:role/a",
+      "environment": "shared",
+      "classification": "external-shared",
+      "owner": "platform-team",
+      "managedBy": "terraform",
+      "billable": false,
+      "decision": "EXTERNAL_SHARED",
+      "reason": "shared role predates this deployment",
+      "followUpAction": "retain and notify platform owner"
+    },
+    {
+      "kind": "EbsSnapshot",
+      "id": "arn:aws:ec2:ap-northeast-2::snapshot/Z",
+      "environment": "prod",
+      "classification": "recovery-evidence",
+      "owner": "course-fixture",
+      "managedBy": "terraform",
+      "billable": true,
+      "decision": "RETAIN",
+      "reason": "recovery snapshot retention window",
+      "followUpAction": "delete after retention approval"
+    },
+    {
+      "kind": "EbsSnapshot",
+      "id": "arn:aws:ec2:ap-northeast-2::snapshot/a",
+      "environment": "prod",
+      "classification": "recovery-evidence",
+      "owner": "course-fixture",
+      "managedBy": "terraform",
+      "billable": true,
+      "decision": "RETAIN",
+      "reason": "recovery snapshot retention window",
+      "followUpAction": "delete after retention approval"
+    }
+  ]
+}

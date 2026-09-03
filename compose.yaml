@@ -4,7 +4,7 @@ services:
     environment:
       POSTGRES_DB: commerce
       POSTGRES_USER: commerce
-      POSTGRES_PASSWORD: course-local-only
+      POSTGRES_PASSWORD: "${DB_PASSWORD:?Set DB_PASSWORD before starting PostgreSQL}"
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-55432}:5432"
     healthcheck:

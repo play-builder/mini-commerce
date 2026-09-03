@@ -1,0 +1,57 @@
+completedRollback:
+  rolloutName: sample-app
+  rolloutUid: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+  stableHash: stable-hash-v2prime
+  targetHash: previous-stable-hash
+  rollbackWindow:
+    revisions: 2
+  candidates:
+    - imageDigest: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      productReadContract: v2prime
+      rolloutRevision: 3
+      gitRevertSha: "4444444444444444444444444444444444444444"
+      podTemplateHash: previous-stable-hash
+  replicaSetList:
+    apiVersion: apps/v1
+    kind: ReplicaSetList
+    items:
+      - metadata:
+          name: sample-app-target
+          creationTimestamp: 2026-09-03T03:00:00Z
+          labels:
+            rollouts-pod-template-hash: previous-stable-hash
+          ownerReferences:
+            - apiVersion: argoproj.io/v1alpha1
+              kind: Rollout
+              name: sample-app
+              uid: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+              controller: true
+      - metadata:
+          name: sample-app-stable
+          creationTimestamp: 2026-09-03T03:20:00Z
+          labels:
+            rollouts-pod-template-hash: stable-hash-v2prime
+          ownerReferences:
+            - apiVersion: argoproj.io/v1alpha1
+              kind: Rollout
+              name: sample-app
+              uid: aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee
+              controller: true
+inProgressStableReapply:
+  stableDigest: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+  candidateDigest: sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  requiresDesiredStateReconcile: true
+  action: git-reapply-stable-digest
+releaseLineage:
+  v1Compatible:
+    sourceSha: "1111111111111111111111111111111111111111"
+    indexDigest: sha256:1111111111111111111111111111111111111111111111111111111111111111
+  v2FaultyOrderTotal:
+    sourceSha: "2222222222222222222222222222222222222222"
+    indexDigest: sha256:2222222222222222222222222222222222222222222222222222222222222222
+  v201HotfixOrderTotal:
+    sourceSha: "3333333333333333333333333333333333333333"
+    indexDigest: sha256:3333333333333333333333333333333333333333333333333333333333333333
+  v2PrimeContractCompatible:
+    sourceSha: "4444444444444444444444444444444444444444"
+    indexDigest: sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

@@ -3,17 +3,36 @@ name: promote-dev-digest-to-prod
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Publish DEV_READY evidence or open a production candidate PR
+        required: true
+        type: choice
+        options:
+          - publish-dev-ready
+          - promote-candidate
+      dev_ready_run_id:
+        description: Exact CI run ID that produced verified supply-chain evidence
+        required: true
+        type: string
+      dev_ready_run_attempt:
+        description: Exact CI run attempt that produced verified supply-chain evidence
+        required: true
+        type: string
       expected_digest:
-        description: Optional dev index digest to promote; blank uses the current dev value
+        description: Optional dev index digest assertion; blank accepts the canonical evidence value
         required: false
         type: string
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   promotion-pr:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    environment: gitops-production
+    permissions:
+      actions: read
+      contents: read
 
     steps:
       - name: Checkout application scripts
@@ -37,30 +56,110 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: gitops
 
-      - name: Copy the exact dev application and migration digests to prod
-        id: update
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.20.0
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install evidence verifier dependencies
+        run: npm ci --prefix app --ignore-scripts
+
+      - name: Fetch exact CI run metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.dev_ready_run_id }}
+        run: |
+          mkdir -p evidence
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" > evidence/workflow-run.json
+
+      - name: Download exact verified supply-chain evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-supply-chain-${{ inputs.dev_ready_run_id }}-${{ inputs.dev_ready_run_attempt }}
+          path: evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.dev_ready_run_id }}
+
+      - name: Assemble canonical DEV_READY from supply chain, deployment, and SLO
+        id: dev-ready
         env:
           EXPECTED_DIGEST: ${{ inputs.expected_digest }}
         run: |
-          args=(
-            promote
-            gitops/envs/dev/values.yaml
-            gitops/envs/prod/values.yaml
-          )
-          if [[ -n "$EXPECTED_DIGEST" ]]; then
-            args+=("$EXPECTED_DIGEST")
-          fi
-          node app/scripts/gitops-values.mjs "${args[@]}"
+          node app/scripts/dev-ready-evidence.mjs assemble \
+            evidence/supply-chain-evidence.json \
+            gitops/evidence/dev/deployment.json gitops/evidence/dev/slo.json \
+            evidence/workflow-run.json "$GITHUB_REPOSITORY" \
+            evidence/canonical-dev-ready.json
+          node app/scripts/dev-ready-evidence.mjs verify \
+            evidence/canonical-dev-ready.json evidence/workflow-run.json "$GITHUB_REPOSITORY"
+          echo "repository=$(node -p \"JSON.parse(require('fs').readFileSync('evidence/canonical-dev-ready.json', 'utf8')).image.repository\")" >> "$GITHUB_OUTPUT"
+          echo "digest=$(node -p \"JSON.parse(require('fs').readFileSync('evidence/canonical-dev-ready.json', 'utf8')).image.indexDigest\")" >> "$GITHUB_OUTPUT"
 
+      - name: Publish canonical DEV_READY evidence
+        if: inputs.operation == 'publish-dev-ready'
+        id: publish
+        run: |
+          if cmp --silent evidence/canonical-dev-ready.json gitops/envs/prod/promotion-evidence.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            cp evidence/canonical-dev-ready.json gitops/envs/prod/promotion-evidence.yaml
+            branch="evidence/dev-ready-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            git -C gitops config user.name "gitops-delivery[bot]"
+            git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
+            git -C gitops switch -c "$branch"
+            git -C gitops add envs/prod/promotion-evidence.yaml
+            git -C gitops commit -m "evidence(prod): publish canonical dev readiness"
+            git -C gitops push origin "$branch"
+            echo "branch=$branch" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open DEV_READY evidence PR
+        if: inputs.operation == 'publish-dev-ready' && steps.publish.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
+        run: |
+          gh pr create \
+            --repo "$GH_REPO" \
+            --base main \
+            --head "${{ steps.publish.outputs.branch }}" \
+            --title "evidence(prod): publish canonical dev readiness" \
+            --body "Publishes the exact verified DEV_READY bytes. This PR does not change the production image."
+
+      - name: Bind published DEV_READY to selected runtime evidence
+        if: inputs.operation == 'promote-candidate'
+        run: |
+          if ! cmp --silent evidence/canonical-dev-ready.json gitops/envs/prod/promotion-evidence.yaml; then
+            echo "Published DEV_READY does not match the selected CI run and runtime evidence." >&2
+            exit 1
+          fi
+
+      - name: Verify candidate differs from recorded Prod baseline
+        if: inputs.operation == 'promote-candidate'
+        run: node app/scripts/dev-ready-evidence.mjs verify-baseline gitops/evidence/prod/baseline.json evidence/canonical-dev-ready.json
+
+      - name: Copy the exact dev application and migration digests to prod
+        if: inputs.operation == 'promote-candidate'
+        id: update
+        env:
+          DEV_READY_REPOSITORY: ${{ steps.dev-ready.outputs.repository }}
+          DEV_READY_DIGEST: ${{ steps.dev-ready.outputs.digest }}
+        run: |
+          node app/scripts/gitops-values.mjs promote \
+            gitops/envs/dev/values.yaml gitops/envs/prod/values.yaml \
+            "$DEV_READY_REPOSITORY" "$DEV_READY_DIGEST"
           if git -C gitops diff --quiet -- envs/prod/values.yaml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit promotion
-        if: steps.update.outputs.changed == 'true'
-        id: commit
+      - name: Commit production candidate
+        if: inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'
+        id: candidate-commit
         run: |
           branch="promotion/prod-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
@@ -72,7 +171,7 @@ jobs:
           git -C gitops push origin "$branch"
 
       - name: Open production approval PR
-        if: steps.update.outputs.changed == 'true'
+        if: inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
@@ -80,6 +179,6 @@ jobs:
           gh pr create \
             --repo "$GH_REPO" \
             --base main \
-            --head "${{ steps.commit.outputs.branch }}" \
+            --head "${{ steps.candidate-commit.outputs.branch }}" \
             --title "promote(prod): current verified dev digest" \
-            --body "CODEOWNERS approval is required. Merge starts the production Canary; this workflow never auto-merges production."
+            --body "CODEOWNERS approval is required. Merging this PR changes Git desired state only; it does not deploy by itself. After merge, an authorized operator must run Argo CD Sync to start the production Canary. This workflow never auto-merges production."

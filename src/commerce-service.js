@@ -57,6 +57,13 @@ function normalizeOrderInput(input) {
   };
 }
 
+export function calculateOrderTotal(orderItems) {
+  return orderItems.reduce(
+    (total, item) => total + (item.unitPriceCents * item.quantity),
+    0,
+  );
+}
+
 export function createCommerceService(repository) {
   if (!repository) throw new TypeError('commerce repository is required');
 
@@ -104,10 +111,7 @@ export function createCommerceService(repository) {
           };
         });
 
-        const totalCents = orderItems.reduce(
-          (total, item) => total + (item.unitPriceCents * item.quantity),
-          0,
-        );
+        const totalCents = calculateOrderTotal(orderItems);
         const order = await transaction.insertOrder({
           idempotencyKey: normalized.idempotencyKey,
           status: 'CONFIRMED',

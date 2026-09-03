@@ -1,31 +1,33 @@
-name: build-and-deploy-dev
+name: ci
+run-name: dev-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: read
-  id-token: write
+permissions: {}
 
 concurrency:
-  group: dev-delivery
+  group: dev-delivery-${{ github.ref }}
   queue: max
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     env:
-      DATABASE_TEST_URL: postgresql://commerce:course-ci-only@127.0.0.1:5432/commerce
+      DATABASE_TEST_URL: postgresql://commerce:${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/commerce
     services:
       postgres:
         image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
         env:
           POSTGRES_DB: commerce
           POSTGRES_USER: commerce
-          POSTGRES_PASSWORD: course-ci-only
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
         ports:
           - 5432:5432
         options: >-
@@ -87,15 +89,149 @@ jobs:
           provenance: mode=max
           sbom: true
 
-      - name: Verify image index digest
-        run: |
-          [[ -n "${{ steps.build.outputs.digest }}" ]]
-          docker buildx imagetools inspect \
-            "${{ steps.image.outputs.repository }}@${{ steps.build.outputs.digest }}"
-
-  update-dev-gitops:
+  verify-image-index:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image_repository: ${{ needs.build.outputs.image_repository }}
+      image_digest: ${{ needs.build.outputs.image_digest }}
+    steps:
+      - name: Checkout image verifier
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Verify immutable multi-architecture image index
+        run: bash scripts/verify-image-index.sh "${{ needs.build.outputs.image_repository }}" "${{ needs.build.outputs.image_digest }}"
+
+  attest-and-verify:
+    needs: [build, verify-image-index]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: write
+    outputs:
+      image_repository: ${{ needs.build.outputs.image_repository }}
+      image_digest: ${{ needs.build.outputs.image_digest }}
+    steps:
+      - name: Checkout supply-chain verifier
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Configure AWS credentials with GitHub OIDC
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: ${{ vars.AWS_ATTEST_VERIFY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install production dependency graph
+        run: npm ci --omit=dev --ignore-scripts
+
+      - name: Resolve immutable platform digests
+        id: platforms
+        env:
+          IMAGE_REPOSITORY: ${{ needs.build.outputs.image_repository }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
+        run: |
+          docker buildx imagetools inspect --raw "$IMAGE_REPOSITORY@$IMAGE_DIGEST" > image-index.json
+          echo "amd64=$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest' image-index.json)" >> "$GITHUB_OUTPUT"
+          echo "arm64=$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest' image-index.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Scan linux amd64 child manifest
+        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.24.0
+        with:
+          image-ref: ${{ needs.build.outputs.image_repository }}@${{ steps.platforms.outputs.amd64 }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+      - name: Scan linux arm64 child manifest
+        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.24.0
+        with:
+          image-ref: ${{ needs.build.outputs.image_repository }}@${{ steps.platforms.outputs.arm64 }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
+
+      - name: Generate application SPDX SBOM
+        run: npm sbom --omit=dev --sbom-format spdx --sbom-type application > sbom.spdx.json
+
+      - name: Create provenance attestation
+        id: provenance-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ needs.build.outputs.image_repository }}
+          subject-digest: ${{ needs.build.outputs.image_digest }}
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Create SPDX SBOM attestation
+        id: sbom-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ needs.build.outputs.image_repository }}
+          subject-digest: ${{ needs.build.outputs.image_digest }}
+          sbom-path: sbom.spdx.json
+          push-to-registry: true
+          create-storage-record: false
+
+      - name: Verify GitHub attestation and OCI referrers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE_REPOSITORY: ${{ needs.build.outputs.image_repository }}
+          IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
+          ATTESTATION_ID: ${{ steps.provenance-attestation.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.provenance-attestation.outputs.attestation-url }}
+        run: |
+          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://slsa.dev/provenance/v1"
+          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://spdx.dev/Document/v2.3"
+          aws ecr list-image-referrers --repository-name "${{ vars.ECR_REPOSITORY }}" --subject-id "imageDigest=$IMAGE_DIGEST" > ecr-referrers.json
+          node scripts/write-supply-chain-evidence.mjs image-index.json ecr-referrers.json supply-chain-evidence.json
+          node scripts/verify-supply-chain.mjs supply-chain-evidence.json
+
+      - name: Upload verified supply-chain evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: verified-supply-chain-${{ github.run_id }}-${{ github.run_attempt }}
+          path: supply-chain-evidence.json
+          if-no-files-found: error
+          retention-days: 7
+
+  update-dev-gitops:
+    if: ${{ github.ref == 'refs/heads/main' }}
+    needs: attest-and-verify
+    runs-on: ubuntu-latest
+    environment: gitops-dev-delivery
+    permissions:
+      contents: read
+    outputs:
+      gitops_revision: ${{ steps.revision.outputs.gitops_revision }}
 
     steps:
       - name: Checkout application scripts
@@ -124,8 +260,8 @@ jobs:
         run: |
           node app/scripts/gitops-values.mjs set \
             gitops/envs/dev/values.yaml \
-            "${{ needs.build.outputs.image_repository }}" \
-            "${{ needs.build.outputs.image_digest }}"
+            "${{ needs.attest-and-verify.outputs.image_repository }}" \
+            "${{ needs.attest-and-verify.outputs.image_digest }}"
 
           if git -C gitops diff --quiet -- envs/dev/values.yaml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
@@ -148,6 +284,7 @@ jobs:
 
       - name: Open and auto-merge the dev GitOps PR
         if: steps.update.outputs.changed == 'true'
+        id: dev-pr
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
@@ -157,6 +294,21 @@ jobs:
             --base main \
             --head "${{ steps.commit.outputs.branch }}" \
             --title "deploy(dev): ${{ github.sha }}" \
-            --body "Multi-arch image index: ${{ needs.build.outputs.image_repository }}@${{ needs.build.outputs.image_digest }}")
+            --body "Multi-arch image index: ${{ needs.attest-and-verify.outputs.image_repository }}@${{ needs.attest-and-verify.outputs.image_digest }}")
+          echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
           gh pr merge "$pr_url" --auto --squash --delete-branch
           bash app/scripts/wait-pr-terminal-state.sh "$pr_url" "$GH_REPO"
+
+      - name: Resolve exact Dev GitOps revision
+        id: revision
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
+          PR_URL: ${{ steps.dev-pr.outputs.pr_url }}
+        run: |
+          if [[ "${{ steps.update.outputs.changed }}" == "true" ]]; then
+            gitops_revision=$(gh pr view "$PR_URL" --repo "$GH_REPO" --json mergeCommit --jq '.mergeCommit.oid')
+          else
+            gitops_revision=$(git -C gitops rev-parse HEAD)
+          fi
+          echo "gitops_revision=$gitops_revision" >> "$GITHUB_OUTPUT"

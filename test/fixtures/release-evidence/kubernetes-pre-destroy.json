@@ -1,0 +1,19 @@
+{
+  "schemaVersion": "course.kubernetes-pre-destroy/v1",
+  "evidenceGrade": "STATIC",
+  "status": "PASS",
+  "courseId": "course-fixture",
+  "accountId": "123456789012",
+  "region": "ap-northeast-2",
+  "gitopsRemovalSha256": "d4c96a085947d8241c3031cc9dbe8400e08dfc9f309c9f6410505e0346b75e0c",
+  "clusters": [
+    {"environment":"dev","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev"},
+    {"environment":"prod","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod"}
+  ],
+  "remainingWriters": {"loadGenerators":0,"chaosResources":0,"recoveryJobs":0,"migrationJobs":0},
+  "remainingWorkloads": {"applications":0,"rollouts":0,"deployments":0,"statefulSets":0,"jobs":0,"externalSecrets":0,"chaosResources":0,"volumeAttachments":0},
+  "retainedStorage": [
+    {"environment":"dev","namespace":"app-dev","kind":"PersistentVolumeClaim","name":"commerce-data","uid":"11111111-2222-3333-4444-555555555555","classification":"source-pvc"}
+  ],
+  "observedAt": "2026-09-03T03:57:30Z"
+}

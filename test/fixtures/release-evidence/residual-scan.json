@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "course.cleanup-residual/v1",
+  "evidenceGrade": "STATIC",
+  "status": "PASS",
+  "courseId": "course-fixture",
+  "accountId": "123456789012",
+  "region": "ap-northeast-2",
+  "inventorySha256": "dbed922f47cb9d683a69e68e026c708c14cbf1f05c7c13d684efbb4befc00fe7",
+  "retainDecisionsSha256": "2e5a045b3bae1e0db8890687f2fab3b93b9151d9da1d0df032421ed9c3cde121",
+  "kubernetesPreDestroySha256": "0b10fd6ffb80324e61e5d2630f797373f8c3c70466e5f0196eb1a5eb38096c8c",
+  "gitopsRemovalSha256": "d4c96a085947d8241c3031cc9dbe8400e08dfc9f309c9f6410505e0346b75e0c",
+  "unapprovedCourseOwned": {
+    "loadBalancers": 0,
+    "natGateways": 0,
+    "eksClusters": 0,
+    "ebsVolumes": 0,
+    "ebsSnapshots": 0,
+    "ampWorkspaces": 0,
+    "snsTopics": 0,
+    "ecrRepositories": 0,
+    "total": 0
+  },
+  "externalShared": [
+    {"kind":"IAMOIDCProvider","id":"token.actions.githubusercontent.com","owner":"external","deletePlanned":false,"presentAfterCleanup":true}
+  ],
+  "retained": [
+    {"kind":"PersistentVolumeClaim","id":"app-dev/commerce-data","owner":"course-fixture","reason":"recovery evidence retained","followUpAction":"delete after retention approval","presentAfterCleanup":true},
+    {"kind":"SecretsManagerSecret","id":"course-fixture/dev/app","owner":"course-fixture","reason":"provider-managed recovery input","followUpAction":"delete after recovery evidence expires","presentAfterCleanup":true}
+  ],
+  "observedAt": "2026-09-03T03:58:00Z"
+}

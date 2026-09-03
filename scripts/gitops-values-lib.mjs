@@ -132,9 +132,21 @@ export function updateDeliveryImages(source, repository, digest) {
   return updateNestedImageBlock(applicationUpdated, 'database', 'migrationImage', repository, digest);
 }
 
-export function promoteDeliveryImages(devSource, prodSource) {
+export function promoteDeliveryImages(devSource, prodSource, expectedImage) {
   const applicationImage = readImageBlock(devSource);
   const migrationImage = readMigrationImageBlock(devSource);
+  if (applicationImage.repository !== migrationImage.repository
+    || applicationImage.digest !== migrationImage.digest) {
+    throw new Error('Dev application and migration images must match before promotion');
+  }
+  if (!expectedImage) throw new Error('canonical DEV_READY image is required');
+  assertImage(expectedImage.repository, expectedImage.digest);
+  if (applicationImage.repository !== expectedImage.repository) {
+    throw new Error('Dev repository does not match canonical DEV_READY');
+  }
+  if (applicationImage.digest !== expectedImage.digest) {
+    throw new Error('Dev digest does not match canonical DEV_READY');
+  }
   const applicationUpdated = updateImageBlock(
     prodSource,
     applicationImage.repository,
@@ -153,6 +165,109 @@ export function rollbackApplicationImage(source, repository, digest) {
   return updateImageBlock(source, repository, digest);
 }
 
+export function classifyRollbackBoundary({
+  state,
+  applicationDigest,
+  stableDigest,
+  previousMigrationDigest,
+  currentMigrationDigest,
+  gitDesiredStateDigest,
+  stableHash,
+  targetHash,
+  replicaSetList,
+  rolloutName,
+  rolloutUid,
+  rollbackWindow,
+}) {
+  for (const value of [
+    applicationDigest, stableDigest, previousMigrationDigest, currentMigrationDigest,
+    gitDesiredStateDigest,
+  ]) {
+    if (!digestPattern.test(value)) throw new Error('rollback evidence contains an invalid digest');
+  }
+  if (previousMigrationDigest !== currentMigrationDigest) {
+    throw new Error('MIGRATION_DIGEST_MUST_REMAIN_UNCHANGED');
+  }
+
+  if (state === 'in-progress') {
+    if (applicationDigest !== stableDigest) {
+      throw new Error('APPLICATION_DIGEST_MUST_MATCH_STABLE');
+    }
+    if (gitDesiredStateDigest !== stableDigest) {
+      throw new Error('GIT_DESIRED_STATE_MUST_MATCH_STABLE');
+    }
+    return 'in-progress-stable-reapply';
+  }
+  if (state !== 'completed') throw new Error(`unsupported rollout state: ${state}`);
+
+  const revisions = rollbackWindow?.revisions;
+  if (!Number.isSafeInteger(revisions) || revisions < 0) {
+    throw new Error('rollbackWindow.revisions must be a non-negative integer');
+  }
+  if (replicaSetList?.apiVersion !== 'apps/v1'
+    || replicaSetList.kind !== 'ReplicaSetList'
+    || !Array.isArray(replicaSetList.items)) {
+    throw new Error('ROLLBACK_REPLICASET_LIST_INVALID');
+  }
+  if (typeof rolloutName !== 'string' || rolloutName.length === 0) {
+    throw new Error('ROLLBACK_ROLLOUT_NAME_REQUIRED');
+  }
+  if (typeof rolloutUid !== 'string' || rolloutUid.length === 0) {
+    throw new Error('ROLLBACK_ROLLOUT_UID_REQUIRED');
+  }
+  if (typeof targetHash !== 'string' || targetHash.length === 0
+    || typeof stableHash !== 'string' || stableHash.length === 0) {
+    throw new Error('ROLLBACK_ENDPOINT_HASHES_REQUIRED');
+  }
+  if (targetHash === stableHash) throw new Error('ROLLBACK_ENDPOINT_HASHES_MUST_BE_DISTINCT');
+  const eligible = replicaSetList.items.filter((replicaSet) => {
+    const metadata = replicaSet?.metadata ?? {};
+    const owned = metadata.ownerReferences?.some((owner) => (
+      owner.apiVersion === 'argoproj.io/v1alpha1'
+      &&
+      owner.kind === 'Rollout'
+      && owner.name === rolloutName
+      && owner.uid === rolloutUid
+      && owner.controller === true
+    ));
+    return owned && !Object.hasOwn(
+      metadata.annotations ?? {},
+      'rollouts.argoproj.io/experiment-name',
+    );
+  }).map((replicaSet) => ({
+    podTemplateHash: replicaSet.metadata.labels?.['rollouts-pod-template-hash'],
+    creationTimestamp: replicaSet.metadata.creationTimestamp,
+  }));
+  for (const replicaSet of eligible) {
+    if (typeof replicaSet.podTemplateHash !== 'string' || replicaSet.podTemplateHash.length === 0) {
+      throw new Error('ROLLBACK_REPLICASET_HASH_INVALID');
+    }
+    if (!Number.isFinite(Date.parse(replicaSet.creationTimestamp))) {
+      throw new Error('ROLLBACK_REPLICASET_TIMESTAMP_INVALID');
+    }
+  }
+  const targets = eligible.filter(({ podTemplateHash }) => podTemplateHash === targetHash);
+  const stables = eligible.filter(({ podTemplateHash }) => podTemplateHash === stableHash);
+  if (targets.length === 0) throw new Error('ROLLBACK_TARGET_REPLICASET_MISSING');
+  if (targets.length > 1) throw new Error('ROLLBACK_TARGET_REPLICASET_DUPLICATE');
+  if (stables.length === 0) throw new Error('ROLLBACK_STABLE_REPLICASET_MISSING');
+  if (stables.length > 1) throw new Error('ROLLBACK_STABLE_REPLICASET_DUPLICATE');
+  const targetTime = Date.parse(targets[0].creationTimestamp);
+  const stableTime = Date.parse(stables[0].creationTimestamp);
+  if (!Number.isFinite(targetTime) || !Number.isFinite(stableTime)) {
+    throw new Error('ROLLBACK_REPLICASET_TIMESTAMP_INVALID');
+  }
+  if (targetTime >= stableTime) {
+    throw new Error('ROLLBACK_TARGET_MUST_BE_OLDER_THAN_STABLE');
+  }
+
+  const windowSize = eligible.filter(({ creationTimestamp }) => {
+    const timestamp = Date.parse(creationTimestamp);
+    return timestamp > targetTime && timestamp < stableTime;
+  }).length;
+  return windowSize < revisions ? 'completed-window-inside' : 'completed-window-outside';
+}
+
 export function setImageInFile(fileName, repository, digest) {
   const source = fs.readFileSync(fileName, 'utf8');
   const updated = updateImageBlock(source, repository, digest);
@@ -164,8 +279,8 @@ export function setDeliveryImagesInFile(fileName, repository, digest) {
   fs.writeFileSync(fileName, updateDeliveryImages(source, repository, digest));
 }
 
-export function promoteDeliveryImagesInFile(devFileName, prodFileName) {
+export function promoteDeliveryImagesInFile(devFileName, prodFileName, expectedImage) {
   const devSource = fs.readFileSync(devFileName, 'utf8');
   const prodSource = fs.readFileSync(prodFileName, 'utf8');
-  fs.writeFileSync(prodFileName, promoteDeliveryImages(devSource, prodSource));
+  fs.writeFileSync(prodFileName, promoteDeliveryImages(devSource, prodSource, expectedImage));
 }

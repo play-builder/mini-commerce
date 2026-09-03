@@ -8,3 +8,5 @@ export async function up(pgm) {
     WHERE display_name IS NULL;
   `);
 }
+
+export const down = false;

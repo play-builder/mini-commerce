@@ -1,0 +1,47 @@
+{
+  "schemaVersion": "course.release-evidence/v1",
+  "evidenceGrade": "STATIC",
+  "courseId": "course-fixture",
+  "accountId": "123456789012",
+  "region": "ap-northeast-2",
+  "observedAt": "2026-09-03T04:00:00Z",
+  "upstreamEvidence": {
+    "devReadyDigest": "sha256:00cc9438cee8be56412d56b9bddcc980b79b3d1d9a7358a476daa93a70e64e9d",
+    "prodBaselineDigest": "sha256:0d7507850865e77d91fd9ca19cff30b5516a5ae77bc1ebe84e68d6ff19037da2",
+    "prodSloDigest": "sha256:00f89e29e628a84883c90390ecb30879537a5ad1b058cfbd78443a22cc537f49",
+    "rollbackCompatibilityDigest": "sha256:31b70b30cc2c06688ce9959cfd3cbc90e9cec4ad1727177b22026efaa8cf6a1e",
+    "incidentIndexDigest": "sha256:538f240e5ac93cd5d5d63f7010bff12fe68cc7ef0c8038103d92351f94db030a",
+    "gitopsFreezeDigest": "sha256:c49f0f3c2262f2ed3cdc8fe10f6642bd9a486a5a965bd5f5b9652407c95c5cba",
+    "gitopsRemovalDigest": "sha256:d4c96a085947d8241c3031cc9dbe8400e08dfc9f309c9f6410505e0346b75e0c",
+    "ownershipInventoryDigest": "sha256:dbed922f47cb9d683a69e68e026c708c14cbf1f05c7c13d684efbb4befc00fe7",
+    "retainDecisionsDigest": "sha256:2e5a045b3bae1e0db8890687f2fab3b93b9151d9da1d0df032421ed9c3cde121",
+    "kubernetesPreDestroyDigest": "sha256:0b10fd6ffb80324e61e5d2630f797373f8c3c70466e5f0196eb1a5eb38096c8c",
+    "residualScanDigest": "sha256:1c635a5d380466392ba39047e0bc2759a91cfd969ae9c9ee01bc57de7457e16b"
+  },
+  "sourceSha": "0123456789abcdef0123456789abcdef01234567",
+  "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",
+  "runId": "1234567890",
+  "imageDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "attestation": {
+    "githubId": "1234567",
+    "githubUrl": "https://github.com/play-builder/cicd-course-sample-app/attestations/1234567",
+    "ociSbomDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "ociProvenanceDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+  },
+  "devGitopsSha": "fedcba9876543210fedcba9876543210fedcba98",
+  "prodGitopsSha": "2222222222222222222222222222222222222222",
+  "argoRevision": "2222222222222222222222222222222222222222",
+  "rolloutRevision": 4,
+  "analysisRun": { "name": "sample-app-analysis-4", "state": "Successful" },
+  "slo": { "evidenceId": "prod-slo-20260903T033000Z", "status": "PASS" },
+  "rollbackCandidates": [
+    {
+      "imageDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "productReadContract": "v2prime",
+      "rolloutRevision": 3,
+      "gitRevertSha": "4444444444444444444444444444444444444444",
+      "podTemplateHash": "previous-stable-hash"
+    }
+  ],
+  "cleanup": { "reconcileFrozen": true, "desiredStateRemoved": true, "residualScan": "PASS" }
+}

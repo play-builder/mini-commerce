@@ -55,10 +55,56 @@ test('forward delivery는 application과 migration digest를 함께 갱신한다
 test('promotion은 Dev의 application과 migration digest를 Prod에 함께 복사한다', () => {
   const digest = `sha256:${'d'.repeat(64)}`;
   const dev = updateDeliveryImages(source, 'dev.example/sample-app', digest);
-  const prod = promoteDeliveryImages(dev, source);
+  const prod = promoteDeliveryImages(dev, source, {
+    repository: 'dev.example/sample-app',
+    digest,
+  });
 
   assert.deepEqual(readImageBlock(prod), { repository: 'dev.example/sample-app', digest });
   assert.deepEqual(readMigrationImageBlock(prod), { repository: 'dev.example/sample-app', digest });
+});
+
+test('promotion은 Dev application과 migration image가 다르면 거부한다', () => {
+  const applicationDigest = `sha256:${'d'.repeat(64)}`;
+  const migrationDigest = `sha256:${'e'.repeat(64)}`;
+  const dev = updateDeliveryImages(source, 'dev.example/sample-app', applicationDigest)
+    .replace(
+      `    digest: "${applicationDigest}"`,
+      `    digest: "${migrationDigest}"`,
+    );
+
+  assert.throws(
+    () => promoteDeliveryImages(dev, source, {
+      repository: 'dev.example/sample-app',
+      digest: applicationDigest,
+    }),
+    /application and migration images must match/,
+  );
+});
+
+test('promotion은 canonical DEV_READY repository와 digest에 Dev image를 결속한다', () => {
+  const digest = `sha256:${'d'.repeat(64)}`;
+  const dev = updateDeliveryImages(source, 'dev.example/sample-app', digest);
+
+  assert.throws(
+    () => promoteDeliveryImages(dev, source),
+    /canonical DEV_READY image is required/,
+  );
+
+  assert.throws(
+    () => promoteDeliveryImages(dev, source, {
+      repository: 'other.example/sample-app',
+      digest,
+    }),
+    /Dev repository does not match canonical DEV_READY/,
+  );
+  assert.throws(
+    () => promoteDeliveryImages(dev, source, {
+      repository: 'dev.example/sample-app',
+      digest: `sha256:${'e'.repeat(64)}`,
+    }),
+    /Dev digest does not match canonical DEV_READY/,
+  );
 });
 
 test('Fix-Backward는 application digest만 되돌리고 migration digest는 유지한다', () => {

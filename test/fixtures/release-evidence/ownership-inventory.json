@@ -1,0 +1,46 @@
+{
+  "schemaVersion": "course.cleanup-ownership/v1",
+  "evidenceGrade": "STATIC",
+  "courseId": "course-fixture",
+  "accountId": "123456789012",
+  "region": "ap-northeast-2",
+  "resources": [
+    {
+      "kind": "IAMOIDCProvider",
+      "id": "token.actions.githubusercontent.com",
+      "environment": "shared",
+      "classification": "external-shared",
+      "owner": "external",
+      "managedBy": "terraform",
+      "billable": false,
+      "decision": "EXTERNAL_SHARED",
+      "reason": "account-wide provider predates this course",
+      "followUpAction": "retain and notify platform owner"
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "id": "app-dev/commerce-data",
+      "environment": "dev",
+      "classification": "source-pvc",
+      "owner": "course-fixture",
+      "managedBy": "terraform",
+      "billable": true,
+      "decision": "RETAIN",
+      "reason": "recovery evidence retained",
+      "followUpAction": "delete after retention approval"
+    },
+    {
+      "kind": "SecretsManagerSecret",
+      "id": "course-fixture/dev/app",
+      "environment": "dev",
+      "classification": "provider-secret",
+      "owner": "course-fixture",
+      "managedBy": "terraform",
+      "billable": false,
+      "decision": "RETAIN",
+      "reason": "provider-managed recovery input",
+      "followUpAction": "delete after recovery evidence expires"
+    }
+  ],
+  "observedAt": "2026-09-03T03:54:00Z"
+}
