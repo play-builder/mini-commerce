@@ -3,6 +3,13 @@ name: promote-dev-digest-to-prod
 on:
   workflow_dispatch:
     inputs:
+      operation:
+        description: Publish DEV_READY evidence or open a production candidate PR
+        required: true
+        type: choice
+        options:
+          - publish-dev-ready
+          - promote-candidate
       dev_ready_run_id:
         description: Exact CI run ID that produced verified supply-chain evidence
         required: true
@@ -12,7 +19,7 @@ on:
         required: true
         type: string
       expected_digest:
-        description: Optional dev index digest to promote; blank uses the current dev value
+        description: Optional dev index digest assertion; blank accepts the canonical evidence value
         required: false
         type: string
 
@@ -82,49 +89,33 @@ jobs:
             evidence/supply-chain-evidence.json \
             gitops/evidence/dev/deployment.json gitops/evidence/dev/slo.json \
             evidence/workflow-run.json "$GITHUB_REPOSITORY" \
-            gitops/envs/prod/promotion-evidence.yaml
+            evidence/canonical-dev-ready.json
           node app/scripts/dev-ready-evidence.mjs verify \
-            gitops/envs/prod/promotion-evidence.yaml evidence/workflow-run.json "$GITHUB_REPOSITORY"
-          echo "digest=$(node -p \"JSON.parse(require('fs').readFileSync('gitops/envs/prod/promotion-evidence.yaml', 'utf8')).image.indexDigest\")" >> "$GITHUB_OUTPUT"
+            evidence/canonical-dev-ready.json evidence/workflow-run.json "$GITHUB_REPOSITORY"
+          echo "repository=$(node -p \"JSON.parse(require('fs').readFileSync('evidence/canonical-dev-ready.json', 'utf8')).image.repository\")" >> "$GITHUB_OUTPUT"
+          echo "digest=$(node -p \"JSON.parse(require('fs').readFileSync('evidence/canonical-dev-ready.json', 'utf8')).image.indexDigest\")" >> "$GITHUB_OUTPUT"
 
-      - name: Verify candidate differs from recorded Ch17 Prod baseline
-        run: node app/scripts/dev-ready-evidence.mjs verify-baseline gitops/evidence/prod/baseline.json gitops/envs/prod/promotion-evidence.yaml
-
-      - name: Copy the exact dev application and migration digests to prod
-        id: update
-        env:
-          EXPECTED_DIGEST: ${{ inputs.expected_digest }}
-          DEV_READY_DIGEST: ${{ steps.dev-ready.outputs.digest }}
+      - name: Publish canonical DEV_READY evidence
+        if: inputs.operation == 'publish-dev-ready'
+        id: publish
         run: |
-          args=(
-            promote
-            gitops/envs/dev/values.yaml
-            gitops/envs/prod/values.yaml
-            "$DEV_READY_DIGEST"
-          )
-          node app/scripts/gitops-values.mjs "${args[@]}"
-
-          if git -C gitops diff --quiet -- envs/prod/values.yaml envs/prod/promotion-evidence.yaml; then
+          if cmp --silent evidence/canonical-dev-ready.json gitops/envs/prod/promotion-evidence.yaml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
+            cp evidence/canonical-dev-ready.json gitops/envs/prod/promotion-evidence.yaml
+            branch="evidence/dev-ready-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+            git -C gitops config user.name "gitops-delivery[bot]"
+            git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
+            git -C gitops switch -c "$branch"
+            git -C gitops add envs/prod/promotion-evidence.yaml
+            git -C gitops commit -m "evidence(prod): publish canonical dev readiness"
+            git -C gitops push origin "$branch"
+            echo "branch=$branch" >> "$GITHUB_OUTPUT"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Commit promotion
-        if: steps.update.outputs.changed == 'true'
-        id: commit
-        run: |
-          branch="promotion/prod-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
-          echo "branch=$branch" >> "$GITHUB_OUTPUT"
-          git -C gitops config user.name "gitops-delivery[bot]"
-          git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
-          git -C gitops switch -c "$branch"
-          git -C gitops add envs/prod/values.yaml envs/prod/promotion-evidence.yaml
-          git -C gitops commit -m "promote(prod): verified dev application and migration digests"
-          git -C gitops push origin "$branch"
-
-      - name: Open production approval PR
-        if: steps.update.outputs.changed == 'true'
+      - name: Open DEV_READY evidence PR
+        if: inputs.operation == 'publish-dev-ready' && steps.publish.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
@@ -132,6 +123,60 @@ jobs:
           gh pr create \
             --repo "$GH_REPO" \
             --base main \
-            --head "${{ steps.commit.outputs.branch }}" \
+            --head "${{ steps.publish.outputs.branch }}" \
+            --title "evidence(prod): publish canonical dev readiness" \
+            --body "Publishes the exact verified DEV_READY bytes. This PR does not change the production image."
+
+      - name: Bind published DEV_READY to selected runtime evidence
+        if: inputs.operation == 'promote-candidate'
+        run: |
+          if ! cmp --silent evidence/canonical-dev-ready.json gitops/envs/prod/promotion-evidence.yaml; then
+            echo "Published DEV_READY does not match the selected CI run and runtime evidence." >&2
+            exit 1
+          fi
+
+      - name: Verify candidate differs from recorded Prod baseline
+        if: inputs.operation == 'promote-candidate'
+        run: node app/scripts/dev-ready-evidence.mjs verify-baseline gitops/evidence/prod/baseline.json evidence/canonical-dev-ready.json
+
+      - name: Copy the exact dev application and migration digests to prod
+        if: inputs.operation == 'promote-candidate'
+        id: update
+        env:
+          DEV_READY_REPOSITORY: ${{ steps.dev-ready.outputs.repository }}
+          DEV_READY_DIGEST: ${{ steps.dev-ready.outputs.digest }}
+        run: |
+          node app/scripts/gitops-values.mjs promote \
+            gitops/envs/dev/values.yaml gitops/envs/prod/values.yaml \
+            "$DEV_READY_REPOSITORY" "$DEV_READY_DIGEST"
+          if git -C gitops diff --quiet -- envs/prod/values.yaml; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit production candidate
+        if: inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'
+        id: candidate-commit
+        run: |
+          branch="promotion/prod-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+          git -C gitops config user.name "gitops-delivery[bot]"
+          git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
+          git -C gitops switch -c "$branch"
+          git -C gitops add envs/prod/values.yaml
+          git -C gitops commit -m "promote(prod): verified dev application and migration digests"
+          git -C gitops push origin "$branch"
+
+      - name: Open production approval PR
+        if: inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
+        run: |
+          gh pr create \
+            --repo "$GH_REPO" \
+            --base main \
+            --head "${{ steps.candidate-commit.outputs.branch }}" \
             --title "promote(prod): current verified dev digest" \
             --body "CODEOWNERS approval is required. Merge starts the production Canary; this workflow never auto-merges production."

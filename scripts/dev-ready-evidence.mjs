@@ -47,21 +47,28 @@ function requireNonEmpty(value, label) {
 }
 
 function parseTimestamp(value, label) {
+  if (typeof value !== 'string'
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)) {
+    throw new Error(`invalid ${label}`);
+  }
   const parsed = new Date(value);
-  if (typeof value !== 'string' || Number.isNaN(parsed.valueOf())) throw new Error(`invalid ${label}`);
+  if (Number.isNaN(parsed.valueOf())
+    || parsed.toISOString() !== value.replace(/Z$/, '.000Z')) {
+    throw new Error(`invalid ${label}`);
+  }
   return parsed;
 }
 
 function parseEcrRepository(repository) {
-  const match = /^(\d{12})\.dkr\.ecr\.([a-z0-9-]+)\.amazonaws\.com(?:\.cn)?\/.+/.exec(repository);
-  if (!match) throw new Error('invalid image.repository');
-  return { accountId: match[1], region: match[2] };
+  const match = /^(\d{12})\.dkr\.ecr\.(ap-northeast-2|us-east-1)\.amazonaws\.com\/([a-z0-9]+(?:[._/-][a-z0-9]+)*)$/.exec(repository);
+  if (!match || match[3].length > 256) throw new Error('invalid image.repository');
+  return { accountId: match[1], region: match[2], name: match[3] };
 }
 
 function parseClusterArn(arn) {
-  const match = /^arn:[^:]+:eks:([a-z0-9-]+):(\d{12}):cluster\/.+/.exec(arn);
+  const match = /^arn:aws:eks:(ap-northeast-2|us-east-1):(\d{12}):cluster\/([A-Za-z0-9][A-Za-z0-9_-]{0,99})$/.exec(arn);
   if (!match) throw new Error('invalid cluster.arn');
-  return { region: match[1], accountId: match[2] };
+  return { region: match[1], accountId: match[2], name: match[3] };
 }
 
 function assertEqual(actual, expected, label) {
@@ -106,15 +113,23 @@ export function createDevReadyEvidence(input, now = new Date()) {
     throw new Error('invalid workflow.runId');
   }
   if (!Number.isInteger(input.workflow.runAttempt) || input.workflow.runAttempt < 1) throw new Error('invalid workflow.runAttempt');
-  requireNonEmpty(input.workflow.runUrl, 'workflow.runUrl');
+  const runUrl = /^https:\/\/github\.com\/([^/]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(input.workflow.runUrl);
+  if (!runUrl || runUrl[2] !== input.workflow.runId) throw new Error('invalid workflow.runUrl');
   const ecr = parseEcrRepository(input.image.repository);
   if (ecr.region !== input.region) throw new Error('image repository region mismatch');
   if (!digestPattern.test(input.image.indexDigest)) throw new Error('invalid image.indexDigest');
   if (JSON.stringify(input.image.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])) {
     throw new Error('image.platforms must equal linux/amd64,linux/arm64');
   }
-  requireNonEmpty(input.attestation.githubId, 'attestation.githubId');
+  if (typeof input.attestation.githubId !== 'string'
+    || !/^\d+$/.test(input.attestation.githubId)) {
+    throw new Error('invalid attestation.githubId');
+  }
   requireNonEmpty(input.attestation.githubUrl, 'attestation.githubUrl');
+  if (input.attestation.githubUrl
+    !== `https://github.com/${runUrl[1]}/attestations/${input.attestation.githubId}`) {
+    throw new Error('invalid attestation.githubUrl');
+  }
   for (const key of ['ociSbomDigest', 'ociProvenanceDigest']) {
     if (!digestPattern.test(input.attestation[key])) throw new Error(`invalid attestation.${key}`);
   }

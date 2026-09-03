@@ -150,8 +150,47 @@ test('future issue, wrong workflow identity, URL, cross-region, attestation, SLO
   ), /future issuedAt/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.event = 'workflow_dispatch'; }), expected, new Date('2026-09-03T00:30:00Z')), /workflow.event must equal push/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.runId = 1234567890; }), expected, new Date('2026-09-03T00:30:00Z')), /invalid workflow.runId/);
-  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.runUrl = 'https://attacker.test/actions/runs/1234567890'; }), expected, new Date('2026-09-03T00:30:00Z')), /workflow.runUrl mismatch/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.runUrl = 'https://attacker.test/actions/runs/1234567890'; }), expected, new Date('2026-09-03T00:30:00Z')), /invalid workflow.runUrl/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.image.repository = v.image.repository.replace('ap-northeast-2', 'us-east-1'); }), expected, new Date('2026-09-03T00:30:00Z')), /image repository region mismatch/);
-  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.attestation.githubUrl = 'https://github.com/attacker/repo/attestations/1234567'; }), expected, new Date('2026-09-03T00:30:00Z')), /attestation.githubUrl mismatch/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.attestation.githubUrl = 'https://github.com/attacker/repo/attestations/1234567'; }), expected, new Date('2026-09-03T00:30:00Z')), /invalid attestation.githubUrl/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.slo.evidenceId = 'arbitrary'; }), { ...expected, slo: { evidenceId: base.slo.evidenceId } }, new Date('2026-09-03T00:30:00Z')), /slo.evidenceId mismatch/);
+});
+
+test('DEV_READY는 commercial ECR, canonical EKS ARN, UTC timestamp와 numeric attestation ID만 허용한다', () => {
+  const base = fixture('dev-ready', 'ap-northeast-2.json');
+  const mutate = (callback) => {
+    const value = JSON.parse(JSON.stringify(base));
+    callback(value);
+    return value;
+  };
+  const now = new Date('2026-09-03T00:30:00Z');
+
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.image.repository = value.image.repository.replace('.amazonaws.com/', '.amazonaws.com.cn/');
+  }), now), /invalid image.repository/);
+  for (const clusterArn of [
+    'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/course-dev',
+    'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev/garbage',
+    'arn:aws:eks:ap-northeast-2:123456789012:cluster/course dev',
+  ]) {
+    assert.throws(() => createDevReadyEvidence(mutate((value) => {
+      value.cluster.arn = clusterArn;
+    }), now), /invalid cluster.arn/);
+  }
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.issuedAt = '2026-09-03';
+  }), now), /invalid DEV_READY issuedAt/);
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.expiresAt = '2026-09-04T09:00:00+09:00';
+  }), now), /invalid DEV_READY expiresAt/);
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.expiresAt = '2026-02-31T00:00:00Z';
+  }), now), /invalid DEV_READY expiresAt/);
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.attestation.githubId = 'attestation-alpha';
+  }), now), /invalid attestation.githubId/);
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.workflow.runUrl = 'https://github.com/play-builder/renamed-app/actions/runs/1234567890';
+    value.attestation.githubUrl = 'https://github.com/play-builder/renamed-app/attestations/1234567';
+  }), now), /invalid workflow.runUrl/);
 });

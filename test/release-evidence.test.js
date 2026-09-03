@@ -385,6 +385,41 @@ test('final exporter는 두 canonical image platform이 아닌 DEV_READY를 거�
   }), /invalid DEV_READY identity/);
 });
 
+test('final exporter는 noncanonical DEV_READY AWS identity를 거부한다', () => {
+  const mutations = [
+    (value) => { value.cluster.arn = 'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/course-dev'; },
+    (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev/garbage'; },
+    (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course dev'; },
+    (value) => { value.image.repository = value.image.repository.replace('.amazonaws.com/', '.amazonaws.com.cn/'); },
+  ];
+
+  for (const mutate of mutations) {
+    const input = fixture('complete.json');
+    const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
+    mutate(devReady);
+    const devReadySource = Buffer.from(JSON.stringify(devReady));
+    input.upstreamEvidence.devReadyDigest = `sha256:${rawSha256(devReadySource)}`;
+    assert.throws(() => exportReleaseEvidence(input, {
+      ...fixtureOptions,
+      upstreamSources: { ...upstreamSources, devReadySource },
+    }), /invalid DEV_READY (?:cluster ARN|image repository)/);
+  }
+});
+
+test('final exporter는 renamed sample application repository의 DEV_READY를 거부한다', () => {
+  const input = fixture('complete.json');
+  const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
+  devReady.workflow.runUrl = 'https://github.com/play-builder/renamed-app/actions/runs/1234567890';
+  devReady.attestation.githubUrl = 'https://github.com/play-builder/renamed-app/attestations/1234567';
+  const devReadySource = Buffer.from(JSON.stringify(devReady));
+  input.upstreamEvidence.devReadyDigest = `sha256:${rawSha256(devReadySource)}`;
+
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, devReadySource },
+  }), /invalid DEV_READY workflow identity/);
+});
+
 test('final exporter는 rollback window 안의 모든 v2prime candidate를 보존한다', () => {
   const input = fixture('complete.json');
   const rollback = YAML.parse(upstreamSources.rollbackCompatibilitySource.toString('utf8'));

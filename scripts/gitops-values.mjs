@@ -5,7 +5,6 @@ import fs from 'node:fs';
 import {
   promoteDeliveryImagesInFile,
   classifyRollbackBoundary,
-  readImageBlock,
   setDeliveryImagesInFile,
   setImageInFile,
 } from './gitops-values-lib.mjs';
@@ -16,13 +15,12 @@ if (command === 'set' && args.length === 3) {
   const [fileName, repository, digest] = args;
   setDeliveryImagesInFile(fileName, repository, digest);
   console.log(`updated application and migration images in ${fileName} -> ${repository}@${digest}`);
-} else if (command === 'promote' && (args.length === 2 || args.length === 3)) {
-  const [devFile, prodFile, expectedDigest] = args;
-  const devImage = readImageBlock(fs.readFileSync(devFile, 'utf8'));
-  if (expectedDigest && expectedDigest !== devImage.digest) {
-    throw new Error(`requested digest ${expectedDigest} is not the current dev digest ${devImage.digest}`);
-  }
-  promoteDeliveryImagesInFile(devFile, prodFile);
+} else if (command === 'promote' && args.length === 4) {
+  const [devFile, prodFile, expectedRepository, expectedDigest] = args;
+  promoteDeliveryImagesInFile(devFile, prodFile, {
+    repository: expectedRepository,
+    digest: expectedDigest,
+  });
   console.log(`promoted application and migration images to ${prodFile}`);
 } else if (command === 'rollback-app' && args.length === 3) {
   const [fileName, repository, digest] = args;
@@ -33,7 +31,7 @@ if (command === 'set' && args.length === 3) {
   console.log(classifyRollbackBoundary(evidence));
 } else {
   console.error('usage: gitops-values.mjs set FILE REPOSITORY DIGEST');
-  console.error('   or: gitops-values.mjs promote DEV_FILE PROD_FILE [EXPECTED_DIGEST]');
+  console.error('   or: gitops-values.mjs promote DEV_FILE PROD_FILE EXPECTED_REPOSITORY EXPECTED_DIGEST');
   console.error('   or: gitops-values.mjs rollback-app FILE REPOSITORY DIGEST');
   console.error('   or: gitops-values.mjs classify-rollback EVIDENCE_JSON');
   process.exit(2);

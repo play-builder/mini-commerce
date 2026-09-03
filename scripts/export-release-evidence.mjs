@@ -70,16 +70,16 @@ function isNonemptyString(value) {
 }
 
 function parseClusterArn(value, label) {
-  const match = /^arn:[^:]+:eks:([^:]+):(\d{12}):cluster\/(.+)$/.exec(value ?? '');
-  if (!match || !supportedRegions.has(match[1]) || !isNonemptyString(match[3])) {
+  const match = /^arn:aws:eks:(ap-northeast-2|us-east-1):(\d{12}):cluster\/([A-Za-z0-9][A-Za-z0-9_-]{0,99})$/.exec(value ?? '');
+  if (!match) {
     throw new Error(`invalid ${label}`);
   }
   return { region: match[1], accountId: match[2], name: match[3] };
 }
 
 function parseEcrRepository(value, label) {
-  const match = /^(\d{12})\.dkr\.ecr\.([^.]+)\.amazonaws\.com\/(.+)$/.exec(value ?? '');
-  if (!match || !supportedRegions.has(match[2]) || !isNonemptyString(match[3])) {
+  const match = /^(\d{12})\.dkr\.ecr\.(ap-northeast-2|us-east-1)\.amazonaws\.com\/([a-z0-9]+(?:[._/-][a-z0-9]+)*)$/.exec(value ?? '');
+  if (!match || match[3].length > 256) {
     throw new Error(`invalid ${label}`);
   }
   return { accountId: match[1], region: match[2], name: match[3] };
@@ -107,11 +107,12 @@ function canonicalize(value) {
 
 function parseTimestamp(value, label) {
   if (typeof value !== 'string'
-    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z$/.test(value)) {
+    || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)) {
     throw new Error(`invalid ${label}`);
   }
   const timestamp = new Date(value);
-  if (Number.isNaN(timestamp.valueOf())) {
+  if (Number.isNaN(timestamp.valueOf())
+    || timestamp.toISOString() !== value.replace(/Z$/, '.000Z')) {
     throw new Error(`invalid ${label}`);
   }
   return timestamp;
@@ -458,7 +459,8 @@ function verifyDevReady(value) {
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
     || typeof value.workflow.runId !== 'string' || !/^\d+$/.test(value.workflow.runId)
     || JSON.stringify(value.image.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])
-    || !isNonemptyString(value.attestation.githubId)
+    || typeof value.attestation.githubId !== 'string'
+    || !/^\d+$/.test(value.attestation.githubId)
     || !isNonemptyString(value.attestation.githubUrl)
     || !digestPattern.test(value.attestation.ociSbomDigest)
     || !digestPattern.test(value.attestation.ociProvenanceDigest)
@@ -467,9 +469,13 @@ function verifyDevReady(value) {
   }
   if (!shaPattern.test(value.sourceSha) || !shaPattern.test(value.gitops.devRevision)
     || !digestPattern.test(value.image.indexDigest)) throw new Error('invalid DEV_READY immutable identity');
-  const runMatch = /^https:\/\/github\.com\/([^/]+\/[^/]+)\/actions\/runs\/(\d+)$/.exec(value.workflow.runUrl);
+  const runMatch = /^https:\/\/github\.com\/([^/]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(value.workflow.runUrl);
   if (!runMatch || runMatch[2] !== String(value.workflow.runId)) {
     throw new Error('invalid DEV_READY workflow identity');
+  }
+  if (value.attestation.githubUrl
+    !== `https://github.com/${runMatch[1]}/attestations/${value.attestation.githubId}`) {
+    throw new Error('invalid DEV_READY attestation identity');
   }
   const cluster = parseClusterArn(value.cluster.arn, 'DEV_READY cluster ARN');
   const ecr = parseEcrRepository(value.image.repository, 'DEV_READY image repository');

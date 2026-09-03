@@ -99,24 +99,68 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
   )));
 });
 
-test('CI는 supply-chain까지만 publish하고 promotion이 세 runtime evidence와 baseline을 검증한다', () => {
+test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모드다', () => {
   const ci = readWorkflow('ci.yml');
   assert.equal(Object.hasOwn(ci.jobs, 'publish-dev-ready'), false);
 
   const promote = readWorkflow('promote.yml');
+  assert.deepEqual(promote.on.workflow_dispatch.inputs.operation, {
+    description: 'Publish DEV_READY evidence or open a production candidate PR',
+    required: true,
+    type: 'choice',
+    options: ['publish-dev-ready', 'promote-candidate'],
+  });
   assert.equal(promote.on.workflow_dispatch.inputs.dev_ready_run_id.required, true);
   assert.deepEqual(promote.jobs['promotion-pr'].permissions, { actions: 'read', contents: 'read' });
   const steps = promote.jobs['promotion-pr'].steps;
   const gitopsCheckoutIndex = steps.findIndex((step) => step.name === 'Checkout GitOps repository');
   const assemblyIndex = steps.findIndex((step) => step.run?.includes('dev-ready-evidence.mjs assemble'));
   assert.ok(gitopsCheckoutIndex >= 0 && gitopsCheckoutIndex < assemblyIndex);
-  const text = fs.readFileSync(new URL('../.github/workflows/promote.yml', import.meta.url), 'utf8');
-  assert.match(text, /evidence\/dev\/deployment\.json/);
-  assert.match(text, /evidence\/dev\/slo\.json/);
-  assert.match(text, /evidence\/prod\/baseline\.json/);
-  assert.match(text, /dev-ready-evidence\.mjs verify-baseline/);
-  assert.match(text, /gh api.*actions\/runs/);
-  assert.match(text, /verified-supply-chain-/);
+
+  const assembly = steps[assemblyIndex];
+  assert.match(assembly.run, /evidence\/canonical-dev-ready\.json/);
+  assert.doesNotMatch(assembly.run, /assemble[\s\S]*gitops\/envs\/prod\/promotion-evidence\.yaml/);
+  assert.match(assembly.run, /repository=/);
+  assert.match(assembly.run, /digest=/);
+
+  const publish = steps.find((step) => step.name === 'Publish canonical DEV_READY evidence');
+  assert.equal(publish.if, "inputs.operation == 'publish-dev-ready'");
+  assert.match(publish.run, /cmp --silent evidence\/canonical-dev-ready\.json gitops\/envs\/prod\/promotion-evidence\.yaml/);
+  assert.match(publish.run, /cp evidence\/canonical-dev-ready\.json gitops\/envs\/prod\/promotion-evidence\.yaml/);
+  assert.match(publish.run, /git -C gitops add envs\/prod\/promotion-evidence\.yaml/);
+  assert.doesNotMatch(publish.run, /envs\/prod\/values\.yaml/);
+
+  const publishPr = steps.find((step) => step.name === 'Open DEV_READY evidence PR');
+  assert.equal(
+    publishPr.if,
+    "inputs.operation == 'publish-dev-ready' && steps.publish.outputs.changed == 'true'",
+  );
+
+  const bindPublished = steps.find((step) => step.name === 'Bind published DEV_READY to selected runtime evidence');
+  assert.equal(bindPublished.if, "inputs.operation == 'promote-candidate'");
+  assert.match(bindPublished.run, /cmp --silent evidence\/canonical-dev-ready\.json gitops\/envs\/prod\/promotion-evidence\.yaml/);
+
+  const baseline = steps.find((step) => step.name === 'Verify candidate differs from recorded Prod baseline');
+  assert.equal(baseline.if, "inputs.operation == 'promote-candidate'");
+  assert.match(baseline.run, /evidence\/prod\/baseline\.json/);
+
+  const update = steps.find((step) => step.name === 'Copy the exact dev application and migration digests to prod');
+  assert.equal(update.if, "inputs.operation == 'promote-candidate'");
+  assert.match(update.run, /"\$DEV_READY_REPOSITORY"/);
+  assert.match(update.run, /"\$DEV_READY_DIGEST"/);
+  assert.match(update.run, /git -C gitops diff --quiet -- envs\/prod\/values\.yaml/);
+  assert.doesNotMatch(update.run, /promotion-evidence\.yaml/);
+
+  const promotion = steps.find((step) => step.name === 'Commit production candidate');
+  assert.equal(promotion.if, "inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'");
+  assert.match(promotion.run, /git -C gitops add envs\/prod\/values\.yaml/);
+  assert.doesNotMatch(promotion.run, /promotion-evidence\.yaml/);
+
+  const promotionPr = steps.find((step) => step.name === 'Open production approval PR');
+  assert.equal(
+    promotionPr.if,
+    "inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'",
+  );
 });
 
 test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () => {

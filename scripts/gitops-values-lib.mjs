@@ -132,12 +132,20 @@ export function updateDeliveryImages(source, repository, digest) {
   return updateNestedImageBlock(applicationUpdated, 'database', 'migrationImage', repository, digest);
 }
 
-export function promoteDeliveryImages(devSource, prodSource) {
+export function promoteDeliveryImages(devSource, prodSource, expectedImage) {
   const applicationImage = readImageBlock(devSource);
   const migrationImage = readMigrationImageBlock(devSource);
   if (applicationImage.repository !== migrationImage.repository
     || applicationImage.digest !== migrationImage.digest) {
     throw new Error('Dev application and migration images must match before promotion');
+  }
+  if (!expectedImage) throw new Error('canonical DEV_READY image is required');
+  assertImage(expectedImage.repository, expectedImage.digest);
+  if (applicationImage.repository !== expectedImage.repository) {
+    throw new Error('Dev repository does not match canonical DEV_READY');
+  }
+  if (applicationImage.digest !== expectedImage.digest) {
+    throw new Error('Dev digest does not match canonical DEV_READY');
   }
   const applicationUpdated = updateImageBlock(
     prodSource,
@@ -271,8 +279,8 @@ export function setDeliveryImagesInFile(fileName, repository, digest) {
   fs.writeFileSync(fileName, updateDeliveryImages(source, repository, digest));
 }
 
-export function promoteDeliveryImagesInFile(devFileName, prodFileName) {
+export function promoteDeliveryImagesInFile(devFileName, prodFileName, expectedImage) {
   const devSource = fs.readFileSync(devFileName, 'utf8');
   const prodSource = fs.readFileSync(prodFileName, 'utf8');
-  fs.writeFileSync(prodFileName, promoteDeliveryImages(devSource, prodSource));
+  fs.writeFileSync(prodFileName, promoteDeliveryImages(devSource, prodSource, expectedImage));
 }

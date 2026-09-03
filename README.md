@@ -223,9 +223,11 @@ index digest를 가리킬 때만 GitOps update job으로 넘어갑니다.
 
 CI는 검증된 supply-chain evidence artifact까지만 보관합니다. Dev 배포 뒤 EKS-infra runtime
 checker와 SLO gate가 각각 GitOps 저장소에 기록한 deployment·SLO evidence를 promotion workflow가
-exact CI run의 supply-chain evidence와 교차 검증해 canonical DEV_READY를 조립합니다. Ch17에서
-기록한 별도 Prod runtime baseline과 digest·cluster identity가 다른지 확인한 뒤에만 승인용 Prod
-PR을 생성합니다.
+exact CI run의 supply-chain evidence와 교차 검증해 canonical DEV_READY를 조립합니다.
+`publish-dev-ready` 실행은 이 증거 파일만 PR로 게시하며 Prod image를 바꾸지 않습니다.
+증거 PR이 merge된 뒤 `promote-candidate`를 실행하면 동일 입력에서 다시 만든 canonical bytes가
+게시된 증거와 정확히 같은지 확인하고, 별도로 기록한 Prod runtime baseline과 digest·cluster
+identity가 다른 경우에만 Prod values 변경 PR을 생성합니다.
 
 ```text
 schemaVersion, environment, region, sourceSha, workflow, image,
@@ -238,7 +240,7 @@ root key를 평탄화하거나 이름을 바꾼 evidence는 호환 대상으로 
 | --- | --- | --- |
 | `.github/workflows/test.yml` | application PR | lint, unit test, PostgreSQL transaction test, image build |
 | `.github/workflows/ci.yml` | `main` push | ECR push, Dev app·migration digest PR, validation 후 auto-merge |
-| `.github/workflows/promote.yml` | 수동 dispatch | 현재 Dev app·migration digest를 Prod에 복사한 승인 PR |
+| `.github/workflows/promote.yml` | 수동 dispatch | DEV_READY 게시 PR 또는 검증된 Prod values 승인 PR |
 
 GitHub App token의 push가 GitOps validate workflow를 한 번 실행하는 것은 정상입니다. 자동화가
 같은 digest를 다시 쓰지 않도록 `gitops-values.mjs`가 idempotent하게 동작하므로 무한 trigger
