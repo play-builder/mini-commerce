@@ -348,6 +348,27 @@ test('cleanup ownership은 중복 kind와 ID를 거부한다', () => {
   );
 });
 
+test('cleanup ownership은 lone surrogate가 포함된 identity를 거부한다', () => {
+  const { input, options } = ownershipMutationInput((ownership) => {
+    ownership.resources.push({
+      kind: 'EksCluster',
+      id: 'invalid-\ud800-identity',
+      environment: 'dev',
+      classification: 'runtime',
+      owner: 'course',
+      managedBy: 'terraform',
+      billable: true,
+      decision: 'DELETE',
+      reason: '',
+      followUpAction: '',
+    });
+  });
+  assert.throws(
+    () => exportReleaseEvidence(input, options),
+    /cleanup ownership resource is invalid/,
+  );
+});
+
 test('provider Secret projection은 jq sort_by와 같은 Unicode codepoint 순서를 사용한다', () => {
   const input = fixture('complete.json');
   const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));

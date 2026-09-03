@@ -66,7 +66,8 @@ function isMissing(value) {
 }
 
 function isNonemptyString(value) {
-  return typeof value === 'string' && value.trim().length > 0;
+  return typeof value === 'string' && value.trim().length > 0
+    && !/[\uD800-\uDFFF]/u.test(value);
 }
 
 function parseClusterArn(value, label) {
