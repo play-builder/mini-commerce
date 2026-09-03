@@ -75,6 +75,17 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
     step.uses === 'aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd'
   )));
   assert.equal(workflow.jobs['update-dev-gitops'].needs, 'attest-and-verify');
+  const attestSteps = job.steps.filter((step) => (
+    step.uses === 'actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6'
+  ));
+  assert.equal(attestSteps.length, 2);
+  assert.equal(attestSteps.filter((step) => step.with['sbom-path']).length, 1);
+  assert.ok(job.steps.some((step) => step.run?.includes('npm sbom --omit=dev --sbom-format spdx --sbom-type application')));
+  const verification = job.steps.find((step) => step.name === 'Verify GitHub attestation and OCI referrers');
+  assert.match(verification.run, /--bundle-from-oci/);
+  assert.match(verification.run, /--signer-workflow/);
+  assert.match(verification.run, /--source-digest/);
+  assert.match(verification.run, /https:\/\/spdx\.dev\/Document\/v2\.3/);
 });
 
 test('CI는 canonical DEV_READY를 publish하고 promotion은 같은 artifact를 검증한다', () => {

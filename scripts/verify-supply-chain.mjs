@@ -1,6 +1,27 @@
 import fs from 'node:fs';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
+const predicateTypes = Object.freeze({
+  provenance: 'https://slsa.dev/provenance/v1',
+  sbom: 'https://spdx.dev/Document/v2.3',
+});
+
+export function selectReferrerDigests(referrers) {
+  const selectOne = (kind, predicateType) => {
+    const matches = referrers.filter((referrer) => (
+      referrer.annotations?.['dev.sigstore.bundle.predicateType'] === predicateType
+    ));
+    if (matches.length !== 1 || !digestPattern.test(matches[0].digest)) {
+      throw new Error(`exactly one valid OCI ${kind} referrer is required`);
+    }
+    return matches[0].digest;
+  };
+
+  return {
+    provenanceDigest: selectOne('provenance', predicateTypes.provenance),
+    sbomDigest: selectOne('SBOM', predicateTypes.sbom),
+  };
+}
 
 export function verifySupplyChain(evidence) {
   if (!digestPattern.test(evidence.imageDigest)) throw new Error('invalid image digest');

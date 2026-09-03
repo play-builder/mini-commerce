@@ -144,6 +144,15 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.20.0
+          cache: npm
+
+      - name: Install production dependency graph
+        run: npm ci --omit=dev --ignore-scripts
+
       - name: Resolve immutable platform digests
         id: platforms
         env:
@@ -170,12 +179,24 @@ jobs:
           exit-code: 1
           severity: CRITICAL,HIGH
 
-      - name: Create GitHub build attestation
-        id: github-attestation
-        uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
+      - name: Generate application SPDX SBOM
+        run: npm sbom --omit=dev --sbom-format spdx --sbom-type application > sbom.spdx.json
+
+      - name: Create provenance attestation
+        id: provenance-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           subject-name: ${{ needs.build.outputs.image_repository }}
           subject-digest: ${{ needs.build.outputs.image_digest }}
+          push-to-registry: true
+
+      - name: Create SPDX SBOM attestation
+        id: sbom-attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ${{ needs.build.outputs.image_repository }}
+          subject-digest: ${{ needs.build.outputs.image_digest }}
+          sbom-path: sbom.spdx.json
           push-to-registry: true
 
       - name: Verify GitHub attestation and OCI referrers
@@ -183,10 +204,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           IMAGE_REPOSITORY: ${{ needs.build.outputs.image_repository }}
           IMAGE_DIGEST: ${{ needs.build.outputs.image_digest }}
-          ATTESTATION_ID: ${{ steps.github-attestation.outputs.attestation-id }}
-          ATTESTATION_URL: ${{ steps.github-attestation.outputs.attestation-url }}
+          ATTESTATION_ID: ${{ steps.provenance-attestation.outputs.attestation-id }}
+          ATTESTATION_URL: ${{ steps.provenance-attestation.outputs.attestation-url }}
         run: |
-          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY"
+          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA"
+          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://spdx.dev/Document/v2.3"
           aws ecr list-image-referrers --repository-name "${{ vars.ECR_REPOSITORY }}" --subject-id "imageDigest=$IMAGE_DIGEST" > ecr-referrers.json
           node scripts/write-supply-chain-evidence.mjs image-index.json ecr-referrers.json supply-chain-evidence.json
           node scripts/verify-supply-chain.mjs supply-chain-evidence.json

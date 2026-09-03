@@ -2,7 +2,7 @@
 
 import fs from 'node:fs';
 
-import { verifySupplyChain } from './verify-supply-chain.mjs';
+import { selectReferrerDigests, verifySupplyChain } from './verify-supply-chain.mjs';
 
 const [indexFile, referrersFile, outputFile] = process.argv.slice(2);
 if (!indexFile || !referrersFile || !outputFile) {
@@ -11,7 +11,7 @@ if (!indexFile || !referrersFile || !outputFile) {
 
 const imageIndex = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
 const referrers = JSON.parse(fs.readFileSync(referrersFile, 'utf8')).referrers ?? [];
-const byType = (pattern) => referrers.find((item) => pattern.test(item.artifactType ?? ''))?.digest;
+const { provenanceDigest, sbomDigest } = selectReferrerDigests(referrers);
 const evidence = {
   sourceSha: process.env.GITHUB_SHA,
   workflowName: process.env.GITHUB_WORKFLOW,
@@ -35,8 +35,8 @@ const evidence = {
   },
   ociReferrers: {
     subjectDigest: process.env.IMAGE_DIGEST,
-    sbomDigest: byType(/spdx|sbom/i),
-    provenanceDigest: byType(/in-toto|provenance/i),
+    sbomDigest,
+    provenanceDigest,
   },
 };
 

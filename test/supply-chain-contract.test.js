@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
 
-import { verifySupplyChain } from '../scripts/verify-supply-chain.mjs';
+import { selectReferrerDigests, verifySupplyChain } from '../scripts/verify-supply-chain.mjs';
 
 const fixture = (name) => JSON.parse(fs.readFileSync(
   new URL(`./fixtures/supply-chain/${name}`, import.meta.url),
@@ -26,4 +26,11 @@ test('arm64 scan이 없는 evidence를 거부한다', () => {
     () => verifySupplyChain(fixture('missing-arm64-scan.json')),
     /linux\/arm64 scan is required/,
   );
+});
+
+test('공통 artifactType이 아니라 Sigstore predicateType annotation으로 referrer를 구분한다', () => {
+  assert.deepEqual(selectReferrerDigests(fixture('ecr-referrers.json').referrers), {
+    provenanceDigest: 'sha256:1111111111111111111111111111111111111111111111111111111111111111',
+    sbomDigest: 'sha256:2222222222222222222222222222222222222222222222222222222222222222',
+  });
 });

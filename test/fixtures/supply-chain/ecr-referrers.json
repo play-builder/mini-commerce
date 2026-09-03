@@ -1,0 +1,14 @@
+{
+  "referrers": [
+    {
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "artifactType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+      "annotations": { "dev.sigstore.bundle.predicateType": "https://slsa.dev/provenance/v1" }
+    },
+    {
+      "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "artifactType": "application/vnd.dev.sigstore.bundle.v0.3+json",
+      "annotations": { "dev.sigstore.bundle.predicateType": "https://spdx.dev/Document/v2.3" }
+    }
+  ]
+}
