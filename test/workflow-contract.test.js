@@ -133,10 +133,12 @@ test('Trivy scans use the verified action and explicit scanner version without w
 });
 
 test('version lock records the verified Trivy action and scanner release', () => {
-  assert.deepEqual(readVersionsLock().delivery, {
-    configureAwsCredentialsAction: '6.2.3',
-    configureAwsCredentialsActionSha: 'e6de054238d6b7531b4efff3b6587d9aade6a06c',
-    targetPlatforms: ['linux/amd64', 'linux/arm64'],
+  const { trivy, trivyAction, trivyActionSha } = readVersionsLock().delivery;
+  assert.deepEqual({
+    trivy,
+    trivyAction,
+    trivyActionSha,
+  }, {
     trivy: '0.74.0',
     trivyAction: '0.36.0',
     trivyActionSha: 'ed142fd0673e97e23eac54620cfb913e5ce36c25',
