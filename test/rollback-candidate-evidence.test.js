@@ -1,0 +1,59 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { test } from 'node:test';
+
+import { verifyContract003RollbackCandidates } from '../src/migration-ledger.js';
+
+const validEvidence = () => ({
+  schemaVersion: 'course.rollback-candidates/v1',
+  evidenceGrade: 'CLOUD_RUNTIME',
+  environment: 'prod',
+  region: 'ap-northeast-2',
+  clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod',
+  rolloutName: 'sample-app',
+  gitopsRevision: 'a'.repeat(40),
+  sourceEvidenceDigest: `sha256:${'b'.repeat(64)}`,
+  observedAt: '2026-09-03T00:00:00Z',
+  expiresAt: '2026-09-03T01:00:00Z',
+  candidates: [{
+    imageDigest: `sha256:${'c'.repeat(64)}`,
+    productReadContract: 'v2prime',
+    rolloutRevision: 3,
+    gitRevertSha: 'd'.repeat(40),
+    podTemplateHash: 'stable-hash',
+  }],
+});
+
+function verify(evidence, now = new Date('2026-09-03T00:30:00Z')) {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollback-candidates-'));
+  const evidenceFile = path.join(directory, 'evidence.json');
+  fs.writeFileSync(evidenceFile, JSON.stringify(evidence));
+  try {
+    return verifyContract003RollbackCandidates(evidenceFile, {
+      environment: evidence.environment,
+      region: evidence.region,
+      clusterArn: evidence.clusterArn,
+      rolloutName: evidence.rolloutName,
+      gitopsRevision: evidence.gitopsRevision,
+      sourceEvidenceDigest: evidence.sourceEvidenceDigest,
+    }, now);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+test('rollback candidate evidence는 canonical commercial EKS ARN만 허용한다', () => {
+  assert.doesNotThrow(() => verify(validEvidence()));
+
+  for (const clusterArn of [
+    'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/course-prod',
+    'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod/junk',
+    'arn:aws:eks:ap-northeast-2:123456789012:cluster/course prod',
+  ]) {
+    const evidence = validEvidence();
+    evidence.clusterArn = clusterArn;
+    assert.throws(() => verify(evidence), /ROLLBACK_CANDIDATE_CLUSTER_ARN_INVALID/);
+  }
+});

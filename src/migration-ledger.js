@@ -54,7 +54,9 @@ function verifyContract003RollbackCandidateSource(source, { expected, now = new 
   if (evidence.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('ROLLBACK_CANDIDATES_MUST_BE_CLOUD_RUNTIME');
   if (!['dev', 'prod'].includes(evidence.environment)) throw new Error('ROLLBACK_CANDIDATE_ENVIRONMENT_INVALID');
   if (!['ap-northeast-2', 'us-east-1'].includes(evidence.region)) throw new Error('ROLLBACK_CANDIDATE_REGION_INVALID');
-  if (!new RegExp(`^arn:[^:]+:eks:${evidence.region}:\\d{12}:cluster/`).test(evidence.clusterArn)) {
+  if (!new RegExp(
+    `^arn:aws:eks:${evidence.region}:\\d{12}:cluster/[A-Za-z0-9][A-Za-z0-9_-]{0,99}$`,
+  ).test(evidence.clusterArn)) {
     throw new Error('ROLLBACK_CANDIDATE_CLUSTER_ARN_INVALID');
   }
   if (typeof evidence.rolloutName !== 'string' || evidence.rolloutName.length === 0
