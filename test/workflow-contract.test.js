@@ -77,6 +77,25 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
   assert.equal(workflow.jobs['update-dev-gitops'].needs, 'attest-and-verify');
 });
 
+test('CI는 canonical DEV_READY를 publish하고 promotion은 같은 artifact를 검증한다', () => {
+  const ci = readWorkflow('ci.yml');
+  const publish = ci.jobs['publish-dev-ready'];
+  assert.deepEqual(publish.needs, ['attest-and-verify', 'update-dev-gitops']);
+  assert.deepEqual(publish.permissions, { actions: 'read', contents: 'read' });
+  assert.ok(publish.steps.some((step) => step.run?.includes('dev-ready-evidence.mjs from-supply')));
+  assert.ok(publish.steps.some((step) => step.uses?.startsWith('actions/upload-artifact@')));
+
+  const promote = readWorkflow('promote.yml');
+  assert.equal(promote.on.workflow_dispatch.inputs.dev_ready_run_id.required, true);
+  assert.deepEqual(promote.jobs['promotion-pr'].permissions, { actions: 'read', contents: 'read' });
+  assert.ok(promote.jobs['promotion-pr'].steps.some((step) => (
+    step.run?.includes('dev-ready-evidence.mjs verify')
+  )));
+  assert.ok(promote.jobs['promotion-pr'].steps.some((step) => (
+    step.run?.includes('DEV_READY_DIGEST')
+  )));
+});
+
 test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () => {
   for (const name of ['test.yml', 'ci.yml']) {
     const workflow = readWorkflow(name);
@@ -89,7 +108,10 @@ test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () =
 
 test('test와 promotion job은 contents read만 가진다', () => {
   assert.deepEqual(readWorkflow('test.yml').jobs.test.permissions, { contents: 'read' });
-  assert.deepEqual(readWorkflow('promote.yml').jobs['promotion-pr'].permissions, { contents: 'read' });
+  assert.deepEqual(readWorkflow('promote.yml').jobs['promotion-pr'].permissions, {
+    actions: 'read',
+    contents: 'read',
+  });
 });
 
 test('모든 third-party Action은 full commit SHA로 고정된다', () => {

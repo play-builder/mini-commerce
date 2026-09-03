@@ -3,6 +3,14 @@ name: promote-dev-digest-to-prod
 on:
   workflow_dispatch:
     inputs:
+      dev_ready_run_id:
+        description: CI run ID that produced canonical DEV_READY evidence
+        required: true
+        type: string
+      dev_ready_run_attempt:
+        description: CI run attempt that produced canonical DEV_READY evidence
+        required: true
+        type: string
       expected_digest:
         description: Optional dev index digest to promote; blank uses the current dev value
         required: false
@@ -14,6 +22,7 @@ jobs:
   promotion-pr:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
 
     steps:
@@ -21,6 +30,22 @@ jobs:
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           path: app
+
+      - name: Download canonical DEV_READY evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: dev-ready-${{ inputs.dev_ready_run_id }}-${{ inputs.dev_ready_run_attempt }}
+          path: evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.dev_ready_run_id }}
+
+      - name: Verify canonical DEV_READY evidence
+        id: dev-ready
+        env:
+          EXPECTED_RUN_ID: ${{ inputs.dev_ready_run_id }}
+        run: |
+          node app/scripts/dev-ready-evidence.mjs verify evidence/dev-ready-evidence.json
+          echo "digest=$(node -p 'JSON.parse(require("fs").readFileSync("evidence/dev-ready-evidence.json", "utf8")).image.indexDigest')" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub App token
         id: app-token
@@ -42,15 +67,18 @@ jobs:
         id: update
         env:
           EXPECTED_DIGEST: ${{ inputs.expected_digest }}
+          DEV_READY_DIGEST: ${{ steps.dev-ready.outputs.digest }}
         run: |
+          if [[ -n "$EXPECTED_DIGEST" && "$EXPECTED_DIGEST" != "$DEV_READY_DIGEST" ]]; then
+            echo "expected digest does not match canonical DEV_READY evidence" >&2
+            exit 1
+          fi
           args=(
             promote
             gitops/envs/dev/values.yaml
             gitops/envs/prod/values.yaml
+            "$DEV_READY_DIGEST"
           )
-          if [[ -n "$EXPECTED_DIGEST" ]]; then
-            args+=("$EXPECTED_DIGEST")
-          fi
           node app/scripts/gitops-values.mjs "${args[@]}"
 
           if git -C gitops diff --quiet -- envs/prod/values.yaml; then

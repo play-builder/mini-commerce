@@ -147,6 +147,8 @@ Repository variables:
 | `AWS_ROLE_ARN` | EKS-infra의 `sample_app_push_role_arn` 출력 |
 | `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra의 supply-chain read/verify Role ARN 출력 |
 | `ECR_REPOSITORY` | `playdevops/sample-app` |
+| `DEV_CLUSTER_ARN` | Dev EKS cluster ARN |
+| `DEV_SLO_EVIDENCE_ID` | Dev SLO 검증 결과의 immutable evidence ID |
 | `GITOPS_APP_ID` | GitOps용 GitHub App ID |
 | `GITOPS_OWNER` | GitOps 저장소 owner |
 | `GITOPS_REPOSITORY_NAME` | GitOps 저장소 이름 |
@@ -171,6 +173,17 @@ Dev delivery는 application build와 검증 job의 AWS session을 공유하지 �
 `attest-and-verify`가 별도의 OIDC Role로 ECR에 로그인하고, `linux/amd64`와 `linux/arm64`
 child manifest를 각각 Trivy로 검사합니다. GitHub build attestation과 ECR OCI referrer가 동일한
 index digest를 가리킬 때만 GitOps update job으로 넘어갑니다.
+
+배포가 끝나면 CI는 supply-chain artifact를 다음 canonical root schema로 매핑해
+`dev-ready-<run-id>-<attempt>` artifact로 보관합니다. promotion workflow는 CI run ID와 attempt로
+그 artifact를 직접 내려받고, 만료 시간과 exact digest를 확인한 뒤 승인용 Prod PR만 생성합니다.
+
+```text
+schemaVersion, environment, region, sourceSha, workflow, image,
+attestation, gitops, cluster, slo, issuedAt, expiresAt
+```
+
+root key를 평탄화하거나 이름을 바꾼 evidence는 호환 대상으로 처리하지 않습니다.
 
 | 파일 | 실행 시점 | 결과 |
 | --- | --- | --- |

@@ -1,6 +1,7 @@
 import pg from 'pg';
 
 import { ProductNotFoundError } from './commerce-service.js';
+import { withDatabaseSpan } from './telemetry.js';
 
 const { Pool } = pg;
 
@@ -50,10 +51,14 @@ export function createDatabasePool(databaseConfig) {
   });
 }
 
-export function createPostgresCommerceRepository(pool) {
+export function createPostgresCommerceRepository(pool, { tracer } = {}) {
+  const query = (text, values) => withDatabaseSpan({
+    tracer,
+    execute: () => pool.query(text, values),
+  });
   return {
     async listProducts() {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT p.id, p.sku, COALESCE(p.display_name, p.name) AS name,
                p.price_cents, i.available_quantity
         FROM products p
@@ -64,7 +69,7 @@ export function createPostgresCommerceRepository(pool) {
     },
 
     async getInventory(productId) {
-      const result = await pool.query(`
+      const result = await query(`
         SELECT p.id, p.sku, COALESCE(p.display_name, p.name) AS name,
                p.price_cents, i.available_quantity
         FROM products p
@@ -76,21 +81,25 @@ export function createPostgresCommerceRepository(pool) {
     },
 
     async isReady() {
-      await pool.query('SELECT 1');
+      await query('SELECT 1');
       return true;
     },
 
     async withTransaction(callback) {
       const client = await pool.connect();
       try {
-        await client.query('BEGIN');
+        const transactionQuery = (text, values) => withDatabaseSpan({
+          tracer,
+          execute: () => client.query(text, values),
+        });
+        await transactionQuery('BEGIN');
         const transaction = {
           async advisoryLock(idempotencyKey) {
-            await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [idempotencyKey]);
+            await transactionQuery('SELECT pg_advisory_xact_lock(hashtext($1))', [idempotencyKey]);
           },
 
           async findOrderByIdempotencyKey(idempotencyKey) {
-            const orderResult = await client.query(`
+            const orderResult = await transactionQuery(`
               SELECT id, status, total_cents, created_at
               FROM orders
               WHERE idempotency_key = $1
@@ -98,7 +107,7 @@ export function createPostgresCommerceRepository(pool) {
             if (orderResult.rowCount === 0) return null;
 
             const orderId = orderResult.rows[0].id;
-            const itemResult = await client.query(`
+            const itemResult = await transactionQuery(`
               SELECT product_id, sku, product_name, unit_price_cents, quantity
               FROM order_items
               WHERE order_id = $1
@@ -115,7 +124,7 @@ export function createPostgresCommerceRepository(pool) {
           },
 
           async lockInventory(productIds) {
-            const result = await client.query(`
+            const result = await transactionQuery(`
               SELECT p.id, p.sku, COALESCE(p.display_name, p.name) AS name,
                      p.price_cents, i.available_quantity
               FROM products p
@@ -128,7 +137,7 @@ export function createPostgresCommerceRepository(pool) {
           },
 
           async insertOrder({ idempotencyKey, status, totalCents }) {
-            const result = await client.query(`
+            const result = await transactionQuery(`
               INSERT INTO orders (idempotency_key, status, total_cents)
               VALUES ($1, $2, $3)
               RETURNING id, status, total_cents, created_at
@@ -137,7 +146,7 @@ export function createPostgresCommerceRepository(pool) {
           },
 
           async insertOrderItem(item) {
-            await client.query(`
+            await transactionQuery(`
               INSERT INTO order_items
                 (order_id, product_id, sku, product_name, unit_price_cents, quantity)
               VALUES ($1, $2, $3, $4, $5, $6)
@@ -152,7 +161,7 @@ export function createPostgresCommerceRepository(pool) {
           },
 
           async decrementInventory(productId, quantity) {
-            await client.query(`
+            await transactionQuery(`
               UPDATE inventory
               SET available_quantity = available_quantity - $2,
                   updated_at = CURRENT_TIMESTAMP
@@ -162,10 +171,10 @@ export function createPostgresCommerceRepository(pool) {
         };
 
         const result = await callback(transaction);
-        await client.query('COMMIT');
+        await transactionQuery('COMMIT');
         return result;
       } catch (error) {
-        await client.query('ROLLBACK');
+        await withDatabaseSpan({ tracer, execute: () => client.query('ROLLBACK') });
         throw error;
       } finally {
         client.release();

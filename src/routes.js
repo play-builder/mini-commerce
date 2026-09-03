@@ -2,6 +2,7 @@ import express from 'express';
 import { config } from './config.js';
 import { state } from './state.js';
 import { metricsMiddleware, registry } from './metrics.js';
+import { startRequestTelemetry, writeLog } from './telemetry.js';
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -95,6 +96,24 @@ export function createApp(options = {}) {
 
   app.disable('x-powered-by');
   app.use(express.json({ limit: '32kb' }));
+  app.use((req, res, next) => {
+    const requestTelemetry = startRequestTelemetry(req, res);
+    res.on('finish', () => {
+      const completed = requestTelemetry.end(res.statusCode);
+      writeLog({
+        level: res.statusCode >= 500 ? 'error' : 'info',
+        event: 'http.request.completed',
+        requestId: requestTelemetry.requestId,
+        traceId: requestTelemetry.traceId,
+        spanId: requestTelemetry.spanId,
+        method: req.method,
+        route: req.route?.path ?? 'unmatched',
+        statusCode: res.statusCode,
+        durationMs: completed.durationMs,
+      });
+    });
+    next();
+  });
   app.use(metricsMiddleware);
 
   app.get('/', rootHandler);
