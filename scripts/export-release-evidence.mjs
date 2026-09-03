@@ -1272,8 +1272,7 @@ export function exportReleaseEvidence(record, options = {}) {
         || !Number.isSafeInteger(candidate.rolloutRevision)
         || candidate.rolloutRevision < 1
         || !/^[0-9a-f]{40}$/.test(candidate.gitRevertSha)
-        || typeof candidate.podTemplateHash !== 'string'
-        || candidate.podTemplateHash.length === 0;
+        || !isNonemptyString(candidate.podTemplateHash);
     })()
   ))) {
     throw new Error('rollbackCandidates must all use v2prime with immutable digests');
