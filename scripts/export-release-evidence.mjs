@@ -451,7 +451,7 @@ function verifyDevReady(value) {
   assertExactKeys(value.slo, ['evidenceId'], 'DEV_READY.slo');
   if (value.schemaVersion !== 'course.dev-ready/v1' || value.environment !== 'dev'
     || !supportedRegions.has(value.region) || value.workflow.name !== 'ci'
-    || !['push', 'workflow_dispatch'].includes(value.workflow.event)
+    || value.workflow.event !== 'push'
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
     || !/^\d+$/.test(String(value.workflow.runId))
     || !Array.isArray(value.image.platforms) || value.image.platforms.length === 0
