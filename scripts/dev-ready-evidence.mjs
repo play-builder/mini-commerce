@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import YAML from 'yaml';
+import { verifySupplyChain } from './verify-supply-chain.mjs';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const shaPattern = /^[0-9a-f]{40}$/;
@@ -16,6 +18,14 @@ const nestedKeys = {
   cluster: ['arn'],
   slo: ['evidenceId'],
 };
+const deploymentKeys = [
+  'schemaVersion', 'evidenceGrade', 'status', 'source', 'image', 'gitopsRevision',
+  'clusterArn', 'region', 'observedAt',
+];
+const sloKeys = [
+  'schemaVersion', 'evidenceGrade', 'status', 'source', 'image', 'gitopsRevision',
+  'clusterArn', 'region', 'evidenceId', 'observedAt', 'expiresAt',
+];
 
 function assertExactKeys(value, expected, label) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -33,20 +43,67 @@ function requireNonEmpty(value, label) {
   if (typeof value !== 'string' || value.length === 0) throw new Error(`${label} is required`);
 }
 
+function parseTimestamp(value, label) {
+  const parsed = new Date(value);
+  if (typeof value !== 'string' || Number.isNaN(parsed.valueOf())) throw new Error(`invalid ${label}`);
+  return parsed;
+}
+
+function parseEcrRepository(repository) {
+  const match = /^(\d{12})\.dkr\.ecr\.([a-z0-9-]+)\.amazonaws\.com(?:\.cn)?\/.+/.exec(repository);
+  if (!match) throw new Error('invalid image.repository');
+  return { accountId: match[1], region: match[2] };
+}
+
+function parseClusterArn(arn) {
+  const match = /^arn:[^:]+:eks:([a-z0-9-]+):(\d{12}):cluster\/.+/.exec(arn);
+  if (!match) throw new Error('invalid cluster.arn');
+  return { region: match[1], accountId: match[2] };
+}
+
+function assertEqual(actual, expected, label) {
+  if (actual !== expected) throw new Error(`${label} mismatch`);
+}
+
+function validateRawDeployment(deployment) {
+  assertExactKeys(deployment, deploymentKeys, 'deployment');
+  assertExactKeys(deployment.status, ['sync', 'health'], 'deployment.status');
+  assertExactKeys(deployment.source, ['repository', 'sha'], 'deployment.source');
+  assertExactKeys(deployment.image, ['repository', 'indexDigest'], 'deployment.image');
+  if (deployment.schemaVersion !== 'course.dev-deployment/v1') throw new Error('unsupported deployment schemaVersion');
+  if (deployment.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('deployment evidenceGrade must equal CLOUD_RUNTIME');
+  if (deployment.status.sync !== 'Synced' || deployment.status.health !== 'Healthy') {
+    throw new Error('deployment must be Synced and Healthy');
+  }
+  parseTimestamp(deployment.observedAt, 'deployment.observedAt');
+}
+
+function validateRawSlo(slo) {
+  assertExactKeys(slo, sloKeys, 'slo evidence');
+  assertExactKeys(slo.source, ['repository', 'sha'], 'slo.source');
+  assertExactKeys(slo.image, ['repository', 'indexDigest'], 'slo.image');
+  if (slo.schemaVersion !== 'course.dev-slo/v1') throw new Error('unsupported SLO schemaVersion');
+  if (slo.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('SLO evidenceGrade must equal CLOUD_RUNTIME');
+  if (slo.status !== 'PASS') throw new Error('SLO status must equal PASS');
+  const observedAt = parseTimestamp(slo.observedAt, 'slo.observedAt');
+  const expiresAt = parseTimestamp(slo.expiresAt, 'slo.expiresAt');
+  if (expiresAt <= observedAt) throw new Error('invalid SLO evidence lifetime');
+}
+
 export function createDevReadyEvidence(input, now = new Date()) {
   assertExactKeys(input, rootKeys, 'root');
   for (const [name, keys] of Object.entries(nestedKeys)) assertExactKeys(input[name], keys, name);
-
   if (input.schemaVersion !== 'course.dev-ready/v1') throw new Error('unsupported DEV_READY schemaVersion');
   if (input.environment !== 'dev') throw new Error('DEV_READY environment must equal dev');
   if (!['ap-northeast-2', 'us-east-1'].includes(input.region)) throw new Error('unsupported DEV_READY region');
   if (!shaPattern.test(input.sourceSha)) throw new Error('invalid DEV_READY sourceSha');
   if (input.workflow.name !== 'ci') throw new Error('DEV_READY workflow.name must equal ci');
-  requireNonEmpty(input.workflow.event, 'workflow.event');
+  if (input.workflow.event !== 'push') throw new Error('DEV_READY workflow.event must equal push');
   if (!/^\d+$/.test(input.workflow.runId)) throw new Error('invalid workflow.runId');
   if (!Number.isInteger(input.workflow.runAttempt) || input.workflow.runAttempt < 1) throw new Error('invalid workflow.runAttempt');
   requireNonEmpty(input.workflow.runUrl, 'workflow.runUrl');
-  requireNonEmpty(input.image.repository, 'image.repository');
+  const ecr = parseEcrRepository(input.image.repository);
+  if (ecr.region !== input.region) throw new Error('image repository region mismatch');
   if (!digestPattern.test(input.image.indexDigest)) throw new Error('invalid image.indexDigest');
   if (JSON.stringify(input.image.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])) {
     throw new Error('image.platforms must equal linux/amd64,linux/arm64');
@@ -57,37 +114,95 @@ export function createDevReadyEvidence(input, now = new Date()) {
     if (!digestPattern.test(input.attestation[key])) throw new Error(`invalid attestation.${key}`);
   }
   if (!shaPattern.test(input.gitops.devRevision)) throw new Error('invalid gitops.devRevision');
-  if (!input.cluster.arn.startsWith(`arn:aws:eks:${input.region}:`)) throw new Error('cluster.arn region mismatch');
+  const cluster = parseClusterArn(input.cluster.arn);
+  if (cluster.region !== input.region) throw new Error('cluster.arn region mismatch');
+  if (cluster.accountId !== ecr.accountId) throw new Error('ECR and EKS account mismatch');
   requireNonEmpty(input.slo.evidenceId, 'slo.evidenceId');
-
-  const issuedAt = new Date(input.issuedAt);
-  const expiresAt = new Date(input.expiresAt);
-  if (Number.isNaN(issuedAt.valueOf()) || Number.isNaN(expiresAt.valueOf()) || expiresAt <= issuedAt) {
-    throw new Error('invalid DEV_READY evidence lifetime');
-  }
+  const issuedAt = parseTimestamp(input.issuedAt, 'DEV_READY issuedAt');
+  const expiresAt = parseTimestamp(input.expiresAt, 'DEV_READY expiresAt');
+  if (expiresAt <= issuedAt) throw new Error('invalid DEV_READY evidence lifetime');
+  if (issuedAt > now) throw new Error('future issuedAt is not allowed');
   if (expiresAt <= now) throw new Error('expired DEV_READY evidence');
   return structuredClone(input);
 }
 
-export function verifyDevReadyEvidence(evidence, now = new Date()) {
-  return createDevReadyEvidence(evidence, now);
+export function verifyDevReadyEvidence(evidence, expected = {}, now = new Date()) {
+  const verified = createDevReadyEvidence(evidence, now);
+  const repository = expected.githubRepository;
+  if (repository) {
+    assertEqual(verified.workflow.runUrl, `https://github.com/${repository}/actions/runs/${verified.workflow.runId}`, 'workflow.runUrl');
+    assertEqual(verified.attestation.githubUrl, `https://github.com/${repository}/attestations/${verified.attestation.githubId}`, 'attestation.githubUrl');
+  }
+  if (expected.workflowRun) {
+    const run = expected.workflowRun;
+    assertEqual(verified.workflow.runId, String(run.id), 'workflow.runId');
+    assertEqual(verified.workflow.runAttempt, run.run_attempt, 'workflow.runAttempt');
+    assertEqual(verified.workflow.runUrl, run.html_url, 'workflow.runUrl');
+    assertEqual(verified.sourceSha, run.head_sha, 'sourceSha');
+    assertEqual(verified.workflow.event, run.event, 'workflow.event');
+    assertEqual(verified.workflow.name, run.name, 'workflow.name');
+  }
+  if (expected.supplyChain) {
+    const supply = expected.supplyChain;
+    assertEqual(verified.sourceSha, supply.sourceSha, 'sourceSha');
+    assertEqual(verified.image.repository, supply.imageRepository, 'image.repository');
+    assertEqual(verified.image.indexDigest, supply.imageDigest, 'image.indexDigest');
+    assertEqual(verified.attestation.githubId, String(supply.githubAttestation.id), 'attestation.githubId');
+    assertEqual(verified.attestation.githubUrl, supply.githubAttestation.url, 'attestation.githubUrl');
+    assertEqual(verified.attestation.ociSbomDigest, supply.ociReferrers.sbomDigest, 'attestation.ociSbomDigest');
+    assertEqual(verified.attestation.ociProvenanceDigest, supply.ociReferrers.provenanceDigest, 'attestation.ociProvenanceDigest');
+  }
+  if (expected.deployment) {
+    assertEqual(verified.sourceSha, expected.deployment.source.sha, 'deployment sourceSha');
+    assertEqual(verified.image.repository, expected.deployment.image.repository, 'deployment image.repository');
+    assertEqual(verified.image.indexDigest, expected.deployment.image.indexDigest, 'deployment image.indexDigest');
+    assertEqual(verified.gitops.devRevision, expected.deployment.gitopsRevision, 'deployment gitopsRevision');
+    assertEqual(verified.cluster.arn, expected.deployment.clusterArn, 'deployment clusterArn');
+  }
+  if (expected.slo) {
+    assertEqual(verified.slo.evidenceId, expected.slo.evidenceId, 'slo.evidenceId');
+    if (expected.slo.source) assertEqual(verified.sourceSha, expected.slo.source.sha, 'SLO sourceSha');
+    if (expected.slo.image) assertEqual(verified.image.indexDigest, expected.slo.image.indexDigest, 'SLO image.indexDigest');
+    if (expected.slo.gitopsRevision) assertEqual(verified.gitops.devRevision, expected.slo.gitopsRevision, 'SLO gitopsRevision');
+  }
+  return verified;
 }
 
 export function verifyProdBaselineEvidence({ prodBaselineDigest, candidateDigest }) {
   if (!digestPattern.test(prodBaselineDigest) || !digestPattern.test(candidateDigest)) {
     throw new Error('invalid Prod baseline or candidate digest');
   }
-  if (prodBaselineDigest === candidateDigest) {
-    throw new Error('CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE');
-  }
+  if (prodBaselineDigest === candidateDigest) throw new Error('CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE');
   return { prodBaselineDigest, candidateDigest };
 }
 
-export function createDevReadyFromSupplyChain(supplyChain, metadata, now = new Date()) {
-  return createDevReadyEvidence({
+export function assembleDevReadyEvidence({
+  supplyChain, deployment, slo, workflowRun, prodBaselineDigest, githubRepository,
+}, now = new Date()) {
+  verifySupplyChain(supplyChain);
+  validateRawDeployment(deployment);
+  validateRawSlo(slo);
+  assertEqual(deployment.source.repository, githubRepository, 'deployment source.repository');
+  assertEqual(slo.source.repository, githubRepository, 'SLO source.repository');
+  for (const [label, actual, expected] of [
+    ['sourceSha', deployment.source.sha, supplyChain.sourceSha],
+    ['SLO sourceSha', slo.source.sha, supplyChain.sourceSha],
+    ['image.repository', deployment.image.repository, supplyChain.imageRepository],
+    ['SLO image.repository', slo.image.repository, supplyChain.imageRepository],
+    ['image.indexDigest', deployment.image.indexDigest, supplyChain.imageDigest],
+    ['SLO image.indexDigest', slo.image.indexDigest, supplyChain.imageDigest],
+    ['gitopsRevision', slo.gitopsRevision, deployment.gitopsRevision],
+    ['clusterArn', slo.clusterArn, deployment.clusterArn],
+    ['region', slo.region, deployment.region],
+  ]) assertEqual(actual, expected, label);
+  if (parseTimestamp(deployment.observedAt, 'deployment.observedAt') > parseTimestamp(slo.observedAt, 'slo.observedAt')) {
+    throw new Error('SLO evidence predates deployment evidence');
+  }
+  verifyProdBaselineEvidence({ prodBaselineDigest, candidateDigest: supplyChain.imageDigest });
+  const evidence = createDevReadyEvidence({
     schemaVersion: 'course.dev-ready/v1',
     environment: 'dev',
-    region: metadata.region,
+    region: deployment.region,
     sourceSha: supplyChain.sourceSha,
     workflow: {
       name: supplyChain.workflowName,
@@ -107,43 +222,57 @@ export function createDevReadyFromSupplyChain(supplyChain, metadata, now = new D
       ociSbomDigest: supplyChain.ociReferrers.sbomDigest,
       ociProvenanceDigest: supplyChain.ociReferrers.provenanceDigest,
     },
-    gitops: { devRevision: metadata.devRevision },
-    cluster: { arn: metadata.clusterArn },
-    slo: { evidenceId: metadata.sloEvidenceId },
-    issuedAt: metadata.issuedAt,
-    expiresAt: metadata.expiresAt,
+    gitops: { devRevision: deployment.gitopsRevision },
+    cluster: { arn: deployment.clusterArn },
+    slo: { evidenceId: slo.evidenceId },
+    issuedAt: slo.observedAt,
+    expiresAt: slo.expiresAt,
+  }, now);
+  return verifyDevReadyEvidence(evidence, {
+    githubRepository, workflowRun, supplyChain, deployment, slo,
   }, now);
 }
 
+const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
+
+function readProdBaselineDigest(path) {
+  const baseline = YAML.parse(fs.readFileSync(path, 'utf8'));
+  const digest = baseline?.releaseLineage?.v1Compatible?.indexDigest;
+  if (!digest) throw new Error('missing Ch17 Prod baseline digest');
+  return digest;
+}
+
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [command, inputFile, outputFile] = process.argv.slice(2);
-  if (command === 'verify' && inputFile) {
-    const evidence = verifyDevReadyEvidence(JSON.parse(fs.readFileSync(inputFile, 'utf8')));
-    if (process.env.EXPECTED_RUN_ID && evidence.workflow.runId !== process.env.EXPECTED_RUN_ID) {
-      throw new Error('DEV_READY workflow.runId mismatch');
-    }
+  const [command, ...args] = process.argv.slice(2);
+  if (command === 'assemble' && args.length === 7) {
+    const [supplyPath, deploymentPath, sloPath, workflowRunPath, baselinePath, repository, outputPath] = args;
+    const evidence = assembleDevReadyEvidence({
+      supplyChain: readJson(supplyPath),
+      deployment: readJson(deploymentPath),
+      slo: readJson(sloPath),
+      workflowRun: readJson(workflowRunPath),
+      prodBaselineDigest: readProdBaselineDigest(baselinePath),
+      githubRepository: repository,
+    });
     if (process.env.EXPECTED_DIGEST && evidence.image.indexDigest !== process.env.EXPECTED_DIGEST) {
-      throw new Error('DEV_READY image.indexDigest mismatch');
+      throw new Error('expected digest does not match canonical DEV_READY evidence');
     }
+    fs.writeFileSync(outputPath, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600 });
+    console.log('PASS: canonical DEV_READY evidence assembled from cloud runtime evidence');
+  } else if (command === 'verify-baseline' && args.length === 2) {
+    const [baselinePath, evidencePath] = args;
+    verifyProdBaselineEvidence({
+      prodBaselineDigest: readProdBaselineDigest(baselinePath),
+      candidateDigest: readJson(evidencePath).image.indexDigest,
+    });
+    console.log('PASS: candidate differs from Ch17 Prod baseline');
+  } else if (command === 'verify' && args.length === 3) {
+    const [evidencePath, workflowRunPath, repository] = args;
+    verifyDevReadyEvidence(readJson(evidencePath), {
+      workflowRun: readJson(workflowRunPath), githubRepository: repository,
+    });
     console.log('PASS: canonical DEV_READY evidence');
-  } else if (command === 'from-supply' && inputFile && outputFile) {
-    const issuedAt = new Date();
-    const expiresAt = new Date(issuedAt.valueOf() + (2 * 60 * 60 * 1000));
-    const evidence = createDevReadyFromSupplyChain(
-      JSON.parse(fs.readFileSync(inputFile, 'utf8')),
-      {
-        region: process.env.AWS_REGION,
-        devRevision: process.env.DEV_GITOPS_REVISION,
-        clusterArn: process.env.DEV_CLUSTER_ARN,
-        sloEvidenceId: process.env.DEV_SLO_EVIDENCE_ID,
-        issuedAt: issuedAt.toISOString(),
-        expiresAt: expiresAt.toISOString(),
-      },
-      issuedAt,
-    );
-    fs.writeFileSync(outputFile, `${JSON.stringify(evidence, null, 2)}\n`, { mode: 0o600 });
-    console.log('PASS: canonical DEV_READY evidence created');
   } else {
-    throw new Error('usage: dev-ready-evidence.mjs verify FILE | from-supply SUPPLY_JSON OUTPUT_JSON');
+    throw new Error('usage: dev-ready-evidence.mjs assemble SUPPLY DEPLOYMENT SLO WORKFLOW_RUN BASELINE REPOSITORY OUTPUT | verify-baseline BASELINE DEV_READY | verify DEV_READY WORKFLOW_RUN REPOSITORY');
   }
 }

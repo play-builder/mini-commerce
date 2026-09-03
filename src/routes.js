@@ -97,7 +97,7 @@ export function createApp(options = {}) {
   app.disable('x-powered-by');
   app.use(express.json({ limit: '32kb' }));
   app.use((req, res, next) => {
-    const requestTelemetry = startRequestTelemetry(req, res);
+    const requestTelemetry = startRequestTelemetry(req, res, { tracer: options.telemetryTracer });
     res.on('finish', () => {
       const completed = requestTelemetry.end(res.statusCode);
       writeLog({
@@ -112,7 +112,7 @@ export function createApp(options = {}) {
         durationMs: completed.durationMs,
       });
     });
-    next();
+    requestTelemetry.run(next);
   });
   app.use(metricsMiddleware);
 

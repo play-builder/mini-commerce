@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       dev_ready_run_id:
-        description: CI run ID that produced canonical DEV_READY evidence
+        description: Exact CI run ID that produced verified supply-chain evidence
         required: true
         type: string
       dev_ready_run_attempt:
-        description: CI run attempt that produced canonical DEV_READY evidence
+        description: Exact CI run attempt that produced verified supply-chain evidence
         required: true
         type: string
       expected_digest:
@@ -31,22 +31,6 @@ jobs:
         with:
           path: app
 
-      - name: Download canonical DEV_READY evidence
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: dev-ready-${{ inputs.dev_ready_run_id }}-${{ inputs.dev_ready_run_attempt }}
-          path: evidence
-          github-token: ${{ github.token }}
-          run-id: ${{ inputs.dev_ready_run_id }}
-
-      - name: Verify canonical DEV_READY evidence
-        id: dev-ready
-        env:
-          EXPECTED_RUN_ID: ${{ inputs.dev_ready_run_id }}
-        run: |
-          node app/scripts/dev-ready-evidence.mjs verify evidence/dev-ready-evidence.json
-          echo "digest=$(node -p 'JSON.parse(require("fs").readFileSync("evidence/dev-ready-evidence.json", "utf8")).image.indexDigest')" >> "$GITHUB_OUTPUT"
-
       - name: Create GitHub App token
         id: app-token
         uses: actions/create-github-app-token@fee1f7d63c2ff003460e3d139729b119787bc349 # v2
@@ -63,16 +47,55 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
           path: gitops
 
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.20.0
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install evidence verifier dependencies
+        run: npm ci --prefix app --ignore-scripts
+
+      - name: Fetch exact CI run metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_RUN_ID: ${{ inputs.dev_ready_run_id }}
+        run: |
+          mkdir -p evidence
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID" > evidence/workflow-run.json
+
+      - name: Download exact verified supply-chain evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: verified-supply-chain-${{ inputs.dev_ready_run_id }}-${{ inputs.dev_ready_run_attempt }}
+          path: evidence
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.dev_ready_run_id }}
+
+      - name: Assemble canonical DEV_READY from supply chain, deployment, and SLO
+        id: dev-ready
+        env:
+          EXPECTED_DIGEST: ${{ inputs.expected_digest }}
+        run: |
+          node app/scripts/dev-ready-evidence.mjs assemble \
+            evidence/supply-chain-evidence.json \
+            gitops/evidence/dev/deployment.json gitops/evidence/dev/slo.json \
+            evidence/workflow-run.json gitops/envs/prod/rollback-compatibility.yaml \
+            "$GITHUB_REPOSITORY" gitops/envs/prod/promotion-evidence.yaml
+          node app/scripts/dev-ready-evidence.mjs verify \
+            gitops/envs/prod/promotion-evidence.yaml evidence/workflow-run.json "$GITHUB_REPOSITORY"
+          echo "digest=$(node -p \"JSON.parse(require('fs').readFileSync('gitops/envs/prod/promotion-evidence.yaml', 'utf8')).image.indexDigest\")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify candidate differs from recorded Ch17 Prod baseline
+        run: node app/scripts/dev-ready-evidence.mjs verify-baseline gitops/envs/prod/rollback-compatibility.yaml gitops/envs/prod/promotion-evidence.yaml
+
       - name: Copy the exact dev application and migration digests to prod
         id: update
         env:
           EXPECTED_DIGEST: ${{ inputs.expected_digest }}
           DEV_READY_DIGEST: ${{ steps.dev-ready.outputs.digest }}
         run: |
-          if [[ -n "$EXPECTED_DIGEST" && "$EXPECTED_DIGEST" != "$DEV_READY_DIGEST" ]]; then
-            echo "expected digest does not match canonical DEV_READY evidence" >&2
-            exit 1
-          fi
           args=(
             promote
             gitops/envs/dev/values.yaml
@@ -81,7 +104,7 @@ jobs:
           )
           node app/scripts/gitops-values.mjs "${args[@]}"
 
-          if git -C gitops diff --quiet -- envs/prod/values.yaml; then
+          if git -C gitops diff --quiet -- envs/prod/values.yaml envs/prod/promotion-evidence.yaml; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
@@ -96,7 +119,7 @@ jobs:
           git -C gitops config user.name "gitops-delivery[bot]"
           git -C gitops config user.email "gitops-delivery[bot]@users.noreply.github.com"
           git -C gitops switch -c "$branch"
-          git -C gitops add envs/prod/values.yaml
+          git -C gitops add envs/prod/values.yaml envs/prod/promotion-evidence.yaml
           git -C gitops commit -m "promote(prod): verified dev application and migration digests"
           git -C gitops push origin "$branch"
 

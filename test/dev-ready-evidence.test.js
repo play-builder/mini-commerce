@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import { test } from 'node:test';
 
 import {
-  createDevReadyFromSupplyChain,
+  assembleDevReadyEvidence,
   createDevReadyEvidence,
   verifyDevReadyEvidence,
   verifyProdBaselineEvidence,
@@ -15,12 +15,26 @@ const fixture = (directory, name) => JSON.parse(fs.readFileSync(
 ));
 
 test('Seoul과 Virginia DEV_READY evidence를 같은 canonical schema로 승인한다', () => {
+  const seoul = fixture('dev-ready', 'ap-northeast-2.json');
   assert.equal(
-    verifyDevReadyEvidence(fixture('dev-ready', 'ap-northeast-2.json'), new Date('2026-09-03T00:30:00Z')).region,
+    verifyDevReadyEvidence(seoul, {
+      githubRepository: 'play-builder/cicd-course-sample-app',
+      workflowRun: {
+        id: 1234567890, run_attempt: 1, html_url: seoul.workflow.runUrl,
+        head_sha: seoul.sourceSha, event: 'push', name: 'ci',
+      },
+    }, new Date('2026-09-03T00:30:00Z')).region,
     'ap-northeast-2',
   );
+  const virginia = fixture('dev-ready', 'us-east-1.json');
   assert.equal(
-    verifyDevReadyEvidence(fixture('dev-ready', 'us-east-1.json'), new Date('2026-09-03T01:30:00Z')).region,
+    verifyDevReadyEvidence(virginia, {
+      githubRepository: 'play-builder/cicd-course-sample-app',
+      workflowRun: {
+        id: 2234567890, run_attempt: 2, html_url: virginia.workflow.runUrl,
+        head_sha: virginia.sourceSha, event: 'push', name: 'ci',
+      },
+    }, new Date('2026-09-03T01:30:00Z')).region,
     'us-east-1',
   );
 });
@@ -52,15 +66,25 @@ test('Prod baseline과 같은 candidate digest를 거부한다', () => {
   }), /CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE/);
 });
 
-test('내부 supply-chain artifact를 canonical DEV_READY root schema로만 매핑한다', () => {
+test('supply-chain, Dev deployment, SLO 세 증거가 일치할 때만 DEV_READY를 조립한다', () => {
   const supplyChain = fixture('supply-chain', 'verified.json');
-  const evidence = createDevReadyFromSupplyChain(supplyChain, {
-    region: 'ap-northeast-2',
-    devRevision: 'fedcba9876543210fedcba9876543210fedcba98',
-    clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev',
-    sloEvidenceId: 'dev-slo-20260903T000000Z',
-    issuedAt: '2026-09-03T00:00:00Z',
-    expiresAt: '2026-09-03T02:00:00Z',
+  const deployment = fixture('dev-evidence', 'deployment.json');
+  const slo = fixture('dev-evidence', 'slo.json');
+  const workflowRun = {
+    id: 1234567890,
+    run_attempt: 1,
+    html_url: supplyChain.runUrl,
+    head_sha: supplyChain.sourceSha,
+    event: 'push',
+    name: 'ci',
+  };
+  const evidence = assembleDevReadyEvidence({
+    supplyChain,
+    deployment,
+    slo,
+    workflowRun,
+    prodBaselineDigest: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+    githubRepository: 'play-builder/cicd-course-sample-app',
   }, new Date('2026-09-03T00:30:00Z'));
   assert.deepEqual(Object.keys(evidence), [
     'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
@@ -69,4 +93,57 @@ test('내부 supply-chain artifact를 canonical DEV_READY root schema로만 매�
   assert.equal(Object.hasOwn(evidence, 'supplyChainEvidence'), false);
   assert.equal(evidence.workflow.runId, supplyChain.runId);
   assert.equal(evidence.image.indexDigest, supplyChain.imageDigest);
+  assert.equal(evidence.issuedAt, slo.observedAt);
+  assert.equal(evidence.expiresAt, slo.expiresAt);
+});
+
+test('raw runtime evidence의 identity 또는 grade가 다르면 assembly를 거부한다', () => {
+  const supplyChain = fixture('supply-chain', 'verified.json');
+  const deployment = fixture('dev-evidence', 'deployment.json');
+  const slo = fixture('dev-evidence', 'slo.json');
+  const workflowRun = {
+    id: 1234567890, run_attempt: 1, html_url: supplyChain.runUrl,
+    head_sha: supplyChain.sourceSha, event: 'push', name: 'ci',
+  };
+  const input = {
+    supplyChain, deployment, slo, workflowRun,
+    prodBaselineDigest: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+    githubRepository: 'play-builder/cicd-course-sample-app',
+  };
+  assert.throws(
+    () => assembleDevReadyEvidence({ ...input, deployment: { ...deployment, evidenceGrade: 'STATIC' } }),
+    /deployment evidenceGrade must equal CLOUD_RUNTIME/,
+  );
+  assert.throws(
+    () => assembleDevReadyEvidence({ ...input, slo: { ...slo, gitopsRevision: '1'.repeat(40) } }),
+    /gitopsRevision mismatch/,
+  );
+  assert.throws(
+    () => assembleDevReadyEvidence({ ...input, prodBaselineDigest: supplyChain.imageDigest }),
+    /CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE/,
+  );
+});
+
+test('future issue, wrong workflow identity, URL, cross-region, attestation, SLO mismatch를 거부한다', () => {
+  const base = fixture('dev-ready', 'ap-northeast-2.json');
+  const expected = {
+    githubRepository: 'play-builder/cicd-course-sample-app',
+    workflowRun: {
+      id: 1234567890, run_attempt: 1, html_url: base.workflow.runUrl,
+      head_sha: base.sourceSha, event: 'push', name: 'ci',
+    },
+  };
+  const mutate = (callback) => {
+    const value = JSON.parse(JSON.stringify(base));
+    callback(value);
+    return value;
+  };
+  assert.throws(() => verifyDevReadyEvidence(
+    fixture('dev-ready', 'future-issued-at.json'), expected, new Date('2026-09-03T00:30:00Z'),
+  ), /future issuedAt/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.event = 'workflow_dispatch'; }), expected, new Date('2026-09-03T00:30:00Z')), /workflow.event must equal push/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.runUrl = 'https://attacker.test/actions/runs/1234567890'; }), expected, new Date('2026-09-03T00:30:00Z')), /workflow.runUrl mismatch/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.image.repository = v.image.repository.replace('ap-northeast-2', 'us-east-1'); }), expected, new Date('2026-09-03T00:30:00Z')), /image repository region mismatch/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.attestation.githubUrl = 'https://github.com/attacker/repo/attestations/1234567'; }), expected, new Date('2026-09-03T00:30:00Z')), /attestation.githubUrl mismatch/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.slo.evidenceId = 'arbitrary'; }), { ...expected, slo: { evidenceId: base.slo.evidenceId } }, new Date('2026-09-03T00:30:00Z')), /slo.evidenceId mismatch/);
 });

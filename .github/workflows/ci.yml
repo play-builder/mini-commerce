@@ -308,35 +308,3 @@ jobs:
             gitops_revision=$(git -C gitops rev-parse HEAD)
           fi
           echo "gitops_revision=$gitops_revision" >> "$GITHUB_OUTPUT"
-
-  publish-dev-ready:
-    needs: [attest-and-verify, update-dev-gitops]
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-    steps:
-      - name: Checkout canonical evidence producer
-        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-
-      - name: Download verified supply-chain evidence
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: verified-supply-chain-${{ github.run_id }}-${{ github.run_attempt }}
-          path: evidence
-
-      - name: Create canonical DEV_READY evidence
-        env:
-          AWS_REGION: ${{ vars.AWS_REGION }}
-          DEV_GITOPS_REVISION: ${{ needs.update-dev-gitops.outputs.gitops_revision }}
-          DEV_CLUSTER_ARN: ${{ vars.DEV_CLUSTER_ARN }}
-          DEV_SLO_EVIDENCE_ID: ${{ vars.DEV_SLO_EVIDENCE_ID }}
-        run: node scripts/dev-ready-evidence.mjs from-supply evidence/supply-chain-evidence.json dev-ready-evidence.json
-
-      - name: Upload canonical DEV_READY evidence
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: dev-ready-${{ github.run_id }}-${{ github.run_attempt }}
-          path: dev-ready-evidence.json
-          if-no-files-found: error
-          retention-days: 7

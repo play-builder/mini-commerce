@@ -1,6 +1,12 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 
-import { trace } from '@opentelemetry/api';
+import {
+  context,
+  propagation,
+  SpanKind,
+  SpanStatusCode,
+  trace,
+} from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-proto';
 import { resourceFromAttributes } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
@@ -51,26 +57,42 @@ export async function withDatabaseSpan({ tracer = getTracer(), execute }) {
   });
 }
 
-export function startRequestTelemetry(req) {
+export function startRequestTelemetry(req, _res, { tracer = getTracer() } = {}) {
   const incomingRequestId = req.get?.('x-request-id');
   const requestId = /^[A-Za-z0-9_-]{1,64}$/.test(incomingRequestId ?? '')
     ? incomingRequestId
     : randomUUID().replaceAll('-', '');
-  const traceparent = req.get?.('traceparent') ?? '';
-  const traceId = /^00-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}$/.exec(traceparent)?.[1]
-    ?? randomBytes(16).toString('hex');
-  const spanId = randomBytes(8).toString('hex');
+  const parentContext = propagation.extract(context.active(), req.headers ?? {});
+  const span = tracer.startSpan('http.request', {
+    kind: SpanKind.SERVER,
+    attributes: {
+      'http.request.method': req.method,
+      'url.path': req.path,
+    },
+  }, parentContext);
+  const activeContext = trace.setSpan(parentContext, span);
+  const { traceId, spanId } = span.spanContext();
   const startedAt = process.hrtime.bigint();
+  let ended = false;
 
   return {
     requestId,
     traceId,
     spanId,
+    run(callback) {
+      return context.with(activeContext, callback);
+    },
     end(statusCode) {
-      return {
-        statusCode,
-        durationMs: Number(process.hrtime.bigint() - startedAt) / 1e6,
-      };
+      const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
+      if (!ended) {
+        ended = true;
+        span.setAttribute('http.response.status_code', statusCode);
+        span.setStatus(statusCode >= 500
+          ? { code: SpanStatusCode.ERROR }
+          : { code: SpanStatusCode.OK });
+        span.end();
+      }
+      return { statusCode, durationMs };
     },
   };
 }

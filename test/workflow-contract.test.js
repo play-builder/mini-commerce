@@ -88,23 +88,24 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
   assert.match(verification.run, /https:\/\/spdx\.dev\/Document\/v2\.3/);
 });
 
-test('CI는 canonical DEV_READY를 publish하고 promotion은 같은 artifact를 검증한다', () => {
+test('CI는 supply-chain까지만 publish하고 promotion이 세 runtime evidence와 baseline을 검증한다', () => {
   const ci = readWorkflow('ci.yml');
-  const publish = ci.jobs['publish-dev-ready'];
-  assert.deepEqual(publish.needs, ['attest-and-verify', 'update-dev-gitops']);
-  assert.deepEqual(publish.permissions, { actions: 'read', contents: 'read' });
-  assert.ok(publish.steps.some((step) => step.run?.includes('dev-ready-evidence.mjs from-supply')));
-  assert.ok(publish.steps.some((step) => step.uses?.startsWith('actions/upload-artifact@')));
+  assert.equal(Object.hasOwn(ci.jobs, 'publish-dev-ready'), false);
 
   const promote = readWorkflow('promote.yml');
   assert.equal(promote.on.workflow_dispatch.inputs.dev_ready_run_id.required, true);
   assert.deepEqual(promote.jobs['promotion-pr'].permissions, { actions: 'read', contents: 'read' });
-  assert.ok(promote.jobs['promotion-pr'].steps.some((step) => (
-    step.run?.includes('dev-ready-evidence.mjs verify')
-  )));
-  assert.ok(promote.jobs['promotion-pr'].steps.some((step) => (
-    step.run?.includes('DEV_READY_DIGEST')
-  )));
+  const steps = promote.jobs['promotion-pr'].steps;
+  const gitopsCheckoutIndex = steps.findIndex((step) => step.name === 'Checkout GitOps repository');
+  const assemblyIndex = steps.findIndex((step) => step.run?.includes('dev-ready-evidence.mjs assemble'));
+  assert.ok(gitopsCheckoutIndex >= 0 && gitopsCheckoutIndex < assemblyIndex);
+  const text = fs.readFileSync(new URL('../.github/workflows/promote.yml', import.meta.url), 'utf8');
+  assert.match(text, /evidence\/dev\/deployment\.json/);
+  assert.match(text, /evidence\/dev\/slo\.json/);
+  assert.match(text, /rollback-compatibility\.yaml/);
+  assert.match(text, /dev-ready-evidence\.mjs verify-baseline/);
+  assert.match(text, /gh api.*actions\/runs/);
+  assert.match(text, /verified-supply-chain-/);
 });
 
 test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () => {
