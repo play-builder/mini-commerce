@@ -40,7 +40,16 @@ test('CI job permissions와 multi-arch verification 의존성이 최소 권한 �
     contents: 'read',
     'id-token': 'write',
   });
-  assert.deepEqual(workflow.jobs['verify-image-index'].permissions, { contents: 'read' });
+  assert.deepEqual(workflow.jobs['verify-image-index'].permissions, {
+    contents: 'read',
+    'id-token': 'write',
+  });
+  assert.ok(workflow.jobs['verify-image-index'].steps.some((step) => (
+    step.uses?.startsWith('aws-actions/configure-aws-credentials@')
+  )));
+  assert.ok(workflow.jobs['verify-image-index'].steps.some((step) => (
+    step.uses?.startsWith('aws-actions/amazon-ecr-login@')
+  )));
   assert.deepEqual(workflow.jobs['update-dev-gitops'].permissions, { contents: 'read' });
   assert.equal(workflow.jobs['update-dev-gitops'].needs, 'verify-image-index');
   assert.match(workflow['run-name'], /^dev-\$\{\{ github\.sha \}\}-/);
