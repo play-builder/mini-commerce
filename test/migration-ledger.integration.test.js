@@ -27,7 +27,7 @@ function databaseEnvironment(url) {
   };
 }
 
-function runMigration(url, rollbackCandidatesFile, expectedOverrides = {}) {
+function runMigration(url, target, rollbackCandidatesFile, expectedOverrides = {}) {
   const environment = { ...process.env, ...databaseEnvironment(url) };
   if (rollbackCandidatesFile) {
     const evidence = JSON.parse(fs.readFileSync(rollbackCandidatesFile, 'utf8'));
@@ -41,7 +41,7 @@ function runMigration(url, rollbackCandidatesFile, expectedOverrides = {}) {
     Object.assign(environment, expectedOverrides);
   }
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['scripts/migrate.mjs'], {
+    const child = spawn(process.execPath, ['scripts/migrate.mjs', '--target', target], {
       cwd: repositoryRoot,
       env: environment,
     });
@@ -52,6 +52,13 @@ function runMigration(url, rollbackCandidatesFile, expectedOverrides = {}) {
     child.on('error', reject);
     child.on('close', (code) => resolve({ code, stdout, stderr }));
   });
+}
+
+async function appliedMigrationNames(pool) {
+  const exists = await pool.query("SELECT to_regclass('pgmigrations') AS table_name");
+  if (!exists.rows[0].table_name) return [];
+  const result = await pool.query('SELECT name FROM pgmigrations ORDER BY id');
+  return result.rows.map(({ name }) => `${name}.js`);
 }
 
 async function withTemporaryDatabase(operation) {
@@ -67,6 +74,58 @@ async function withTemporaryDatabase(operation) {
     await adminPool.end();
   }
 }
+
+test('operator target applies only its planned migration prefix and reports no work when current', {
+  skip: !databaseUrl,
+}, async () => {
+  await withTemporaryDatabase(async (targetUrl) => {
+    const firstTarget = await runMigration(targetUrl, '001_initial_commerce');
+    assert.equal(firstTarget.code, 0, firstTarget.stderr);
+    assert.match(firstTarget.stdout, /applied 1 migration/);
+
+    const pool = new Pool({ connectionString: targetUrl.toString() });
+    try {
+      assert.deepEqual(await appliedMigrationNames(pool), ['001_initial_commerce.js']);
+      const seedProducts = await pool.query('SELECT sku FROM products ORDER BY sku');
+      assert.deepEqual(seedProducts.rows, [
+        { sku: 'COURSE-KEYBOARD' },
+        { sku: 'COURSE-LAPTOP' },
+        { sku: 'COURSE-MONITOR' },
+        { sku: 'COURSE-MOUSE' },
+      ]);
+
+      const secondTarget = await runMigration(targetUrl, '002_expand_product_display_name');
+      assert.equal(secondTarget.code, 0, secondTarget.stderr);
+      assert.match(secondTarget.stdout, /applied 1 migration/);
+      assert.deepEqual(await appliedMigrationNames(pool), [
+        '001_initial_commerce.js',
+        '002_expand_product_display_name.js',
+      ]);
+
+      const repeatedTarget = await runMigration(targetUrl, '002_expand_product_display_name');
+      assert.equal(repeatedTarget.code, 0, repeatedTarget.stderr);
+      assert.match(repeatedTarget.stdout, /applied 0 migration/);
+    } finally {
+      await pool.end();
+    }
+  });
+
+  await withTemporaryDatabase(async (targetUrl) => {
+    const cleanSecondTarget = await runMigration(targetUrl, '002_expand_product_display_name');
+    assert.equal(cleanSecondTarget.code, 0, cleanSecondTarget.stderr);
+    assert.match(cleanSecondTarget.stdout, /applied 2 migration/);
+
+    const pool = new Pool({ connectionString: targetUrl.toString() });
+    try {
+      assert.deepEqual(await appliedMigrationNames(pool), [
+        '001_initial_commerce.js',
+        '002_expand_product_display_name.js',
+      ]);
+    } finally {
+      await pool.end();
+    }
+  });
+});
 
 test('동시 migration을 직렬화하고 적용된 source checksum 변경을 거부한다', {
   skip: !databaseUrl,
@@ -116,7 +175,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     advisoryLockMode: 'wait',
   });
 
-  const rejected = await runMigration(targetUrl, invalidCandidatesFile);
+  const rejected = await runMigration(targetUrl, '003_contract_product_name', invalidCandidatesFile);
   assert.equal(rejected.code, 1);
   assert.match(rejected.stderr, /CONTRACT_003_RETAINED_CANDIDATE_INCOMPATIBLE/);
 
@@ -126,11 +185,11 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     observedAt: '2026-09-01T00:00:00Z',
     expiresAt: '2026-09-01T01:00:00Z',
   }));
-  const stale = await runMigration(targetUrl, staleCandidatesFile);
+  const stale = await runMigration(targetUrl, '003_contract_product_name', staleCandidatesFile);
   assert.equal(stale.code, 1);
   assert.match(stale.stderr, /ROLLBACK_CANDIDATE_EVIDENCE_EXPIRED/);
 
-  const wrongCurrentRevision = await runMigration(targetUrl, validCandidatesFile, {
+  const wrongCurrentRevision = await runMigration(targetUrl, '003_contract_product_name', validCandidatesFile, {
     ROLLBACK_EXPECTED_GITOPS_REVISION: 'f'.repeat(40),
   });
   assert.equal(wrongCurrentRevision.code, 1);
@@ -142,7 +201,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
       (migration_filename, evidence_sha256, evidence_source)
     VALUES ('003_contract_product_name.js', $1, '{}')
   `, ['0'.repeat(64)]);
-  const mismatchedGate = await runMigration(targetUrl, validCandidatesFile);
+  const mismatchedGate = await runMigration(targetUrl, '003_contract_product_name', validCandidatesFile);
   assert.equal(mismatchedGate.code, 1);
   assert.match(mismatchedGate.stderr, /CONTRACT_003_GATE_EVIDENCE_MISMATCH/);
   const contractColumns = await preflightPool.query(`
@@ -162,8 +221,8 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
   ]);
 
   const results = await Promise.all([
-    runMigration(targetUrl, validCandidatesFile),
-    runMigration(targetUrl, validCandidatesFile),
+    runMigration(targetUrl, '003_contract_product_name', validCandidatesFile),
+    runMigration(targetUrl, '003_contract_product_name', validCandidatesFile),
   ]);
   assert.deepEqual(results.map(({ code }) => code), [0, 0], results.map((item) => item.stderr).join('\n'));
   assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 1]);
@@ -187,7 +246,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     ]);
     assert.match(contractGate.rows[0].evidence_sha256, /^[0-9a-f]{64}$/);
 
-    const rerunWithoutExternalEvidence = await runMigration(targetUrl);
+    const rerunWithoutExternalEvidence = await runMigration(targetUrl, '003_contract_product_name');
     assert.equal(rerunWithoutExternalEvidence.code, 0, rerunWithoutExternalEvidence.stderr);
     assert.match(rerunWithoutExternalEvidence.stdout, /applied 0 migration/);
 
@@ -196,7 +255,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
       SET evidence_sha256 = $1
       WHERE migration_filename = '003_contract_product_name.js'
     `, ['0'.repeat(64)]);
-    const corruptedGate = await runMigration(targetUrl);
+    const corruptedGate = await runMigration(targetUrl, '003_contract_product_name');
     assert.equal(corruptedGate.code, 1);
     assert.match(corruptedGate.stderr, /CONTRACT_003_GATE_EVIDENCE_CORRUPT/);
 
