@@ -176,6 +176,19 @@ test('final exporter는 push가 아닌 DEV_READY workflow event를 거부한다'
   }), /invalid DEV_READY identity/);
 });
 
+test('final exporter는 숫자형 DEV_READY workflow runId를 거부한다', () => {
+  const input = fixture('complete.json');
+  const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
+  devReady.workflow.runId = Number(devReady.workflow.runId);
+  const devReadySource = Buffer.from(JSON.stringify(devReady));
+  input.upstreamEvidence.devReadyDigest = `sha256:${crypto.createHash('sha256').update(devReadySource).digest('hex')}`;
+
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, devReadySource },
+  }), /invalid DEV_READY identity/);
+});
+
 test('final exporter는 두 canonical image platform이 아닌 DEV_READY를 거부한다', () => {
   const input = fixture('complete.json');
   const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));

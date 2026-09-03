@@ -102,7 +102,9 @@ export function createDevReadyEvidence(input, now = new Date()) {
   if (!shaPattern.test(input.sourceSha)) throw new Error('invalid DEV_READY sourceSha');
   if (input.workflow.name !== 'ci') throw new Error('DEV_READY workflow.name must equal ci');
   if (input.workflow.event !== 'push') throw new Error('DEV_READY workflow.event must equal push');
-  if (!/^\d+$/.test(input.workflow.runId)) throw new Error('invalid workflow.runId');
+  if (typeof input.workflow.runId !== 'string' || !/^\d+$/.test(input.workflow.runId)) {
+    throw new Error('invalid workflow.runId');
+  }
   if (!Number.isInteger(input.workflow.runAttempt) || input.workflow.runAttempt < 1) throw new Error('invalid workflow.runAttempt');
   requireNonEmpty(input.workflow.runUrl, 'workflow.runUrl');
   const ecr = parseEcrRepository(input.image.repository);

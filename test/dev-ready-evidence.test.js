@@ -149,6 +149,7 @@ test('future issue, wrong workflow identity, URL, cross-region, attestation, SLO
     fixture('dev-ready', 'future-issued-at.json'), expected, new Date('2026-09-03T00:30:00Z'),
   ), /future issuedAt/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.event = 'workflow_dispatch'; }), expected, new Date('2026-09-03T00:30:00Z')), /workflow.event must equal push/);
+  assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.runId = 1234567890; }), expected, new Date('2026-09-03T00:30:00Z')), /invalid workflow.runId/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.workflow.runUrl = 'https://attacker.test/actions/runs/1234567890'; }), expected, new Date('2026-09-03T00:30:00Z')), /workflow.runUrl mismatch/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.image.repository = v.image.repository.replace('ap-northeast-2', 'us-east-1'); }), expected, new Date('2026-09-03T00:30:00Z')), /image repository region mismatch/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.attestation.githubUrl = 'https://github.com/attacker/repo/attestations/1234567'; }), expected, new Date('2026-09-03T00:30:00Z')), /attestation.githubUrl mismatch/);

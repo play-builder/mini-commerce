@@ -453,7 +453,7 @@ function verifyDevReady(value) {
     || !supportedRegions.has(value.region) || value.workflow.name !== 'ci'
     || value.workflow.event !== 'push'
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
-    || !/^\d+$/.test(String(value.workflow.runId))
+    || typeof value.workflow.runId !== 'string' || !/^\d+$/.test(value.workflow.runId)
     || JSON.stringify(value.image.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])
     || !isNonemptyString(value.attestation.githubId)
     || !isNonemptyString(value.attestation.githubUrl)
