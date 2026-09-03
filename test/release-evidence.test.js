@@ -174,3 +174,16 @@ test('final exporter는 push가 아닌 DEV_READY workflow event를 거부한다'
     upstreamSources: { ...upstreamSources, devReadySource },
   }), /invalid DEV_READY identity/);
 });
+
+test('final exporter는 두 canonical image platform이 아닌 DEV_READY를 거부한다', () => {
+  const input = fixture('complete.json');
+  const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
+  devReady.image.platforms = ['linux/amd64'];
+  const devReadySource = Buffer.from(JSON.stringify(devReady));
+  input.upstreamEvidence.devReadyDigest = `sha256:${crypto.createHash('sha256').update(devReadySource).digest('hex')}`;
+
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, devReadySource },
+  }), /invalid DEV_READY identity/);
+});

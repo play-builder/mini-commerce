@@ -454,7 +454,7 @@ function verifyDevReady(value) {
     || value.workflow.event !== 'push'
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
     || !/^\d+$/.test(String(value.workflow.runId))
-    || !Array.isArray(value.image.platforms) || value.image.platforms.length === 0
+    || JSON.stringify(value.image.platforms) !== JSON.stringify(['linux/amd64', 'linux/arm64'])
     || !isNonemptyString(value.attestation.githubId)
     || !isNonemptyString(value.attestation.githubUrl)
     || !digestPattern.test(value.attestation.ociSbomDigest)
