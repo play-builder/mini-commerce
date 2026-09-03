@@ -4,12 +4,13 @@ on:
   pull_request:
   workflow_dispatch:
 
-permissions:
-  contents: read
+permissions: {}
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     env:
       DATABASE_TEST_URL: postgresql://commerce:course-ci-only@127.0.0.1:5432/commerce
     services:
