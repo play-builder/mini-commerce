@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { Buffer } from 'node:buffer';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { test } from 'node:test';
 
@@ -122,4 +123,41 @@ test('semantic object key order가 달라도 canonical bytes는 같다', () => {
     exportReleaseEvidence(input, fixtureOptions),
     exportReleaseEvidence(reordered, fixtureOptions),
   );
+});
+
+test('Prod SLO는 실패 이력을 제거하지 않고 성공 terminal measurement를 요구한다', () => {
+  const input = fixture('complete.json');
+  const prodSlo = JSON.parse(upstreamSources.prodSloSource.toString('utf8'));
+  prodSlo.metricResults[0].measurements = [
+    {
+      value: '0', phase: 'Failed', startedAt: '2026-09-03T03:20:00Z', finishedAt: '2026-09-03T03:21:00Z',
+    },
+    {
+      value: '12.5', phase: 'Successful', startedAt: '2026-09-03T03:25:00Z', finishedAt: '2026-09-03T03:26:00Z',
+    },
+  ];
+  const prodSloSource = Buffer.from(JSON.stringify(prodSlo));
+  const prodSloDigest = `sha256:${crypto.createHash('sha256').update(prodSloSource).digest('hex')}`;
+  input.upstreamEvidence.prodSloDigest = prodSloDigest;
+  const serialized = exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, prodSloSource },
+  });
+  assert.deepEqual(JSON.parse(serialized).upstreamEvidence.prodSloDigest, prodSloDigest);
+
+  prodSlo.metricResults[0].measurements[1].phase = 'Error';
+  const failedOnlySource = Buffer.from(JSON.stringify(prodSlo));
+  input.upstreamEvidence.prodSloDigest = `sha256:${crypto.createHash('sha256').update(failedOnlySource).digest('hex')}`;
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, prodSloSource: failedOnlySource },
+  }), /successful terminal measurement/);
+});
+
+test('runtime evidence input은 canonical upstream 11개 파일만 받는다', () => {
+  const input = fixture('complete.json');
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, unexpectedSource: Buffer.from('not evidence') },
+  }), /unexpected upstreamSources key unexpectedSource/);
 });
