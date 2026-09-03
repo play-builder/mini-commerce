@@ -105,6 +105,12 @@ function canonicalize(value) {
   return value;
 }
 
+function compareCodepoints(left, right) {
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
+}
+
 function parseTimestamp(value, label) {
   if (typeof value !== 'string'
     || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value)) {
@@ -801,7 +807,9 @@ function verifyOwnership(value, mode, ownershipBytes) {
   }
   const secretProjection = value.resources
     .filter(({ kind }) => kind === 'SecretsManagerSecret')
-    .sort((a, b) => a.environment.localeCompare(b.environment) || a.id.localeCompare(b.id))
+    .sort((a, b) => (
+      compareCodepoints(a.environment, b.environment) || compareCodepoints(a.id, b.id)
+    ))
     .map((resource) => canonicalize(resource));
   return {
     observedAt: parseTimestamp(value.observedAt, 'cleanup ownership observedAt'),

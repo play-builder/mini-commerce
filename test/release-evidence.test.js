@@ -22,6 +22,14 @@ const fixture = (name) => JSON.parse(fs.readFileSync(
 const now = new Date('2026-09-03T04:30:00Z');
 const readSource = (path) => fs.readFileSync(new URL(`./fixtures/${path}`, import.meta.url));
 const rawSha256 = (source) => crypto.createHash('sha256').update(source).digest('hex');
+const compareCodepoints = (left, right) => (left < right ? -1 : (left > right ? 1 : 0));
+const canonicalize = (value) => {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonicalize(value[key])]));
+  }
+  return value;
+};
 const upstreamSources = {
   devReadySource: readSource('dev-ready/ap-northeast-2.json'),
   prodBaselineSource: readSource('release-evidence/prod-baseline.json'),
@@ -234,6 +242,59 @@ test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠�
       upstreamSources: { ...upstreamSources, residualSource },
     }), /cleanup residual does not exactly match ownership decisions/);
   }
+});
+
+test('provider Secret projection은 jq sort_by와 같은 Unicode codepoint 순서를 사용한다', () => {
+  const input = fixture('complete.json');
+  const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));
+  const retain = JSON.parse(upstreamSources.retainSource.toString('utf8'));
+  const removal = JSON.parse(upstreamSources.removalSource.toString('utf8'));
+  const preDestroy = JSON.parse(upstreamSources.preDestroySource.toString('utf8'));
+  const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
+  ownership.resources.push(...fixture('provider-secrets-mixed-case.json'));
+  ownership.resources.sort((left, right) => (
+    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+  ));
+  const ownershipSource = Buffer.from(JSON.stringify(ownership));
+
+  const projection = ownership.resources
+    .filter(({ kind }) => kind === 'SecretsManagerSecret')
+    .sort((left, right) => (
+      compareCodepoints(left.environment, right.environment) || compareCodepoints(left.id, right.id)
+    ))
+    .map(canonicalize);
+  removal.providerSecrets.inventorySha256 = rawSha256(
+    Buffer.from(`${JSON.stringify(projection)}\n`),
+  );
+  const removalSource = Buffer.from(JSON.stringify(removal));
+
+  retain.inventorySha256 = rawSha256(ownershipSource);
+  const retainSource = Buffer.from(JSON.stringify(retain));
+  preDestroy.gitopsRemovalSha256 = rawSha256(removalSource);
+  const preDestroySource = Buffer.from(JSON.stringify(preDestroy));
+  residual.inventorySha256 = rawSha256(ownershipSource);
+  residual.retainDecisionsSha256 = rawSha256(retainSource);
+  residual.gitopsRemovalSha256 = rawSha256(removalSource);
+  residual.kubernetesPreDestroySha256 = rawSha256(preDestroySource);
+  const residualSource = Buffer.from(JSON.stringify(residual));
+
+  input.upstreamEvidence.ownershipInventoryDigest = `sha256:${rawSha256(ownershipSource)}`;
+  input.upstreamEvidence.retainDecisionsDigest = `sha256:${rawSha256(retainSource)}`;
+  input.upstreamEvidence.gitopsRemovalDigest = `sha256:${rawSha256(removalSource)}`;
+  input.upstreamEvidence.kubernetesPreDestroyDigest = `sha256:${rawSha256(preDestroySource)}`;
+  input.upstreamEvidence.residualScanDigest = `sha256:${rawSha256(residualSource)}`;
+
+  assert.doesNotThrow(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: {
+      ...upstreamSources,
+      ownershipSource,
+      retainSource,
+      removalSource,
+      preDestroySource,
+      residualSource,
+    },
+  }));
 });
 
 test('GitOps removal과 pre-destroy는 승인된 Kubernetes retained set을 생략할 수 없다', () => {
