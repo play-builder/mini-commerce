@@ -80,6 +80,9 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
   ));
   assert.equal(attestSteps.length, 2);
   assert.equal(attestSteps.filter((step) => step.with['sbom-path']).length, 1);
+  for (const step of attestSteps) {
+    assert.equal(step.with['create-storage-record'], false);
+  }
   assert.ok(job.steps.some((step) => step.run?.includes('npm sbom --omit=dev --sbom-format spdx --sbom-type application')));
   const verification = job.steps.find((step) => step.name === 'Verify GitHub attestation and OCI referrers');
   const verifyCommands = verification.run

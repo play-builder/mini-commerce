@@ -189,6 +189,7 @@ jobs:
           subject-name: ${{ needs.build.outputs.image_repository }}
           subject-digest: ${{ needs.build.outputs.image_digest }}
           push-to-registry: true
+          create-storage-record: false
 
       - name: Create SPDX SBOM attestation
         id: sbom-attestation
@@ -198,6 +199,7 @@ jobs:
           subject-digest: ${{ needs.build.outputs.image_digest }}
           sbom-path: sbom.spdx.json
           push-to-registry: true
+          create-storage-record: false
 
       - name: Verify GitHub attestation and OCI referrers
         env:
