@@ -105,7 +105,7 @@ jobs:
       - name: Configure AWS credentials with GitHub OIDC
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
-          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          role-to-assume: ${{ vars.AWS_ATTEST_VERIFY_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
       - name: Log in to Amazon ECR
@@ -164,17 +164,19 @@ jobs:
           echo "arm64=$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest' image-index.json)" >> "$GITHUB_OUTPUT"
 
       - name: Scan linux amd64 child manifest
-        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.24.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.build.outputs.image_repository }}@${{ steps.platforms.outputs.amd64 }}
+          trivy-version: 0.74.0
           format: table
           exit-code: 1
           severity: CRITICAL,HIGH
 
       - name: Scan linux arm64 child manifest
-        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.24.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ${{ needs.build.outputs.image_repository }}@${{ steps.platforms.outputs.arm64 }}
+          trivy-version: 0.74.0
           format: table
           exit-code: 1
           severity: CRITICAL,HIGH

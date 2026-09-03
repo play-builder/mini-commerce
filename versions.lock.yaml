@@ -20,6 +20,9 @@ database:
 delivery:
   configureAwsCredentialsAction: "6.2.3"
   configureAwsCredentialsActionSha: "e6de054238d6b7531b4efff3b6587d9aade6a06c"
+  trivy: "0.74.0"
+  trivyAction: "0.36.0"
+  trivyActionSha: "ed142fd0673e97e23eac54620cfb913e5ce36c25"
   targetPlatforms:
     - linux/amd64
     - linux/arm64
