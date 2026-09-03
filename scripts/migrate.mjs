@@ -9,6 +9,8 @@ import { config } from '../src/config.js';
 import { createDatabasePool } from '../src/database.js';
 import {
   recordAppliedMigrationLedger,
+  recordContract003Gate,
+  verifyContract003RollbackCandidates,
   verifyAppliedMigrationLedger,
   withLedgerSerialization,
 } from '../src/migration-ledger.js';
@@ -22,7 +24,10 @@ const migrationsDirectory = path.resolve(path.dirname(fileURLToPath(import.meta.
 const ledgerPool = createDatabasePool(config.database);
 try {
   const migrations = await withLedgerSerialization(ledgerPool, async (ledgerClient) => {
-    await verifyAppliedMigrationLedger(ledgerClient, migrationsDirectory);
+    const appliedBefore = await verifyAppliedMigrationLedger(ledgerClient, migrationsDirectory);
+    const contractEvidenceSha = verifyContract003RollbackCandidates(
+      process.env.ROLLBACK_CANDIDATES_FILE,
+    );
     const applied = await runner({
       databaseUrl: {
         host: config.database.host,
@@ -42,6 +47,9 @@ try {
       advisoryLockMode: 'wait',
     });
     await recordAppliedMigrationLedger(ledgerClient, migrationsDirectory);
+    if (!appliedBefore.includes('003_contract_product_name.js')) {
+      await recordContract003Gate(ledgerClient, contractEvidenceSha);
+    }
     return applied;
   });
   console.log(`applied ${migrations.length} migration(s)`);

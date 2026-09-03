@@ -120,6 +120,10 @@ backfill합니다. 이 Expand 구간에서는 v1과 v2 application query가 같�
 사용하는지 확인한 뒤 적용하는 Contract 단계입니다. `display_name` null gate를 통과해야만
 `NOT NULL`을 설정하고 legacy `name`을 제거합니다. Rollback window 판정은 revision 번호 차이가
 아니라 target과 stable 사이에 실제 남아 있는 non-Experiment ReplicaSet 수를 사용합니다.
+Migration Job은 GitOps runtime checker가 만든 `course.rollback-candidates/v1` JSON 경로를
+`ROLLBACK_CANDIDATES_FILE`로 받아야 합니다. 각 candidate의 image digest, source revert SHA,
+Rollout revision, Pod template hash와 `productReadContract=v2prime`을 검증하고, 입력 파일 SHA-256을
+`course_migration_contract_gate`에 기록한 뒤에만 Contract 003을 실행합니다.
 
 ```bash
 docker compose down --volumes

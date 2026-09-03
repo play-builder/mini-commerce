@@ -108,14 +108,14 @@ test('completed rollback window는 revision gap이 아니라 실제 non-Experime
       replicaSet('stable', '2026-09-03T00:30:00Z'),
     ),
   }), 'completed-window-inside');
-  assert.equal(classifyRollbackBoundary({
+  assert.throws(() => classifyRollbackBoundary({
     ...base,
     rollbackWindow: { revisions: 1 },
     replicaSetList: replicaSetList(
       replicaSet('target', '2026-09-03T00:00:00Z', { labelOnly: true }),
       replicaSet('stable', '2026-09-03T00:30:00Z', { labelOnly: true }),
     ),
-  }), 'completed-window-inside');
+  }), /ROLLBACK_REPLICASET_ENDPOINT_MISSING/);
 });
 
 test('completed rollback은 missing/reversed target-stable endpoint를 거부한다', () => {

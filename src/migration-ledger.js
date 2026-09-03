@@ -12,6 +12,11 @@ async function ensureMigrationLedger(client) {
       CREATE TABLE IF NOT EXISTS course_migration_ledger_control (
         id smallint PRIMARY KEY CHECK (id = 1)
       );
+      CREATE TABLE IF NOT EXISTS course_migration_contract_gate (
+        migration_filename text PRIMARY KEY,
+        evidence_sha256 text NOT NULL,
+        verified_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
+      );
       INSERT INTO course_migration_ledger_control (id)
       VALUES (1)
       ON CONFLICT (id) DO NOTHING;
@@ -21,6 +26,67 @@ async function ensureMigrationLedger(client) {
   } catch (error) {
     if (error.code !== '23505') throw error;
     await bootstrap();
+  }
+}
+
+function assertExactKeys(value, expected, label) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`${label} must be an object`);
+  }
+  for (const key of Object.keys(value)) {
+    if (!expected.includes(key)) throw new Error(`unexpected ${label} key ${key}`);
+  }
+  for (const key of expected) {
+    if (!Object.hasOwn(value, key)) throw new Error(`missing ${label} key ${key}`);
+  }
+}
+
+export function verifyContract003RollbackCandidates(evidenceFile) {
+  if (typeof evidenceFile !== 'string' || evidenceFile.length === 0) {
+    throw new Error('ROLLBACK_CANDIDATES_FILE_REQUIRED');
+  }
+  const source = fs.readFileSync(evidenceFile, 'utf8');
+  const evidence = JSON.parse(source);
+  assertExactKeys(evidence, ['schemaVersion', 'candidates'], 'rollback candidate evidence');
+  if (evidence.schemaVersion !== 'course.rollback-candidates/v1') {
+    throw new Error('ROLLBACK_CANDIDATES_SCHEMA_UNSUPPORTED');
+  }
+  if (!Array.isArray(evidence.candidates) || evidence.candidates.length === 0) {
+    throw new Error('CONTRACT_003_RETAINED_CANDIDATES_REQUIRED');
+  }
+  for (const candidate of evidence.candidates) {
+    assertExactKeys(candidate, [
+      'imageDigest', 'productReadContract', 'rolloutRevision', 'gitRevertSha', 'podTemplateHash',
+    ], 'rollback candidate');
+    if (candidate.productReadContract !== 'v2prime') {
+      throw new Error('CONTRACT_003_RETAINED_CANDIDATE_INCOMPATIBLE');
+    }
+    if (!/^sha256:[0-9a-f]{64}$/.test(candidate.imageDigest)
+      || !Number.isSafeInteger(candidate.rolloutRevision)
+      || candidate.rolloutRevision < 1
+      || !/^[0-9a-f]{40}$/.test(candidate.gitRevertSha)
+      || typeof candidate.podTemplateHash !== 'string'
+      || candidate.podTemplateHash.length === 0) {
+      throw new Error('CONTRACT_003_RETAINED_CANDIDATE_INVALID');
+    }
+  }
+  return createHash('sha256').update(source).digest('hex');
+}
+
+export async function recordContract003Gate(client, evidenceSha256) {
+  const filename = '003_contract_product_name.js';
+  const existing = await client.query(
+    'SELECT evidence_sha256 FROM course_migration_contract_gate WHERE migration_filename = $1',
+    [filename],
+  );
+  if (existing.rowCount === 1 && existing.rows[0].evidence_sha256 !== evidenceSha256) {
+    throw new Error('CONTRACT_003_GATE_EVIDENCE_MISMATCH');
+  }
+  if (existing.rowCount === 0) {
+    await client.query(
+      'INSERT INTO course_migration_contract_gate (migration_filename, evidence_sha256) VALUES ($1, $2)',
+      [filename, evidenceSha256],
+    );
   }
 }
 

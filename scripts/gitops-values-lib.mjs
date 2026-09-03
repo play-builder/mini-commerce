@@ -184,7 +184,9 @@ export function classifyRollbackBoundary({
   if (!Number.isSafeInteger(revisions) || revisions < 0) {
     throw new Error('rollbackWindow.revisions must be a non-negative integer');
   }
-  if (replicaSetList?.kind !== 'ReplicaSetList' || !Array.isArray(replicaSetList.items)) {
+  if (replicaSetList?.apiVersion !== 'apps/v1'
+    || replicaSetList.kind !== 'ReplicaSetList'
+    || !Array.isArray(replicaSetList.items)) {
     throw new Error('ROLLBACK_REPLICASET_LIST_INVALID');
   }
   if (typeof rolloutName !== 'string' || rolloutName.length === 0) {
@@ -195,8 +197,7 @@ export function classifyRollbackBoundary({
     const owned = metadata.ownerReferences?.some((owner) => (
       owner.kind === 'Rollout' && owner.name === rolloutName
     ));
-    const labeled = metadata.labels?.['rollouts.argoproj.io/rollout-name'] === rolloutName;
-    return (owned || labeled)
+    return owned
       && !metadata.annotations?.['rollouts.argoproj.io/experiment-name'];
   }).map((replicaSet) => ({
     podTemplateHash: replicaSet.metadata.labels?.['rollouts-pod-template-hash'],

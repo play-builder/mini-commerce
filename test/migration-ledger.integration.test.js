@@ -26,11 +26,15 @@ function databaseEnvironment(url) {
   };
 }
 
-function runMigration(url) {
+function runMigration(url, rollbackCandidatesFile) {
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, ['scripts/migrate.mjs'], {
       cwd: repositoryRoot,
-      env: { ...process.env, ...databaseEnvironment(url) },
+      env: {
+        ...process.env,
+        ...databaseEnvironment(url),
+        ROLLBACK_CANDIDATES_FILE: rollbackCandidatesFile,
+      },
     });
     let stdout = '';
     let stderr = '';
@@ -58,7 +62,33 @@ async function withTemporaryDatabase(operation) {
 test('동시 migration을 직렬화하고 적용된 source checksum 변경을 거부한다', {
   skip: !databaseUrl,
 }, async () => withTemporaryDatabase(async (targetUrl) => {
-  const results = await Promise.all([runMigration(targetUrl), runMigration(targetUrl)]);
+  const evidenceDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-candidates-'));
+  const validCandidatesFile = path.join(evidenceDirectory, 'valid.json');
+  const invalidCandidatesFile = path.join(evidenceDirectory, 'invalid.json');
+  const candidate = {
+    imageDigest: `sha256:${'a'.repeat(64)}`,
+    productReadContract: 'v2prime',
+    rolloutRevision: 3,
+    gitRevertSha: '1'.repeat(40),
+    podTemplateHash: 'stable-hash',
+  };
+  fs.writeFileSync(validCandidatesFile, JSON.stringify({
+    schemaVersion: 'course.rollback-candidates/v1',
+    candidates: [candidate],
+  }));
+  fs.writeFileSync(invalidCandidatesFile, JSON.stringify({
+    schemaVersion: 'course.rollback-candidates/v1',
+    candidates: [{ ...candidate, productReadContract: 'v2' }],
+  }));
+
+  const rejected = await runMigration(targetUrl, invalidCandidatesFile);
+  assert.equal(rejected.code, 1);
+  assert.match(rejected.stderr, /CONTRACT_003_RETAINED_CANDIDATE_INCOMPATIBLE/);
+
+  const results = await Promise.all([
+    runMigration(targetUrl, validCandidatesFile),
+    runMigration(targetUrl, validCandidatesFile),
+  ]);
   assert.deepEqual(results.map(({ code }) => code), [0, 0], results.map((item) => item.stderr).join('\n'));
   assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 3]);
 
@@ -72,6 +102,14 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
       '003_contract_product_name.js',
     ]);
     assert.ok(ledger.rows.every(({ sha256 }) => /^[0-9a-f]{64}$/.test(sha256)));
+    const contractGate = await pool.query(`
+      SELECT migration_filename, evidence_sha256
+      FROM course_migration_contract_gate
+    `);
+    assert.deepEqual(contractGate.rows.map(({ migration_filename }) => migration_filename), [
+      '003_contract_product_name.js',
+    ]);
+    assert.match(contractGate.rows[0].evidence_sha256, /^[0-9a-f]{64}$/);
 
     const locks = await pool.query(`
       SELECT count(*)::int AS count
@@ -100,6 +138,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     }
   } finally {
     fs.rmSync(copiedDirectory, { recursive: true, force: true });
+    fs.rmSync(evidenceDirectory, { recursive: true, force: true });
     await pool.end();
   }
 }));
