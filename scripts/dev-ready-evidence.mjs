@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
-import YAML from 'yaml';
 import { verifySupplyChain } from './verify-supply-chain.mjs';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
@@ -25,6 +24,10 @@ const deploymentKeys = [
 const sloKeys = [
   'schemaVersion', 'evidenceGrade', 'status', 'source', 'image', 'gitopsRevision',
   'clusterArn', 'region', 'evidenceId', 'observedAt', 'expiresAt',
+];
+const prodBaselineKeys = [
+  'schemaVersion', 'evidenceGrade', 'image', 'gitopsRevision', 'rollout',
+  'clusterArn', 'region', 'observedAt',
 ];
 
 function assertExactKeys(value, expected, label) {
@@ -168,16 +171,44 @@ export function verifyDevReadyEvidence(evidence, expected = {}, now = new Date()
   return verified;
 }
 
-export function verifyProdBaselineEvidence({ prodBaselineDigest, candidateDigest }) {
-  if (!digestPattern.test(prodBaselineDigest) || !digestPattern.test(candidateDigest)) {
-    throw new Error('invalid Prod baseline or candidate digest');
+export function verifyProdBaselineEvidence({ prodBaseline, candidateEvidence }, now = new Date()) {
+  assertExactKeys(prodBaseline, prodBaselineKeys, 'Prod baseline');
+  assertExactKeys(prodBaseline.image, ['repository', 'indexDigest'], 'Prod baseline.image');
+  assertExactKeys(prodBaseline.rollout, ['stableHash', 'revision', 'trafficWeight'], 'Prod baseline.rollout');
+  if (prodBaseline.schemaVersion !== 'course.prod-baseline/v1') throw new Error('unsupported Prod baseline schemaVersion');
+  if (prodBaseline.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('Prod baseline evidenceGrade must equal CLOUD_RUNTIME');
+  if (!['ap-northeast-2', 'us-east-1'].includes(prodBaseline.region)) throw new Error('unsupported Prod baseline region');
+  if (!shaPattern.test(prodBaseline.gitopsRevision)) throw new Error('invalid Prod baseline gitopsRevision');
+  if (!digestPattern.test(prodBaseline.image.indexDigest)) throw new Error('invalid Prod baseline image digest');
+  requireNonEmpty(prodBaseline.rollout.stableHash, 'Prod baseline rollout.stableHash');
+  if (prodBaseline.rollout.revision !== 1 || prodBaseline.rollout.trafficWeight !== 100) {
+    throw new Error('Prod baseline must be stable revision 1 at 100 percent traffic');
   }
-  if (prodBaselineDigest === candidateDigest) throw new Error('CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE');
-  return { prodBaselineDigest, candidateDigest };
+  const baselineEcr = parseEcrRepository(prodBaseline.image.repository);
+  const baselineCluster = parseClusterArn(prodBaseline.clusterArn);
+  if (baselineEcr.region !== prodBaseline.region || baselineCluster.region !== prodBaseline.region) {
+    throw new Error('Prod baseline region mismatch');
+  }
+  if (baselineEcr.accountId !== baselineCluster.accountId) throw new Error('Prod baseline account mismatch');
+  const observedAt = parseTimestamp(prodBaseline.observedAt, 'Prod baseline observedAt');
+  if (observedAt > now) throw new Error('future Prod baseline observedAt is not allowed');
+
+  const candidate = createDevReadyEvidence(candidateEvidence, now);
+  assertEqual(candidate.region, prodBaseline.region, 'Prod baseline candidate region');
+  assertEqual(candidate.image.repository, prodBaseline.image.repository, 'Prod baseline candidate repository');
+  if (candidate.cluster.arn === prodBaseline.clusterArn) {
+    throw new Error('PROD_CLUSTER_MUST_DIFFER_FROM_DEV_CLUSTER');
+  }
+  const candidateEcr = parseEcrRepository(candidate.image.repository);
+  if (candidateEcr.accountId !== baselineCluster.accountId) throw new Error('Prod baseline candidate account mismatch');
+  if (prodBaseline.image.indexDigest === candidate.image.indexDigest) {
+    throw new Error('CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE');
+  }
+  return { prodBaseline, candidateEvidence: candidate };
 }
 
 export function assembleDevReadyEvidence({
-  supplyChain, deployment, slo, workflowRun, prodBaselineDigest, githubRepository,
+  supplyChain, deployment, slo, workflowRun, githubRepository,
 }, now = new Date()) {
   verifySupplyChain(supplyChain);
   validateRawDeployment(deployment);
@@ -198,7 +229,6 @@ export function assembleDevReadyEvidence({
   if (parseTimestamp(deployment.observedAt, 'deployment.observedAt') > parseTimestamp(slo.observedAt, 'slo.observedAt')) {
     throw new Error('SLO evidence predates deployment evidence');
   }
-  verifyProdBaselineEvidence({ prodBaselineDigest, candidateDigest: supplyChain.imageDigest });
   const evidence = createDevReadyEvidence({
     schemaVersion: 'course.dev-ready/v1',
     environment: 'dev',
@@ -235,23 +265,15 @@ export function assembleDevReadyEvidence({
 
 const readJson = (path) => JSON.parse(fs.readFileSync(path, 'utf8'));
 
-function readProdBaselineDigest(path) {
-  const baseline = YAML.parse(fs.readFileSync(path, 'utf8'));
-  const digest = baseline?.releaseLineage?.v1Compatible?.indexDigest;
-  if (!digest) throw new Error('missing Ch17 Prod baseline digest');
-  return digest;
-}
-
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [command, ...args] = process.argv.slice(2);
-  if (command === 'assemble' && args.length === 7) {
-    const [supplyPath, deploymentPath, sloPath, workflowRunPath, baselinePath, repository, outputPath] = args;
+  if (command === 'assemble' && args.length === 6) {
+    const [supplyPath, deploymentPath, sloPath, workflowRunPath, repository, outputPath] = args;
     const evidence = assembleDevReadyEvidence({
       supplyChain: readJson(supplyPath),
       deployment: readJson(deploymentPath),
       slo: readJson(sloPath),
       workflowRun: readJson(workflowRunPath),
-      prodBaselineDigest: readProdBaselineDigest(baselinePath),
       githubRepository: repository,
     });
     if (process.env.EXPECTED_DIGEST && evidence.image.indexDigest !== process.env.EXPECTED_DIGEST) {
@@ -262,8 +284,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   } else if (command === 'verify-baseline' && args.length === 2) {
     const [baselinePath, evidencePath] = args;
     verifyProdBaselineEvidence({
-      prodBaselineDigest: readProdBaselineDigest(baselinePath),
-      candidateDigest: readJson(evidencePath).image.indexDigest,
+      prodBaseline: readJson(baselinePath),
+      candidateEvidence: readJson(evidencePath),
     });
     console.log('PASS: candidate differs from Ch17 Prod baseline');
   } else if (command === 'verify' && args.length === 3) {
@@ -273,6 +295,6 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     });
     console.log('PASS: canonical DEV_READY evidence');
   } else {
-    throw new Error('usage: dev-ready-evidence.mjs assemble SUPPLY DEPLOYMENT SLO WORKFLOW_RUN BASELINE REPOSITORY OUTPUT | verify-baseline BASELINE DEV_READY | verify DEV_READY WORKFLOW_RUN REPOSITORY');
+    throw new Error('usage: dev-ready-evidence.mjs assemble SUPPLY DEPLOYMENT SLO WORKFLOW_RUN REPOSITORY OUTPUT | verify-baseline BASELINE DEV_READY | verify DEV_READY WORKFLOW_RUN REPOSITORY');
   }
 }

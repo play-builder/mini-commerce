@@ -81,14 +81,14 @@ jobs:
           node app/scripts/dev-ready-evidence.mjs assemble \
             evidence/supply-chain-evidence.json \
             gitops/evidence/dev/deployment.json gitops/evidence/dev/slo.json \
-            evidence/workflow-run.json gitops/envs/prod/rollback-compatibility.yaml \
-            "$GITHUB_REPOSITORY" gitops/envs/prod/promotion-evidence.yaml
+            evidence/workflow-run.json "$GITHUB_REPOSITORY" \
+            gitops/envs/prod/promotion-evidence.yaml
           node app/scripts/dev-ready-evidence.mjs verify \
             gitops/envs/prod/promotion-evidence.yaml evidence/workflow-run.json "$GITHUB_REPOSITORY"
           echo "digest=$(node -p \"JSON.parse(require('fs').readFileSync('gitops/envs/prod/promotion-evidence.yaml', 'utf8')).image.indexDigest\")" >> "$GITHUB_OUTPUT"
 
       - name: Verify candidate differs from recorded Ch17 Prod baseline
-        run: node app/scripts/dev-ready-evidence.mjs verify-baseline gitops/envs/prod/rollback-compatibility.yaml gitops/envs/prod/promotion-evidence.yaml
+        run: node app/scripts/dev-ready-evidence.mjs verify-baseline gitops/evidence/prod/baseline.json gitops/envs/prod/promotion-evidence.yaml
 
       - name: Copy the exact dev application and migration digests to prod
         id: update

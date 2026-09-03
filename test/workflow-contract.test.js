@@ -82,10 +82,21 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
   assert.equal(attestSteps.filter((step) => step.with['sbom-path']).length, 1);
   assert.ok(job.steps.some((step) => step.run?.includes('npm sbom --omit=dev --sbom-format spdx --sbom-type application')));
   const verification = job.steps.find((step) => step.name === 'Verify GitHub attestation and OCI referrers');
-  assert.match(verification.run, /--bundle-from-oci/);
-  assert.match(verification.run, /--signer-workflow/);
-  assert.match(verification.run, /--source-digest/);
-  assert.match(verification.run, /https:\/\/spdx\.dev\/Document\/v2\.3/);
+  const verifyCommands = verification.run
+    .split('\n')
+    .filter((line) => line.trim().startsWith('gh attestation verify'));
+  assert.equal(verifyCommands.length, 2);
+  for (const command of verifyCommands) {
+    assert.match(command, /--bundle-from-oci/);
+    assert.match(command, /--signer-workflow/);
+    assert.match(command, /--source-digest/);
+  }
+  assert.ok(verifyCommands.some((command) => (
+    command.includes('--predicate-type "https://slsa.dev/provenance/v1"')
+  )));
+  assert.ok(verifyCommands.some((command) => (
+    command.includes('--predicate-type "https://spdx.dev/Document/v2.3"')
+  )));
 });
 
 test('CI는 supply-chain까지만 publish하고 promotion이 세 runtime evidence와 baseline을 검증한다', () => {
@@ -102,7 +113,7 @@ test('CI는 supply-chain까지만 publish하고 promotion이 세 runtime evidenc
   const text = fs.readFileSync(new URL('../.github/workflows/promote.yml', import.meta.url), 'utf8');
   assert.match(text, /evidence\/dev\/deployment\.json/);
   assert.match(text, /evidence\/dev\/slo\.json/);
-  assert.match(text, /rollback-compatibility\.yaml/);
+  assert.match(text, /evidence\/prod\/baseline\.json/);
   assert.match(text, /dev-ready-evidence\.mjs verify-baseline/);
   assert.match(text, /gh api.*actions\/runs/);
   assert.match(text, /verified-supply-chain-/);

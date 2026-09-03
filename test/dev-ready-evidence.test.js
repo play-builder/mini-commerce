@@ -60,10 +60,23 @@ test('nested workflow.runId를 root로 평탄화한 schema drift를 거부한다
 
 test('Prod baseline과 같은 candidate digest를 거부한다', () => {
   const baseline = fixture('prod-baseline', 'healthy-revision-1.json');
+  const candidate = fixture('dev-ready', 'ap-northeast-2.json');
+  candidate.image.indexDigest = baseline.image.indexDigest;
   assert.throws(() => verifyProdBaselineEvidence({
-    prodBaselineDigest: baseline.imageDigest,
-    candidateDigest: baseline.imageDigest,
-  }), /CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE/);
+    prodBaseline: baseline,
+    candidateEvidence: candidate,
+  }, new Date('2026-09-03T00:30:00Z')), /CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE/);
+  assert.throws(() => verifyProdBaselineEvidence({
+    prodBaseline: { ...baseline, evidenceGrade: 'STATIC' },
+    candidateEvidence: fixture('dev-ready', 'ap-northeast-2.json'),
+  }, new Date('2026-09-03T00:30:00Z')), /Prod baseline evidenceGrade must equal CLOUD_RUNTIME/);
+  const sameCluster = fixture('prod-baseline', 'healthy-revision-1.json');
+  const distinctCandidate = fixture('dev-ready', 'ap-northeast-2.json');
+  sameCluster.clusterArn = distinctCandidate.cluster.arn;
+  assert.throws(() => verifyProdBaselineEvidence({
+    prodBaseline: sameCluster,
+    candidateEvidence: distinctCandidate,
+  }, new Date('2026-09-03T00:30:00Z')), /PROD_CLUSTER_MUST_DIFFER_FROM_DEV_CLUSTER/);
 });
 
 test('supply-chain, Dev deployment, SLO 세 증거가 일치할 때만 DEV_READY를 조립한다', () => {
@@ -83,7 +96,6 @@ test('supply-chain, Dev deployment, SLO 세 증거가 일치할 때만 DEV_READY
     deployment,
     slo,
     workflowRun,
-    prodBaselineDigest: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
     githubRepository: 'play-builder/cicd-course-sample-app',
   }, new Date('2026-09-03T00:30:00Z'));
   assert.deepEqual(Object.keys(evidence), [
@@ -107,7 +119,6 @@ test('raw runtime evidence의 identity 또는 grade가 다르면 assembly를 거
   };
   const input = {
     supplyChain, deployment, slo, workflowRun,
-    prodBaselineDigest: 'sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
     githubRepository: 'play-builder/cicd-course-sample-app',
   };
   assert.throws(
@@ -117,10 +128,6 @@ test('raw runtime evidence의 identity 또는 grade가 다르면 assembly를 거
   assert.throws(
     () => assembleDevReadyEvidence({ ...input, slo: { ...slo, gitopsRevision: '1'.repeat(40) } }),
     /gitopsRevision mismatch/,
-  );
-  assert.throws(
-    () => assembleDevReadyEvidence({ ...input, prodBaselineDigest: supplyChain.imageDigest }),
-    /CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE/,
   );
 });
 

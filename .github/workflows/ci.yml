@@ -207,7 +207,7 @@ jobs:
           ATTESTATION_ID: ${{ steps.provenance-attestation.outputs.attestation-id }}
           ATTESTATION_URL: ${{ steps.provenance-attestation.outputs.attestation-url }}
         run: |
-          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA"
+          gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://slsa.dev/provenance/v1"
           gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://spdx.dev/Document/v2.3"
           aws ecr list-image-referrers --repository-name "${{ vars.ECR_REPOSITORY }}" --subject-id "imageDigest=$IMAGE_DIGEST" > ecr-referrers.json
           node scripts/write-supply-chain-evidence.mjs image-index.json ecr-referrers.json supply-chain-evidence.json
