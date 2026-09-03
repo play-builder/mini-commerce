@@ -617,29 +617,36 @@ function verifyRollbackCompatibility(source, expectedDigest, record) {
     ], 'rollback compatibility candidate');
   }
   if (JSON.stringify(record.rollbackCandidates) !== JSON.stringify(completed.candidates)
-    || completed.candidates.length !== 1
-    || completed.candidates[0].imageDigest !== candidate.indexDigest
-    || completed.candidates[0].gitRevertSha !== String(candidate.sourceSha)
-    || completed.candidates[0].podTemplateHash !== completed.targetHash
-    || completed.candidates[0].rolloutRevision >= record.rolloutRevision) {
+    || !completed.candidates.some(({ podTemplateHash }) => podTemplateHash === completed.targetHash)
+    || new Set(completed.candidates.map(({ podTemplateHash }) => podTemplateHash)).size
+      !== completed.candidates.length
+    || new Set(completed.candidates.map(({ rolloutRevision }) => rolloutRevision)).size
+      !== completed.candidates.length) {
     throw new Error('release rollbackCandidates mismatch canonical rollback compatibility');
   }
-  const classification = classifyRollbackBoundary({
-    state: 'completed',
-    applicationDigest: record.imageDigest,
-    stableDigest: record.imageDigest,
-    previousMigrationDigest: value.releaseLineage.v2PrimeContractCompatible.indexDigest,
-    currentMigrationDigest: value.releaseLineage.v2PrimeContractCompatible.indexDigest,
-    gitDesiredStateDigest: record.imageDigest,
-    stableHash: completed.stableHash,
-    targetHash: completed.targetHash,
-    replicaSetList: completed.replicaSetList,
-    rolloutName: completed.rolloutName,
-    rolloutUid: completed.rolloutUid,
-    rollbackWindow: completed.rollbackWindow,
-  });
-  if (classification !== 'completed-window-inside') {
-    throw new Error('canonical rollback candidate is outside rollbackWindow');
+  for (const item of completed.candidates) {
+    if (item.imageDigest !== candidate.indexDigest
+      || item.gitRevertSha !== String(candidate.sourceSha)
+      || item.rolloutRevision >= record.rolloutRevision) {
+      throw new Error('release rollbackCandidates mismatch canonical rollback compatibility');
+    }
+    const classification = classifyRollbackBoundary({
+      state: 'completed',
+      applicationDigest: record.imageDigest,
+      stableDigest: record.imageDigest,
+      previousMigrationDigest: value.releaseLineage.v2PrimeContractCompatible.indexDigest,
+      currentMigrationDigest: value.releaseLineage.v2PrimeContractCompatible.indexDigest,
+      gitDesiredStateDigest: record.imageDigest,
+      stableHash: completed.stableHash,
+      targetHash: item.podTemplateHash,
+      replicaSetList: completed.replicaSetList,
+      rolloutName: completed.rolloutName,
+      rolloutUid: completed.rolloutUid,
+      rollbackWindow: completed.rollbackWindow,
+    });
+    if (classification !== 'completed-window-inside') {
+      throw new Error('canonical rollback candidate is outside rollbackWindow');
+    }
   }
   return { bytes, value, candidates: completed.candidates.map((item) => ({ ...item })) };
 }

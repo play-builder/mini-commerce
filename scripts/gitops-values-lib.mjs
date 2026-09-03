@@ -211,6 +211,8 @@ export function classifyRollbackBoundary({
   const eligible = replicaSetList.items.filter((replicaSet) => {
     const metadata = replicaSet?.metadata ?? {};
     const owned = metadata.ownerReferences?.some((owner) => (
+      owner.apiVersion === 'argoproj.io/v1alpha1'
+      &&
       owner.kind === 'Rollout'
       && owner.name === rolloutName
       && owner.uid === rolloutUid

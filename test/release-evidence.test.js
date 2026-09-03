@@ -3,6 +3,7 @@ import { Buffer } from 'node:buffer';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { test } from 'node:test';
+import YAML from 'yaml';
 
 import {
   exportReleaseEvidence,
@@ -186,4 +187,49 @@ test('final exporter는 두 canonical image platform이 아닌 DEV_READY를 거�
     ...fixtureOptions,
     upstreamSources: { ...upstreamSources, devReadySource },
   }), /invalid DEV_READY identity/);
+});
+
+test('final exporter는 rollback window 안의 모든 v2prime candidate를 보존한다', () => {
+  const input = fixture('complete.json');
+  const rollback = YAML.parse(upstreamSources.rollbackCompatibilitySource.toString('utf8'));
+  const secondCandidate = {
+    imageDigest: rollback.releaseLineage.v2PrimeContractCompatible.indexDigest,
+    productReadContract: 'v2prime',
+    rolloutRevision: 2,
+    gitRevertSha: rollback.releaseLineage.v2PrimeContractCompatible.sourceSha,
+    podTemplateHash: 'older-compatible-hash',
+  };
+  rollback.completedRollback.candidates.push(secondCandidate);
+  rollback.completedRollback.replicaSetList.items.unshift({
+    metadata: {
+      name: 'sample-app-older-compatible',
+      creationTimestamp: '2026-09-03T02:50:00Z',
+      labels: { 'rollouts-pod-template-hash': secondCandidate.podTemplateHash },
+      ownerReferences: [{
+        apiVersion: 'argoproj.io/v1alpha1',
+        kind: 'Rollout',
+        name: rollback.completedRollback.rolloutName,
+        uid: rollback.completedRollback.rolloutUid,
+        controller: true,
+      }],
+    },
+  });
+  input.rollbackCandidates.push(secondCandidate);
+  const rollbackCompatibilitySource = Buffer.from(YAML.stringify(rollback));
+  input.upstreamEvidence.rollbackCompatibilityDigest = `sha256:${crypto.createHash('sha256').update(rollbackCompatibilitySource).digest('hex')}`;
+
+  const output = JSON.parse(exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, rollbackCompatibilitySource },
+  }));
+  assert.deepEqual(output.rollbackCandidates, input.rollbackCandidates);
+
+  rollback.completedRollback.candidates[1].podTemplateHash = 'missing-compatible-hash';
+  input.rollbackCandidates[1].podTemplateHash = 'missing-compatible-hash';
+  const invalidSource = Buffer.from(YAML.stringify(rollback));
+  input.upstreamEvidence.rollbackCompatibilityDigest = `sha256:${crypto.createHash('sha256').update(invalidSource).digest('hex')}`;
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, rollbackCompatibilitySource: invalidSource },
+  }), /ROLLBACK_TARGET_REPLICASET_MISSING/);
 });

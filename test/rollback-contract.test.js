@@ -30,7 +30,7 @@ const replicaSet = (podTemplateHash, creationTimestamp, options = {}) => ({
       ? { 'rollouts.argoproj.io/experiment-name': options.experimentName }
       : {},
     ownerReferences: options.labelOnly ? [] : [{
-      apiVersion: 'argoproj.io/v1alpha1',
+      apiVersion: options.ownerApiVersion ?? 'argoproj.io/v1alpha1',
       kind: 'Rollout',
       name: options.rolloutName ?? 'sample-app',
       uid: options.rolloutUid ?? '11111111-1111-1111-1111-111111111111',
@@ -129,6 +129,14 @@ test('completed rollback window는 revision gap이 아니라 실제 non-Experime
     replicaSetList: replicaSetList(
       replicaSet('target', '2026-09-03T00:00:00Z', { labelOnly: true }),
       replicaSet('stable', '2026-09-03T00:30:00Z', { labelOnly: true }),
+    ),
+  }), /ROLLBACK_TARGET_REPLICASET_MISSING/);
+  assert.throws(() => classifyRollbackBoundary({
+    ...base,
+    rollbackWindow: { revisions: 1 },
+    replicaSetList: replicaSetList(
+      replicaSet('target', '2026-09-03T00:00:00Z', { ownerApiVersion: 'v1' }),
+      replicaSet('stable', '2026-09-03T00:30:00Z'),
     ),
   }), /ROLLBACK_TARGET_REPLICASET_MISSING/);
 });
