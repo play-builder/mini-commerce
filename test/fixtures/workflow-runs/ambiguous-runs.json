@@ -5,8 +5,8 @@
       "html_url": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/711",
       "head_sha": "1111111111111111111111111111111111111111",
       "event": "push",
-      "name": "build-and-deploy-dev",
-      "run_name": "dev-1111111111111111111111111111111111111111-712-1",
+      "name": "ci",
+      "run_name": "dev-1111111111111111111111111111111111111111-711-1",
       "run_number": 11
     },
     {
@@ -14,7 +14,7 @@
       "html_url": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/712",
       "head_sha": "1111111111111111111111111111111111111111",
       "event": "push",
-      "name": "build-and-deploy-dev",
+      "name": "ci",
       "run_name": "dev-1111111111111111111111111111111111111111-712-1",
       "run_number": 12
     }
