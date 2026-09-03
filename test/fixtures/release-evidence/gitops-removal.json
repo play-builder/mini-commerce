@@ -12,6 +12,6 @@
   "retained": [
     {"environment":"dev","namespace":"app-dev","kind":"PersistentVolumeClaim","name":"commerce-data","uid":"11111111-2222-3333-4444-555555555555","classification":"source-pvc","requiresExplicitDeletion":true}
   ],
-  "providerSecrets": {"retained":true,"inventorySha256":"ad824dcb6c44e279ee6976cd4f810bb0a01650da0a1fe365a90af049a20ff1b0"},
+  "providerSecrets": {"retained":true,"inventorySha256":"1aec4fd76cc0c946a1e1a76e52a13e9f659d88425034861760f214c83815493f"},
   "observedAt": "2026-09-03T03:57:00Z"
 }

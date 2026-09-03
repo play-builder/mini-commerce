@@ -5,7 +5,7 @@
   "courseId": "course-fixture",
   "accountId": "123456789012",
   "region": "ap-northeast-2",
-  "inventorySha256": "262f65cf6320b330959e2fb4df2fda48dca206e22a67ac8a6aca3659dfafc62a",
+  "inventorySha256": "dbed922f47cb9d683a69e68e026c708c14cbf1f05c7c13d684efbb4befc00fe7",
   "decisions": [
     {
       "kind": "IAMOIDCProvider",

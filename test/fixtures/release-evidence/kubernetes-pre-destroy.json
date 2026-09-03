@@ -5,7 +5,7 @@
   "courseId": "course-fixture",
   "accountId": "123456789012",
   "region": "ap-northeast-2",
-  "gitopsRemovalSha256": "69f6b47dfadca66525f6c26cc6396a782ffd499afeaece397b98c4a6b93d0451",
+  "gitopsRemovalSha256": "d4c96a085947d8241c3031cc9dbe8400e08dfc9f309c9f6410505e0346b75e0c",
   "clusters": [
     {"environment":"dev","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev"},
     {"environment":"prod","clusterArn":"arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod"}

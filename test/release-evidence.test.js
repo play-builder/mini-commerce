@@ -45,6 +45,41 @@ const upstreamSources = {
 };
 const fixtureOptions = { upstreamSources, mode: 'fixture', now };
 
+const ownershipMutationInput = (mutate) => {
+  const input = fixture('complete.json');
+  const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));
+  const retain = JSON.parse(upstreamSources.retainSource.toString('utf8'));
+  const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
+
+  mutate(ownership);
+  ownership.resources.sort((left, right) => (
+    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+  ));
+  const ownershipSource = Buffer.from(JSON.stringify(ownership));
+  const ownershipDigest = rawSha256(ownershipSource);
+
+  retain.inventorySha256 = ownershipDigest;
+  const retainSource = Buffer.from(JSON.stringify(retain));
+  const retainDigest = rawSha256(retainSource);
+
+  residual.inventorySha256 = ownershipDigest;
+  residual.retainDecisionsSha256 = retainDigest;
+  const residualSource = Buffer.from(JSON.stringify(residual));
+
+  input.upstreamEvidence.ownershipInventoryDigest = `sha256:${ownershipDigest}`;
+  input.upstreamEvidence.retainDecisionsDigest = `sha256:${retainDigest}`;
+  input.upstreamEvidence.residualScanDigest = `sha256:${rawSha256(residualSource)}`;
+  return {
+    input,
+    options: {
+      ...fixtureOptions,
+      upstreamSources: {
+        ...upstreamSources, ownershipSource, retainSource, residualSource,
+      },
+    },
+  };
+};
+
 test('complete release evidence를 canonical JSON으로 보존한다', () => {
   const input = fixture('complete.json');
   const output = JSON.parse(exportReleaseEvidence(input, fixtureOptions));
@@ -244,6 +279,36 @@ test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠�
   }
 });
 
+test('cleanup ownership은 canonical environment, Terraform manager, course delete owner만 승인한다', () => {
+  const mutations = [
+    ['unknown environment', (ownership) => { ownership.resources[0].environment = 'qa'; }],
+    ['non-Terraform manager', (ownership) => { ownership.resources[0].managedBy = 'cloudformation'; }],
+    ['external delete owner', (ownership) => {
+      ownership.resources.push({
+        kind: 'EksCluster',
+        id: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev',
+        environment: 'dev',
+        classification: 'runtime',
+        owner: 'external',
+        managedBy: 'terraform',
+        billable: true,
+        decision: 'DELETE',
+        reason: '',
+        followUpAction: '',
+      });
+    }],
+  ];
+
+  for (const [label, mutate] of mutations) {
+    const { input, options } = ownershipMutationInput(mutate);
+    assert.throws(
+      () => exportReleaseEvidence(input, options),
+      /cleanup ownership resource is invalid/,
+      label,
+    );
+  }
+});
+
 test('provider Secret projection은 jq sort_by와 같은 Unicode codepoint 순서를 사용한다', () => {
   const input = fixture('complete.json');
   const ownership = JSON.parse(upstreamSources.ownershipSource.toString('utf8'));
@@ -390,7 +455,7 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     environment: 'dev',
     classification: 'recovery-evidence',
     owner: 'course-fixture',
-    managedBy: 'argocd-gitops',
+    managedBy: 'terraform',
     billable: true,
     decision: 'RETAIN',
     reason: 'snapshot recovery evidence retained',

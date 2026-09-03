@@ -804,8 +804,11 @@ function verifyOwnership(value, mode, ownershipBytes) {
     ], 'cleanup ownership.resource');
     if (![resource.kind, resource.id, resource.environment, resource.classification,
       resource.owner, resource.managedBy].every(isNonemptyString)
+      || !['dev', 'prod', 'shared'].includes(resource.environment)
+      || resource.managedBy !== 'terraform'
       || typeof resource.billable !== 'boolean'
       || !['DELETE', 'RETAIN', 'EXTERNAL_SHARED'].includes(resource.decision)
+      || (resource.decision === 'DELETE' && resource.owner !== 'course')
       || (resource.decision !== 'DELETE'
         && (!isNonemptyString(resource.reason) || !isNonemptyString(resource.followUpAction)))) {
       throw new Error('cleanup ownership resource is invalid');
