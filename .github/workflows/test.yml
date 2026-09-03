@@ -12,14 +12,14 @@ jobs:
     permissions:
       contents: read
     env:
-      DATABASE_TEST_URL: postgresql://commerce:course-ci-only@127.0.0.1:5432/commerce
+      DATABASE_TEST_URL: postgresql://commerce:${{ github.run_id }}-${{ github.run_attempt }}@127.0.0.1:5432/commerce
     services:
       postgres:
         image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
         env:
           POSTGRES_DB: commerce
           POSTGRES_USER: commerce
-          POSTGRES_PASSWORD: course-ci-only
+          POSTGRES_PASSWORD: ${{ github.run_id }}-${{ github.run_attempt }}
         ports:
           - 5432:5432
         options: >-

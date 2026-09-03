@@ -79,13 +79,13 @@ DB 기능은 기본적으로 꺼져 있으므로 기존 Stateless 실습 결과�
 기본 host port는 다른 PostgreSQL과의 충돌을 줄이기 위해 `55432`입니다.
 
 ```bash
+export DB_PASSWORD="$(openssl rand -hex 24)"
 docker compose up -d --wait postgres
 export DATABASE_ENABLED=true
 export DB_HOST=127.0.0.1
 export DB_PORT=55432
 export DB_NAME=commerce
 export DB_USER=commerce
-export DB_PASSWORD=course-local-only
 npm run migrate:up
 npm start
 ```
