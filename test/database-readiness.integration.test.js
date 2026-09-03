@@ -21,7 +21,7 @@ test('DB readiness 실패는 driver 오류를 숨기고 고정된 503 응답을 
       throw new Error('connection refused');
     },
   };
-  const server = createApp({ databaseEnabled: true, commerceService }).listen(0);
+  const server = createApp({ databaseEnabled: true, commerceService }).listen(0, '127.0.0.1');
   t.after(async () => {
     server.closeAllConnections();
     await new Promise((resolve, reject) => {
