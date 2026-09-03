@@ -126,7 +126,8 @@ test('Trivy scans use the verified action and explicit scanner version without w
   assert.equal(scans.length, 2);
   for (const scan of scans) {
     assert.equal(scan.uses, 'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25');
-    assert.equal(scan.with['trivy-version'], '0.74.0');
+    assert.equal(scan.with.version, '0.74.0');
+    assert.equal(scan.with['trivy-version'], undefined);
     assert.equal(Object.hasOwn(scan.with, 'ignore-unfixed'), false);
   }
   assert.equal(fs.existsSync(new URL('../.trivyignore.yaml', import.meta.url)), false);
