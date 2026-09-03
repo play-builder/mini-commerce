@@ -153,6 +153,58 @@ export function rollbackApplicationImage(source, repository, digest) {
   return updateImageBlock(source, repository, digest);
 }
 
+export function classifyRollbackBoundary({
+  state,
+  applicationDigest,
+  stableDigest,
+  migrationDigest,
+  gitDesiredStateDigest,
+  stableHash,
+  targetHash,
+  replicaSets = [],
+  rollbackWindow,
+}) {
+  for (const value of [applicationDigest, stableDigest, migrationDigest, gitDesiredStateDigest]) {
+    if (!digestPattern.test(value)) throw new Error('rollback evidence contains an invalid digest');
+  }
+
+  if (state === 'in-progress') {
+    if (applicationDigest !== stableDigest) {
+      throw new Error('APPLICATION_DIGEST_MUST_MATCH_STABLE');
+    }
+    if (gitDesiredStateDigest !== stableDigest) {
+      throw new Error('GIT_DESIRED_STATE_MUST_MATCH_STABLE');
+    }
+    return 'in-progress-stable-reapply';
+  }
+  if (state !== 'completed') throw new Error(`unsupported rollout state: ${state}`);
+
+  const revisions = rollbackWindow?.revisions;
+  if (!Number.isSafeInteger(revisions) || revisions < 0) {
+    throw new Error('rollbackWindow.revisions must be a non-negative integer');
+  }
+  const eligible = replicaSets.filter(({ experimentName }) => !experimentName);
+  const targets = eligible.filter(({ podTemplateHash }) => podTemplateHash === targetHash);
+  const stables = eligible.filter(({ podTemplateHash }) => podTemplateHash === stableHash);
+  if (targets.length !== 1 || stables.length !== 1) {
+    throw new Error('ROLLBACK_REPLICASET_ENDPOINT_MISSING');
+  }
+  const targetTime = Date.parse(targets[0].creationTimestamp);
+  const stableTime = Date.parse(stables[0].creationTimestamp);
+  if (!Number.isFinite(targetTime) || !Number.isFinite(stableTime)) {
+    throw new Error('ROLLBACK_REPLICASET_TIMESTAMP_INVALID');
+  }
+  if (targetTime >= stableTime) {
+    throw new Error('ROLLBACK_TARGET_MUST_BE_OLDER_THAN_STABLE');
+  }
+
+  const windowSize = eligible.filter(({ creationTimestamp }) => {
+    const timestamp = Date.parse(creationTimestamp);
+    return timestamp > targetTime && timestamp < stableTime;
+  }).length;
+  return windowSize < revisions ? 'completed-window-inside' : 'completed-window-outside';
+}
+
 export function setImageInFile(fileName, repository, digest) {
   const source = fs.readFileSync(fileName, 'utf8');
   const updated = updateImageBlock(source, repository, digest);

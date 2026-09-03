@@ -2,7 +2,11 @@ import { config } from './config.js';
 import { state, markReady, markShuttingDown } from './state.js';
 import { createApp } from './routes.js';
 import { createCommerceService } from './commerce-service.js';
-import { createDatabasePool, createPostgresCommerceRepository } from './database.js';
+import {
+  createDatabasePool,
+  createPostgresCommerceRepository,
+  PRODUCT_READ_CONTRACT,
+} from './database.js';
 import { initializeTelemetry, writeLog } from './telemetry.js';
 
 const telemetry = initializeTelemetry({
@@ -12,7 +16,9 @@ const telemetry = initializeTelemetry({
 });
 
 const pool = config.databaseEnabled ? createDatabasePool(config.database) : null;
-const commerceService = pool ? createCommerceService(createPostgresCommerceRepository(pool)) : null;
+const commerceService = pool ? createCommerceService(createPostgresCommerceRepository(pool, {
+  productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
+})) : null;
 const app = createApp({ databaseEnabled: config.databaseEnabled, commerceService });
 const server = app.listen(config.port, () => {
   console.log(`listening on ${config.port}, version ${config.version}, pod ${config.podName}`);

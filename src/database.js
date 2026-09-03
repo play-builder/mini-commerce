@@ -8,11 +8,13 @@ const { Pool } = pg;
 export const PRODUCT_READ_CONTRACT = Object.freeze({
   V1: 'v1',
   V2: 'v2',
+  V2_PRIME: 'v2prime',
 });
 
 const productNameProjection = Object.freeze({
   [PRODUCT_READ_CONTRACT.V1]: 'p.name AS name',
   [PRODUCT_READ_CONTRACT.V2]: 'COALESCE(p.display_name, p.name) AS name',
+  [PRODUCT_READ_CONTRACT.V2_PRIME]: 'p.display_name AS name',
 });
 
 function mapProduct(row) {
@@ -63,7 +65,7 @@ export function createDatabasePool(databaseConfig) {
 
 export function createPostgresCommerceRepository(
   pool,
-  { productReadContract = PRODUCT_READ_CONTRACT.V2, tracer } = {},
+  { productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME, tracer } = {},
 ) {
   const nameProjection = productNameProjection[productReadContract];
   if (!nameProjection) throw new Error(`unsupported product read contract: ${productReadContract}`);

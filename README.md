@@ -116,6 +116,11 @@ backfill합니다. 이 Expand 구간에서는 v1과 v2 application query가 같�
 계산합니다. 이 regression은 공개 fault endpoint나 runtime flag가 아니라 별도 source commit으로
 재현합니다.
 
+`003_contract_product_name.js`는 모든 retained rollback candidate가 `v2prime` query contract를
+사용하는지 확인한 뒤 적용하는 Contract 단계입니다. `display_name` null gate를 통과해야만
+`NOT NULL`을 설정하고 legacy `name`을 제거합니다. Rollback window 판정은 revision 번호 차이가
+아니라 target과 stable 사이에 실제 남아 있는 non-Experiment ReplicaSet 수를 사용합니다.
+
 ```bash
 docker compose down --volumes
 ```

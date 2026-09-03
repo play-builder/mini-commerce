@@ -4,6 +4,7 @@ import fs from 'node:fs';
 
 import {
   promoteDeliveryImagesInFile,
+  classifyRollbackBoundary,
   readImageBlock,
   setDeliveryImagesInFile,
   setImageInFile,
@@ -27,9 +28,13 @@ if (command === 'set' && args.length === 3) {
   const [fileName, repository, digest] = args;
   setImageInFile(fileName, repository, digest);
   console.log(`rolled back application image in ${fileName} -> ${repository}@${digest}`);
+} else if (command === 'classify-rollback' && args.length === 1) {
+  const evidence = JSON.parse(fs.readFileSync(args[0], 'utf8'));
+  console.log(classifyRollbackBoundary(evidence));
 } else {
   console.error('usage: gitops-values.mjs set FILE REPOSITORY DIGEST');
   console.error('   or: gitops-values.mjs promote DEV_FILE PROD_FILE [EXPECTED_DIGEST]');
   console.error('   or: gitops-values.mjs rollback-app FILE REPOSITORY DIGEST');
+  console.error('   or: gitops-values.mjs classify-rollback EVIDENCE_JSON');
   process.exit(2);
 }

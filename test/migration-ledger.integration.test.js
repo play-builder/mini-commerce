@@ -60,7 +60,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
 }, async () => withTemporaryDatabase(async (targetUrl) => {
   const results = await Promise.all([runMigration(targetUrl), runMigration(targetUrl)]);
   assert.deepEqual(results.map(({ code }) => code), [0, 0], results.map((item) => item.stderr).join('\n'));
-  assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 2]);
+  assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 3]);
 
   const pool = new Pool({ connectionString: targetUrl.toString() });
   const copiedDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-migrations-'));
@@ -69,6 +69,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     assert.deepEqual(ledger.rows.map(({ filename }) => filename), [
       '001_initial_commerce.js',
       '002_expand_product_display_name.js',
+      '003_contract_product_name.js',
     ]);
     assert.ok(ledger.rows.every(({ sha256 }) => /^[0-9a-f]{64}$/.test(sha256)));
 
@@ -80,7 +81,11 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     `);
     assert.equal(locks.rows[0].count, 0);
 
-    for (const filename of ['001_initial_commerce.js', '002_expand_product_display_name.js']) {
+    for (const filename of [
+      '001_initial_commerce.js',
+      '002_expand_product_display_name.js',
+      '003_contract_product_name.js',
+    ]) {
       fs.copyFileSync(path.join(migrationsDirectory, filename), path.join(copiedDirectory, filename));
     }
     fs.appendFileSync(path.join(copiedDirectory, '002_expand_product_display_name.js'), '\n// altered\n');

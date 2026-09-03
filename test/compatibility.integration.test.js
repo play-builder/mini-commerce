@@ -39,15 +39,19 @@ function migrate(database, directory) {
   });
 }
 
-test('v1과 v2 query contract가 Expand schema에서 함께 동작한다', {
+test('v1, v2, v2prime query contract가 실제 schema 전환 경계에서 동작한다', {
   skip: !databaseUrl,
 }, async () => withTemporaryDatabase(async (targetUrl) => {
   assert.equal(PRODUCT_READ_CONTRACT.V2, 'v2');
   const initialDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-initial-'));
+  const expandDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-expand-'));
   fs.copyFileSync(
     path.join(migrationsDirectory, '001_initial_commerce.js'),
     path.join(initialDirectory, '001_initial_commerce.js'),
   );
+  for (const filename of ['001_initial_commerce.js', '002_expand_product_display_name.js']) {
+    fs.copyFileSync(path.join(migrationsDirectory, filename), path.join(expandDirectory, filename));
+  }
   const pool = new Pool({ connectionString: targetUrl });
   try {
     await migrate(targetUrl, initialDirectory);
@@ -56,18 +60,33 @@ test('v1과 v2 query contract가 Expand schema에서 함께 동작한다', {
     });
     assert.equal((await v1BeforeExpand.listProducts()).length, 4);
 
-    await migrate(targetUrl, migrationsDirectory);
+    await migrate(targetUrl, expandDirectory);
     const matrix = [
       [PRODUCT_READ_CONTRACT.V1, '001', true],
       [PRODUCT_READ_CONTRACT.V1, '002', true],
       [PRODUCT_READ_CONTRACT.V2, '002', true],
+      [PRODUCT_READ_CONTRACT.V2_PRIME, '002', true],
     ];
     for (const [contract, schema, succeeds] of matrix) {
       const repository = createPostgresCommerceRepository(pool, { productReadContract: contract });
       assert.equal((await repository.listProducts()).length > 0, succeeds, `${contract}+${schema}`);
     }
+
+    await migrate(targetUrl, migrationsDirectory);
+    const v2prime = createPostgresCommerceRepository(pool, {
+      productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
+    });
+    assert.equal((await v2prime.listProducts()).length, 4);
+    const v1AfterContract = createPostgresCommerceRepository(pool, {
+      productReadContract: PRODUCT_READ_CONTRACT.V1,
+    });
+    await assert.rejects(
+      v1AfterContract.listProducts(),
+      (error) => error.code === '42703',
+    );
   } finally {
     fs.rmSync(initialDirectory, { recursive: true, force: true });
+    fs.rmSync(expandDirectory, { recursive: true, force: true });
     await pool.end();
   }
 }));
