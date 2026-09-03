@@ -104,6 +104,10 @@ curl -fsS -X POST http://127.0.0.1:3000/orders \
 동일한 `Idempotency-Key`로 주문을 다시 보내면 새 주문을 만들거나 재고를 다시 차감하지 않고 기존
 주문을 반환합니다. 주문 생성은 PostgreSQL transaction과 inventory row lock을 사용합니다.
 
+Migration은 한 번 적용한 파일을 되돌리거나 수정하지 않는 forward-only 계약을 사용합니다.
+`course_migration_ledger`가 적용 파일의 SHA-256을 기록하고, 동시 runner는 control row와
+`node-pg-migrate` advisory lock으로 직렬화됩니다.
+
 ```bash
 docker compose down --volumes
 ```

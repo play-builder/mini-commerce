@@ -60,9 +60,4 @@ export async function up(pgm) {
   `);
 }
 
-export async function down(pgm) {
-  pgm.dropTable('order_items');
-  pgm.dropTable('orders');
-  pgm.dropTable('inventory');
-  pgm.dropTable('products');
-}
+export const down = false;

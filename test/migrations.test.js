@@ -4,12 +4,15 @@ import { test } from 'node:test';
 
 const migrationDirectory = new URL('../migrations/', import.meta.url);
 
-test('commerce migration은 순서가 고정된 두 파일로 구성된다', () => {
+test('v1-compatible release는 초기 migration 한 개로 시작한다', () => {
   const files = fs.readdirSync(migrationDirectory).sort();
-  assert.deepEqual(files, [
-    '001_initial_commerce.js',
-    '002_expand_product_display_name.js',
-  ]);
+  assert.deepEqual(files, ['001_initial_commerce.js']);
+});
+
+test('모든 migration은 명시적인 forward-only module이다', async () => {
+  const migration = await import(new URL('001_initial_commerce.js', migrationDirectory));
+  assert.equal(typeof migration.up, 'function');
+  assert.equal(migration.down, false);
 });
 
 test('초기 migration은 네 table과 idempotency key, 멱등한 mock seed를 포함한다', () => {
@@ -19,11 +22,4 @@ test('초기 migration은 네 table과 idempotency key, 멱등한 mock seed를 �
   }
   assert.match(source, /idempotency_key/);
   assert.match(source, /ON CONFLICT/);
-});
-
-test('Expand migration은 기존 name을 제거하지 않고 display_name을 backfill한다', () => {
-  const source = fs.readFileSync(new URL('002_expand_product_display_name.js', migrationDirectory), 'utf8');
-  assert.match(source, /display_name/);
-  assert.match(source, /UPDATE products/);
-  assert.doesNotMatch(source, /dropColumn|DROP COLUMN|renameColumn/);
 });

@@ -5,6 +5,14 @@ import { withDatabaseSpan } from './telemetry.js';
 
 const { Pool } = pg;
 
+export const PRODUCT_READ_CONTRACT = Object.freeze({
+  V1: 'v1',
+});
+
+const productNameProjection = Object.freeze({
+  [PRODUCT_READ_CONTRACT.V1]: 'p.name AS name',
+});
+
 function mapProduct(row) {
   return {
     id: Number(row.id),
@@ -51,7 +59,12 @@ export function createDatabasePool(databaseConfig) {
   });
 }
 
-export function createPostgresCommerceRepository(pool, { tracer } = {}) {
+export function createPostgresCommerceRepository(
+  pool,
+  { productReadContract = PRODUCT_READ_CONTRACT.V1, tracer } = {},
+) {
+  const nameProjection = productNameProjection[productReadContract];
+  if (!nameProjection) throw new Error(`unsupported product read contract: ${productReadContract}`);
   const query = (text, values) => withDatabaseSpan({
     tracer,
     execute: () => pool.query(text, values),
@@ -59,7 +72,7 @@ export function createPostgresCommerceRepository(pool, { tracer } = {}) {
   return {
     async listProducts() {
       const result = await query(`
-        SELECT p.id, p.sku, COALESCE(p.display_name, p.name) AS name,
+        SELECT p.id, p.sku, ${nameProjection},
                p.price_cents, i.available_quantity
         FROM products p
         JOIN inventory i ON i.product_id = p.id
@@ -70,7 +83,7 @@ export function createPostgresCommerceRepository(pool, { tracer } = {}) {
 
     async getInventory(productId) {
       const result = await query(`
-        SELECT p.id, p.sku, COALESCE(p.display_name, p.name) AS name,
+        SELECT p.id, p.sku, ${nameProjection},
                p.price_cents, i.available_quantity
         FROM products p
         JOIN inventory i ON i.product_id = p.id
@@ -125,7 +138,7 @@ export function createPostgresCommerceRepository(pool, { tracer } = {}) {
 
           async lockInventory(productIds) {
             const result = await transactionQuery(`
-              SELECT p.id, p.sku, COALESCE(p.display_name, p.name) AS name,
+              SELECT p.id, p.sku, ${nameProjection},
                      p.price_cents, i.available_quantity
               FROM products p
               JOIN inventory i ON i.product_id = p.id
