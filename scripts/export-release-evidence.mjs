@@ -178,7 +178,7 @@ function verifyIncidentArtifact(bytes, {
   return { observedAt, envelope };
 }
 
-function verifyDb04RecoverySource(bytes, { incident, scenario, expectedScope, releaseLineage }) {
+export function verifyDb04RecoverySource(bytes, { incident, scenario, expectedScope, releaseLineage }) {
   let value;
   try {
     value = JSON.parse(bytes.toString('utf8'));
@@ -400,7 +400,12 @@ function verifyIncidentIndex(source, {
   }
   if (expectedGrade === 'INCIDENT_EVIDENCE') {
     if (db04Recoveries.length !== 3) throw new Error('INC-DB-04 recovery evidence is incomplete');
-    const [first, second, hotfix] = db04Recoveries;
+    const recoveriesByStrategy = new Map(
+      db04Recoveries.map((value) => [value.recovered.strategy, value]),
+    );
+    const first = recoveriesByStrategy.get('git-revert');
+    const second = recoveriesByStrategy.get('break-glass-undo-plus-git');
+    const hotfix = recoveriesByStrategy.get('hotfix-fix-forward');
     const identity = (value) => JSON.stringify(canonicalize(value));
     if (identity(first.stable) !== identity(second.stable)
       || identity(first.faulty) !== identity(second.faulty)
