@@ -24,7 +24,8 @@
     {"kind":"IAMOIDCProvider","id":"token.actions.githubusercontent.com","owner":"external","deletePlanned":false,"presentAfterCleanup":true}
   ],
   "retained": [
-    {"kind":"PersistentVolumeClaim","id":"app-dev/commerce-data","owner":"course-fixture","reason":"recovery evidence retained","followUpAction":"delete after retention approval","presentAfterCleanup":true}
+    {"kind":"PersistentVolumeClaim","id":"app-dev/commerce-data","owner":"course-fixture","reason":"recovery evidence retained","followUpAction":"delete after retention approval","presentAfterCleanup":true},
+    {"kind":"SecretsManagerSecret","id":"course-fixture/dev/app","owner":"course-fixture","reason":"provider-managed recovery input","followUpAction":"delete after recovery evidence expires","presentAfterCleanup":true}
   ],
   "observedAt": "2026-09-03T03:58:00Z"
 }

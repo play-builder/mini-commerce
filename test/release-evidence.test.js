@@ -146,6 +146,17 @@ test('Prod SLO는 실패 이력을 제거하지 않고 성공 terminal measureme
   });
   assert.deepEqual(JSON.parse(serialized).upstreamEvidence.prodSloDigest, prodSloDigest);
 
+  for (const invalidValue of [12.5, null, '']) {
+    const invalidSlo = JSON.parse(upstreamSources.prodSloSource.toString('utf8'));
+    invalidSlo.metricResults[0].measurements[0].value = invalidValue;
+    const invalidSource = Buffer.from(JSON.stringify(invalidSlo));
+    input.upstreamEvidence.prodSloDigest = `sha256:${crypto.createHash('sha256').update(invalidSource).digest('hex')}`;
+    assert.throws(() => exportReleaseEvidence(input, {
+      ...fixtureOptions,
+      upstreamSources: { ...upstreamSources, prodSloSource: invalidSource },
+    }), /terminal measurement is invalid/);
+  }
+
   prodSlo.metricResults[0].measurements[1].phase = 'Error';
   const failedOnlySource = Buffer.from(JSON.stringify(prodSlo));
   input.upstreamEvidence.prodSloDigest = `sha256:${crypto.createHash('sha256').update(failedOnlySource).digest('hex')}`;
@@ -161,6 +172,21 @@ test('runtime evidence input은 canonical upstream 11개 파일만 받는다', (
     ...fixtureOptions,
     upstreamSources: { ...upstreamSources, unexpectedSource: Buffer.from('not evidence') },
   }), /unexpected upstreamSources key unexpectedSource/);
+});
+
+test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠짐없이 보존한다', () => {
+  for (const collection of ['externalShared', 'retained']) {
+    const input = fixture('complete.json');
+    const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
+    residual[collection] = residual[collection].slice(1);
+    const residualSource = Buffer.from(JSON.stringify(residual));
+    input.upstreamEvidence.residualScanDigest = `sha256:${crypto.createHash('sha256').update(residualSource).digest('hex')}`;
+
+    assert.throws(() => exportReleaseEvidence(input, {
+      ...fixtureOptions,
+      upstreamSources: { ...upstreamSources, residualSource },
+    }), /cleanup residual does not exactly match ownership decisions/);
+  }
 });
 
 test('final exporter는 push가 아닌 DEV_READY workflow event를 거부한다', () => {

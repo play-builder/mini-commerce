@@ -16,7 +16,7 @@
     "ownershipInventoryDigest": "sha256:7f7db07eafe17e5a98c1aca1591dfa333e895629694b8cbd1993f8253280a262",
     "retainDecisionsDigest": "sha256:c1b679c5acb334a807e9c228e39ff01b02a7ec6ce4cf6901c3125407c668eb53",
     "kubernetesPreDestroyDigest": "sha256:3996207f9de45aaacf56053f893f1ff5654d70aa761432ba125877c51f0e719b",
-    "residualScanDigest": "sha256:9ea9ebea095f84772f646616d9f36c2ffa56532c7dba9a542bdd4f2b28466579"
+    "residualScanDigest": "sha256:0f5ab491fc4cba1e077f524a5c3827f17e2765f4e486dc56141ffc8efeea048a"
   },
   "sourceSha": "0123456789abcdef0123456789abcdef01234567",
   "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",

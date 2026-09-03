@@ -524,6 +524,8 @@ function verifyProdSlo(value, mode) {
       const startedAt = parseTimestamp(measurement.startedAt, 'Prod SLO measurement startedAt');
       const finishedAt = parseTimestamp(measurement.finishedAt, 'Prod SLO measurement finishedAt');
       if (!['Successful', 'Failed', 'Error'].includes(measurement.phase)
+        || typeof measurement.value !== 'string'
+        || measurement.value.trim().length === 0
         || !Number.isFinite(Number(measurement.value))
         || finishedAt < startedAt) throw new Error('Prod SLO terminal measurement is invalid');
       if (measurement.phase === 'Successful') successfulTerminalMeasurements += 1;
@@ -903,6 +905,27 @@ function verifyResidual(value, mode, {
         && inventory.decision !== 'RETAIN')) {
       throw new Error('cleanup residual does not match ownership decisions');
     }
+  }
+  const expectedExternalShared = ownership.resources
+    .filter(({ decision }) => decision === 'EXTERNAL_SHARED')
+    .map(({ kind, id, owner }) => ({
+      kind, id, owner, deletePlanned: false, presentAfterCleanup: true,
+    }))
+    .sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  const expectedRetained = retain.decisions
+    .filter(({ decision }) => decision === 'RETAIN')
+    .map(({ kind, id, reason, followUpAction }) => ({
+      kind,
+      id,
+      owner: inventoryByKey.get(`${kind}\0${id}`).owner,
+      reason,
+      followUpAction,
+      presentAfterCleanup: true,
+    }))
+    .sort((a, b) => a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id));
+  if (JSON.stringify(value.externalShared) !== JSON.stringify(expectedExternalShared)
+    || JSON.stringify(value.retained) !== JSON.stringify(expectedRetained)) {
+    throw new Error('cleanup residual does not exactly match ownership decisions');
   }
   const residualAt = parseTimestamp(value.observedAt, 'cleanup residual observedAt');
   if (residualAt <= parseTimestamp(removal.observedAt, 'GitOps removal observedAt')) {
