@@ -652,6 +652,7 @@ test('final exporter는 noncanonical DEV_READY AWS identity를 거부한다', ()
     (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev/garbage'; },
     (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course dev'; },
     (value) => { value.image.repository = value.image.repository.replace('.amazonaws.com/', '.amazonaws.com.cn/'); },
+    (value) => { value.image.repository = '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/a'; },
   ];
 
   for (const mutate of mutations) {

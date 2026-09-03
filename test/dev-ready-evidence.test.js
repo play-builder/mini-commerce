@@ -189,6 +189,13 @@ test('DEV_READY는 commercial ECR, canonical EKS ARN, UTC timestamp와 numeric a
   const now = new Date('2026-09-03T00:30:00Z');
 
   assert.throws(() => createDevReadyEvidence(mutate((value) => {
+    value.image.repository = '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/a';
+  }), now), /invalid image.repository/);
+  assert.equal(createDevReadyEvidence(mutate((value) => {
+    value.image.repository = '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/ab';
+  }), now).image.repository, '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/ab');
+
+  assert.throws(() => createDevReadyEvidence(mutate((value) => {
     value.image.repository = value.image.repository.replace('.amazonaws.com/', '.amazonaws.com.cn/');
   }), now), /invalid image.repository/);
   for (const clusterArn of [

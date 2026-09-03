@@ -80,7 +80,7 @@ function parseClusterArn(value, label) {
 
 function parseEcrRepository(value, label) {
   const match = /^(\d{12})\.dkr\.ecr\.(ap-northeast-2|us-east-1)\.amazonaws\.com\/([a-z0-9]+(?:[._/-][a-z0-9]+)*)$/.exec(value ?? '');
-  if (!match || match[3].length > 256) {
+  if (!match || match[3].length < 2 || match[3].length > 256) {
     throw new Error(`invalid ${label}`);
   }
   return { accountId: match[1], region: match[2], name: match[3] };

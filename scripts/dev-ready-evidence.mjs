@@ -61,7 +61,9 @@ function parseTimestamp(value, label) {
 
 function parseEcrRepository(repository) {
   const match = /^(\d{12})\.dkr\.ecr\.(ap-northeast-2|us-east-1)\.amazonaws\.com\/([a-z0-9]+(?:[._/-][a-z0-9]+)*)$/.exec(repository);
-  if (!match || match[3].length > 256) throw new Error('invalid image.repository');
+  if (!match || match[3].length < 2 || match[3].length > 256) {
+    throw new Error('invalid image.repository');
+  }
   return { accountId: match[1], region: match[2], name: match[3] };
 }
 
