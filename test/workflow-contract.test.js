@@ -111,6 +111,8 @@ test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모�
     options: ['publish-dev-ready', 'promote-candidate'],
   });
   assert.equal(promote.on.workflow_dispatch.inputs.dev_ready_run_id.required, true);
+  assert.equal(promote.jobs['promotion-pr'].if, "${{ github.ref == 'refs/heads/main' }}");
+  assert.equal(promote.jobs['promotion-pr'].environment, 'gitops-production');
   assert.deepEqual(promote.jobs['promotion-pr'].permissions, { actions: 'read', contents: 'read' });
   const steps = promote.jobs['promotion-pr'].steps;
   const gitopsCheckoutIndex = steps.findIndex((step) => step.name === 'Checkout GitOps repository');
@@ -161,6 +163,17 @@ test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모�
     promotionPr.if,
     "inputs.operation == 'promote-candidate' && steps.update.outputs.changed == 'true'",
   );
+  assert.match(promotionPr.run, /Merging this PR changes Git desired state only; it does not deploy by itself/);
+  assert.match(promotionPr.run, /authorized operator must run Argo CD Sync to start the production Canary/);
+  assert.doesNotMatch(promotionPr.run, /Merge starts the production Canary/);
+});
+
+test('README는 production promotion secret과 environment protection 경계를 안내한다', () => {
+  const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  assert.match(readme, /gitops-production environment secret/);
+  assert.match(readme, /deployment branch[^\n]*main/);
+  assert.match(readme, /required reviewer/);
+  assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production/);
 });
 
 test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () => {

@@ -155,6 +155,9 @@ export function verifyDevReadyEvidence(evidence, expected = {}, now = new Date()
   }
   if (expected.workflowRun) {
     const run = expected.workflowRun;
+    if (run.status !== 'completed') throw new Error('workflowRun.status must equal completed');
+    if (run.conclusion !== 'success') throw new Error('workflowRun.conclusion must equal success');
+    if (run.head_branch !== 'main') throw new Error('workflowRun.head_branch must equal main');
     assertEqual(verified.workflow.runId, String(run.id), 'workflow.runId');
     assertEqual(verified.workflow.runAttempt, run.run_attempt, 'workflow.runAttempt');
     assertEqual(verified.workflow.runUrl, run.html_url, 'workflow.runUrl');

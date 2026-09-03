@@ -200,11 +200,26 @@ Repository variables:
 | `GITOPS_OWNER` | GitOps 저장소 owner |
 | `GITOPS_REPOSITORY_NAME` | GitOps 저장소 이름 |
 
-Repository secret:
+Production promotion environment secret:
 
 | 이름 | 값 |
 | --- | --- |
 | `GITOPS_APP_PRIVATE_KEY` | GitHub App private key PEM 전체 |
+
+`GITOPS_APP_PRIVATE_KEY`는 repository secret이 아니라 GitHub의
+gitops-production environment secret으로 등록합니다. PEM을 화면에 출력하지 않고 등록하는
+명령은 다음과 같습니다.
+
+```bash
+gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production \
+  --repo "<owner>/cicd-course-sample-app" < "<GitHub-App-private-key.pem>"
+```
+
+Repository의 **Settings → Environments → gitops-production**에서 deployment branch를 `main`으로
+제한합니다. 해당 GitHub 요금제와 repository visibility에서 protection rule을 지원하면, 실행자와
+다른 운영 담당자를 required reviewer로 지정합니다. 기존 repository-level
+`GITOPS_APP_PRIVATE_KEY`가 있다면 environment secret 등록을 확인한 뒤 삭제합니다. 이 경계로 인해
+다른 ref에서 수동 실행한 promotion job은 동작하지 않으며, 승인 전에는 private key를 읽지 못합니다.
 
 GitHub App은 `argocd-gitops` 저장소에 설치하고 최소한 다음 repository permission을 줍니다.
 

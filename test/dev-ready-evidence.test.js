@@ -19,10 +19,7 @@ test('Seoul과 Virginia DEV_READY evidence를 같은 canonical schema로 승인�
   assert.equal(
     verifyDevReadyEvidence(seoul, {
       githubRepository: 'play-builder/cicd-course-sample-app',
-      workflowRun: {
-        id: 1234567890, run_attempt: 1, html_url: seoul.workflow.runUrl,
-        head_sha: seoul.sourceSha, event: 'push', name: 'ci',
-      },
+      workflowRun: fixture('dev-ready', 'workflow-run-ap-northeast-2.json'),
     }, new Date('2026-09-03T00:30:00Z')).region,
     'ap-northeast-2',
   );
@@ -30,10 +27,7 @@ test('Seoul과 Virginia DEV_READY evidence를 같은 canonical schema로 승인�
   assert.equal(
     verifyDevReadyEvidence(virginia, {
       githubRepository: 'play-builder/cicd-course-sample-app',
-      workflowRun: {
-        id: 2234567890, run_attempt: 2, html_url: virginia.workflow.runUrl,
-        head_sha: virginia.sourceSha, event: 'push', name: 'ci',
-      },
+      workflowRun: fixture('dev-ready', 'workflow-run-us-east-1.json'),
     }, new Date('2026-09-03T01:30:00Z')).region,
     'us-east-1',
   );
@@ -83,14 +77,7 @@ test('supply-chain, Dev deployment, SLO 세 증거가 일치할 때만 DEV_READY
   const supplyChain = fixture('supply-chain', 'verified.json');
   const deployment = fixture('dev-evidence', 'deployment.json');
   const slo = fixture('dev-evidence', 'slo.json');
-  const workflowRun = {
-    id: 1234567890,
-    run_attempt: 1,
-    html_url: supplyChain.runUrl,
-    head_sha: supplyChain.sourceSha,
-    event: 'push',
-    name: 'ci',
-  };
+  const workflowRun = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
   const evidence = assembleDevReadyEvidence({
     supplyChain,
     deployment,
@@ -113,10 +100,7 @@ test('raw runtime evidence의 identity 또는 grade가 다르면 assembly를 거
   const supplyChain = fixture('supply-chain', 'verified.json');
   const deployment = fixture('dev-evidence', 'deployment.json');
   const slo = fixture('dev-evidence', 'slo.json');
-  const workflowRun = {
-    id: 1234567890, run_attempt: 1, html_url: supplyChain.runUrl,
-    head_sha: supplyChain.sourceSha, event: 'push', name: 'ci',
-  };
+  const workflowRun = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
   const input = {
     supplyChain, deployment, slo, workflowRun,
     githubRepository: 'play-builder/cicd-course-sample-app',
@@ -135,10 +119,7 @@ test('future issue, wrong workflow identity, URL, cross-region, attestation, SLO
   const base = fixture('dev-ready', 'ap-northeast-2.json');
   const expected = {
     githubRepository: 'play-builder/cicd-course-sample-app',
-    workflowRun: {
-      id: 1234567890, run_attempt: 1, html_url: base.workflow.runUrl,
-      head_sha: base.sourceSha, event: 'push', name: 'ci',
-    },
+    workflowRun: fixture('dev-ready', 'workflow-run-ap-northeast-2.json'),
   };
   const mutate = (callback) => {
     const value = JSON.parse(JSON.stringify(base));
@@ -154,6 +135,48 @@ test('future issue, wrong workflow identity, URL, cross-region, attestation, SLO
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.image.repository = v.image.repository.replace('ap-northeast-2', 'us-east-1'); }), expected, new Date('2026-09-03T00:30:00Z')), /image repository region mismatch/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.attestation.githubUrl = 'https://github.com/attacker/repo/attestations/1234567'; }), expected, new Date('2026-09-03T00:30:00Z')), /invalid attestation.githubUrl/);
   assert.throws(() => verifyDevReadyEvidence(mutate((v) => { v.slo.evidenceId = 'arbitrary'; }), { ...expected, slo: { evidenceId: base.slo.evidenceId } }, new Date('2026-09-03T00:30:00Z')), /slo.evidenceId mismatch/);
+});
+
+test('DEV_READY verify는 완료되고 성공한 main CI run만 승인한다', () => {
+  const evidence = fixture('dev-ready', 'ap-northeast-2.json');
+  const run = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
+  const expected = { githubRepository: 'play-builder/cicd-course-sample-app' };
+  for (const [field, value, message] of [
+    ['status', 'in_progress', /workflowRun.status must equal completed/],
+    ['conclusion', 'failure', /workflowRun.conclusion must equal success/],
+    ['head_branch', 'dev', /workflowRun.head_branch must equal main/],
+  ]) {
+    assert.throws(
+      () => verifyDevReadyEvidence(evidence, {
+        ...expected,
+        workflowRun: { ...run, [field]: value },
+      }, new Date('2026-09-03T00:30:00Z')),
+      message,
+    );
+  }
+});
+
+test('DEV_READY assemble도 완료되고 성공한 main CI run만 승인한다', () => {
+  const input = {
+    supplyChain: fixture('supply-chain', 'verified.json'),
+    deployment: fixture('dev-evidence', 'deployment.json'),
+    slo: fixture('dev-evidence', 'slo.json'),
+    githubRepository: 'play-builder/cicd-course-sample-app',
+  };
+  const run = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
+  for (const [field, value, message] of [
+    ['status', 'queued', /workflowRun.status must equal completed/],
+    ['conclusion', 'cancelled', /workflowRun.conclusion must equal success/],
+    ['head_branch', 'feature/unreviewed', /workflowRun.head_branch must equal main/],
+  ]) {
+    assert.throws(
+      () => assembleDevReadyEvidence({
+        ...input,
+        workflowRun: { ...run, [field]: value },
+      }, new Date('2026-09-03T00:30:00Z')),
+      message,
+    );
+  }
 });
 
 test('DEV_READY는 commercial ECR, canonical EKS ARN, UTC timestamp와 numeric attestation ID만 허용한다', () => {

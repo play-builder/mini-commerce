@@ -27,7 +27,9 @@ permissions: {}
 
 jobs:
   promotion-pr:
+    if: ${{ github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
+    environment: gitops-production
     permissions:
       actions: read
       contents: read
@@ -179,4 +181,4 @@ jobs:
             --base main \
             --head "${{ steps.candidate-commit.outputs.branch }}" \
             --title "promote(prod): current verified dev digest" \
-            --body "CODEOWNERS approval is required. Merge starts the production Canary; this workflow never auto-merges production."
+            --body "CODEOWNERS approval is required. Merging this PR changes Git desired state only; it does not deploy by itself. After merge, an authorized operator must run Argo CD Sync to start the production Canary. This workflow never auto-merges production."
