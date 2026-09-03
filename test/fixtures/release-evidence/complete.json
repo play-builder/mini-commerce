@@ -1,12 +1,22 @@
 {
   "schemaVersion": "course.release-evidence/v1",
-  "evidenceGrade": "INCIDENT_EVIDENCE",
+  "evidenceGrade": "STATIC",
+  "courseId": "course-fixture",
+  "accountId": "123456789012",
+  "region": "ap-northeast-2",
   "observedAt": "2026-09-03T04:00:00Z",
   "upstreamEvidence": {
-    "devReadyDigest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-    "prodBaselineDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-    "prodSloDigest": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
-    "incidentIndexDigest": "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+    "devReadyDigest": "sha256:00cc9438cee8be56412d56b9bddcc980b79b3d1d9a7358a476daa93a70e64e9d",
+    "prodBaselineDigest": "sha256:0d7507850865e77d91fd9ca19cff30b5516a5ae77bc1ebe84e68d6ff19037da2",
+    "prodSloDigest": "sha256:00f89e29e628a84883c90390ecb30879537a5ad1b058cfbd78443a22cc537f49",
+    "rollbackCompatibilityDigest": "sha256:31b70b30cc2c06688ce9959cfd3cbc90e9cec4ad1727177b22026efaa8cf6a1e",
+    "incidentIndexDigest": "sha256:538f240e5ac93cd5d5d63f7010bff12fe68cc7ef0c8038103d92351f94db030a",
+    "gitopsFreezeDigest": "sha256:c49f0f3c2262f2ed3cdc8fe10f6642bd9a486a5a965bd5f5b9652407c95c5cba",
+    "gitopsRemovalDigest": "sha256:69f6b47dfadca66525f6c26cc6396a782ffd499afeaece397b98c4a6b93d0451",
+    "ownershipInventoryDigest": "sha256:7f7db07eafe17e5a98c1aca1591dfa333e895629694b8cbd1993f8253280a262",
+    "retainDecisionsDigest": "sha256:c1b679c5acb334a807e9c228e39ff01b02a7ec6ce4cf6901c3125407c668eb53",
+    "kubernetesPreDestroyDigest": "sha256:3996207f9de45aaacf56053f893f1ff5654d70aa761432ba125877c51f0e719b",
+    "residualScanDigest": "sha256:9ea9ebea095f84772f646616d9f36c2ffa56532c7dba9a542bdd4f2b28466579"
   },
   "sourceSha": "0123456789abcdef0123456789abcdef01234567",
   "runUrl": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890",
@@ -16,20 +26,20 @@
     "githubId": "1234567",
     "githubUrl": "https://github.com/play-builder/cicd-course-sample-app/attestations/1234567",
     "ociSbomDigest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-    "ociProvenanceDigest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+    "ociProvenanceDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
   },
-  "devGitopsSha": "1111111111111111111111111111111111111111",
+  "devGitopsSha": "fedcba9876543210fedcba9876543210fedcba98",
   "prodGitopsSha": "2222222222222222222222222222222222222222",
   "argoRevision": "2222222222222222222222222222222222222222",
   "rolloutRevision": 4,
   "analysisRun": { "name": "sample-app-analysis-4", "state": "Successful" },
-  "slo": { "evidenceId": "prod-slo-20260903T040000Z", "status": "PASS" },
+  "slo": { "evidenceId": "prod-slo-20260903T033000Z", "status": "PASS" },
   "rollbackCandidates": [
     {
       "imageDigest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
       "productReadContract": "v2prime",
       "rolloutRevision": 3,
-      "gitRevertSha": "3333333333333333333333333333333333333333",
+      "gitRevertSha": "4444444444444444444444444444444444444444",
       "podTemplateHash": "previous-stable-hash"
     }
   ],

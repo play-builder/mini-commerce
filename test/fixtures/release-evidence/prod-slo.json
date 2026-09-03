@@ -1,0 +1,37 @@
+{
+  "schemaVersion": "course.prod-slo/v1",
+  "evidenceGrade": "STATIC",
+  "status": "PASS",
+  "source": {
+    "repository": "play-builder/cicd-course-sample-app",
+    "sha": "0123456789abcdef0123456789abcdef01234567"
+  },
+  "image": {
+    "repository": "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/course/sample-app",
+    "indexDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "gitopsRevision": "2222222222222222222222222222222222222222",
+  "clusterArn": "arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod",
+  "region": "ap-northeast-2",
+  "evidenceId": "prod-slo-20260903T033000Z",
+  "rollout": {
+    "name": "sample-app",
+    "uid": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+    "revision": 4,
+    "stableHash": "stable-hash-v2prime",
+    "currentPodHash": "stable-hash-v2prime",
+    "trafficWeight": 100,
+    "phase": "Healthy"
+  },
+  "analysisRun": {
+    "name": "sample-app-analysis-4",
+    "uid": "ffffffff-1111-2222-3333-444444444444",
+    "phase": "Successful",
+    "templateName": "sample-app-success-rate"
+  },
+  "metricResults": [
+    {"name":"request-rate","phase":"Successful","measurements":[{"value":"12.5","phase":"Successful","startedAt":"2026-09-03T03:25:00Z","finishedAt":"2026-09-03T03:26:00Z"}]},
+    {"name":"success-rate","phase":"Successful","measurements":[{"value":"0.999","phase":"Successful","startedAt":"2026-09-03T03:25:00Z","finishedAt":"2026-09-03T03:26:00Z"}]}
+  ],
+  "observedAt": "2026-09-03T03:30:00Z"
+}

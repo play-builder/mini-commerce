@@ -3,7 +3,10 @@
 import { config } from '../src/config.js';
 import { createDatabasePool } from '../src/database.js';
 
-export async function verifyCommerceInvariants(pool) {
+export async function verifyCommerceInvariants(pool, { minimumOrderCount = 0 } = {}) {
+  if (!Number.isSafeInteger(minimumOrderCount) || minimumOrderCount < 0) {
+    throw new Error('minimumOrderCount must be a nonnegative integer');
+  }
   const queries = {
     orderCount: 'SELECT count(*)::int AS count FROM orders',
     orderItemCount: 'SELECT count(*)::int AS count FROM order_items',
@@ -37,8 +40,13 @@ export async function verifyCommerceInvariants(pool) {
   const violations = [
     'foreignKeyViolations', 'duplicateIdempotencyKeys', 'negativeInventoryRows',
   ].filter((name) => result[name] !== 0);
+  if (result.orderCount < minimumOrderCount) {
+    violations.push(`minimumOrderCount=${minimumOrderCount}, actual=${result.orderCount}`);
+  }
   if (violations.length > 0) {
-    throw new Error(`commerce invariant violation: ${violations.map((name) => `${name}=${result[name]}`).join(', ')}`);
+    throw new Error(`commerce invariant violation: ${violations.map((name) => (
+      Object.hasOwn(result, name) ? `${name}=${result[name]}` : name
+    )).join(', ')}`);
   }
   return result;
 }
@@ -47,7 +55,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   if (!config.databaseEnabled) throw new Error('DATABASE_ENABLED=true is required');
   const pool = createDatabasePool(config.database);
   try {
-    const result = await verifyCommerceInvariants(pool);
+    const minimumOrderCount = Number(process.env.MIN_ORDER_COUNT ?? '0');
+    const result = await verifyCommerceInvariants(pool, { minimumOrderCount });
     console.log(JSON.stringify(result));
   } finally {
     await pool.end();

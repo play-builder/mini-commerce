@@ -21,14 +21,16 @@ export const options = {
   thresholds: {
     http_req_failed: ['rate<0.01'],
     http_req_duration: ['p(95)<500'],
+    checks: ['rate==1'],
+    dropped_iterations: ['count==0'],
   },
 };
 
 export default function baselineTraffic() {
-  const response = http.get(`${config.targetUrl}/products`, {
-    tags: { operation: 'list-products' },
+  const response = http.get(`${config.targetUrl}/`, {
+    tags: { operation: 'stateless-root' },
   });
   check(response, {
-    'products status is 200': (result) => result.status === 200,
+    'root status is 200': (result) => result.status === 200,
   });
 }
