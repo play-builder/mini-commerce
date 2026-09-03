@@ -108,6 +108,10 @@ Migration은 한 번 적용한 파일을 되돌리거나 수정하지 않는 for
 `course_migration_ledger`가 적용 파일의 SHA-256을 기록하고, 동시 runner는 control row와
 `node-pg-migrate` advisory lock으로 직렬화됩니다.
 
+`002_expand_product_display_name.js`는 기존 `name`을 유지한 채 `display_name`을 추가하고
+backfill합니다. 이 Expand 구간에서는 v1과 v2 application query가 같은 schema에서 함께
+동작해야 합니다.
+
 ```bash
 docker compose down --volumes
 ```

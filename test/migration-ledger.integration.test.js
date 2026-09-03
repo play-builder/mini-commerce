@@ -60,14 +60,17 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
 }, async () => withTemporaryDatabase(async (targetUrl) => {
   const results = await Promise.all([runMigration(targetUrl), runMigration(targetUrl)]);
   assert.deepEqual(results.map(({ code }) => code), [0, 0], results.map((item) => item.stderr).join('\n'));
-  assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 1]);
+  assert.deepEqual(results.map(({ stdout }) => Number(stdout.match(/applied (\d+) migration/)?.[1])).sort(), [0, 2]);
 
   const pool = new Pool({ connectionString: targetUrl.toString() });
   const copiedDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-migrations-'));
   try {
     const ledger = await pool.query('SELECT filename, sha256 FROM course_migration_ledger ORDER BY filename');
-    assert.deepEqual(ledger.rows.map(({ filename }) => filename), ['001_initial_commerce.js']);
-    assert.match(ledger.rows[0].sha256, /^[0-9a-f]{64}$/);
+    assert.deepEqual(ledger.rows.map(({ filename }) => filename), [
+      '001_initial_commerce.js',
+      '002_expand_product_display_name.js',
+    ]);
+    assert.ok(ledger.rows.every(({ sha256 }) => /^[0-9a-f]{64}$/.test(sha256)));
 
     const locks = await pool.query(`
       SELECT count(*)::int AS count
@@ -77,8 +80,10 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     `);
     assert.equal(locks.rows[0].count, 0);
 
-    const source = fs.readFileSync(path.join(migrationsDirectory, '001_initial_commerce.js'), 'utf8');
-    fs.writeFileSync(path.join(copiedDirectory, '001_initial_commerce.js'), `${source}\n// altered\n`);
+    for (const filename of ['001_initial_commerce.js', '002_expand_product_display_name.js']) {
+      fs.copyFileSync(path.join(migrationsDirectory, filename), path.join(copiedDirectory, filename));
+    }
+    fs.appendFileSync(path.join(copiedDirectory, '002_expand_product_display_name.js'), '\n// altered\n');
     const client = await pool.connect();
     try {
       await assert.rejects(
