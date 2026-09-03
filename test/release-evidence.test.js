@@ -22,7 +22,7 @@ const fixture = (name) => JSON.parse(fs.readFileSync(
 const now = new Date('2026-09-03T04:30:00Z');
 const readSource = (path) => fs.readFileSync(new URL(`./fixtures/${path}`, import.meta.url));
 const rawSha256 = (source) => crypto.createHash('sha256').update(source).digest('hex');
-const compareCodepoints = (left, right) => (left < right ? -1 : (left > right ? 1 : 0));
+const compareUtf8Bytes = (left, right) => Buffer.compare(Buffer.from(left), Buffer.from(right));
 const canonicalize = (value) => {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === 'object') {
@@ -53,7 +53,7 @@ const ownershipMutationInput = (mutate) => {
 
   mutate(ownership);
   ownership.resources.sort((left, right) => (
-    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+    compareUtf8Bytes(left.kind, right.kind) || compareUtf8Bytes(left.id, right.id)
   ));
   const ownershipSource = Buffer.from(JSON.stringify(ownership));
   const ownershipDigest = rawSha256(ownershipSource);
@@ -136,6 +136,22 @@ test('release evidence는 exact completed runtime schema만 허용한다', () =>
       prodSloSource: Buffer.from(JSON.stringify(prodSlo)),
     },
   }), /Prod SLO digest mismatch|Dev and Prod clusters must differ/);
+});
+
+test('release evidence observedAt은 canonical UTC seconds만 허용한다', () => {
+  for (const observedAt of [
+    '2026-09-03T04:00:00.123Z',
+    '2026-09-03T13:00:00+09:00',
+    '2026-02-31T04:00:00Z',
+  ]) {
+    const input = fixture('complete.json');
+    input.observedAt = observedAt;
+    assert.throws(
+      () => exportReleaseEvidence(input, fixtureOptions),
+      /invalid release evidence observedAt/,
+      observedAt,
+    );
+  }
 });
 
 test('fixture validation은 runtime INCIDENT_EVIDENCE를 발급하지 않는다', () => {
@@ -341,14 +357,14 @@ test('provider Secret projection은 jq sort_by와 같은 Unicode codepoint 순�
   const residual = JSON.parse(upstreamSources.residualSource.toString('utf8'));
   ownership.resources.push(...fixture('provider-secrets-mixed-case.json'));
   ownership.resources.sort((left, right) => (
-    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+    compareUtf8Bytes(left.kind, right.kind) || compareUtf8Bytes(left.id, right.id)
   ));
   const ownershipSource = Buffer.from(JSON.stringify(ownership));
 
   const projection = ownership.resources
     .filter(({ kind }) => kind === 'SecretsManagerSecret')
     .sort((left, right) => (
-      compareCodepoints(left.environment, right.environment) || compareCodepoints(left.id, right.id)
+      compareUtf8Bytes(left.environment, right.environment) || compareUtf8Bytes(left.id, right.id)
     ))
     .map(canonicalize);
   removal.providerSecrets.inventorySha256 = rawSha256(
@@ -393,7 +409,7 @@ test('cleanup residual 목록은 mixed-case ID도 jq sort_by의 codepoint 순서
   const mixed = fixture('residual-mixed-case-resources.json').ownershipResources;
   ownership.resources.push(...mixed);
   ownership.resources.sort((left, right) => (
-    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+    compareUtf8Bytes(left.kind, right.kind) || compareUtf8Bytes(left.id, right.id)
   ));
   const ownershipSource = Buffer.from(JSON.stringify(ownership));
 
@@ -402,7 +418,7 @@ test('cleanup residual 목록은 mixed-case ID도 jq sort_by의 codepoint 순서
     kind, id, decision, reason, followUpAction,
   }) => ({ kind, id, decision, reason, followUpAction })));
   retain.decisions.sort((left, right) => (
-    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+    compareUtf8Bytes(left.kind, right.kind) || compareUtf8Bytes(left.id, right.id)
   ));
   const retainSource = Buffer.from(JSON.stringify(retain));
 
@@ -414,7 +430,7 @@ test('cleanup residual 목록은 mixed-case ID도 jq sort_by의 codepoint 순서
       kind, id, owner, deletePlanned: false, presentAfterCleanup: true,
     })));
   residual.externalShared.sort((left, right) => (
-    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+    compareUtf8Bytes(left.kind, right.kind) || compareUtf8Bytes(left.id, right.id)
   ));
   residual.retained.push(...mixed
     .filter(({ decision }) => decision === 'RETAIN')
@@ -422,7 +438,7 @@ test('cleanup residual 목록은 mixed-case ID도 jq sort_by의 codepoint 순서
       kind, id, owner, reason, followUpAction, presentAfterCleanup: true,
     })));
   residual.retained.sort((left, right) => (
-    compareCodepoints(left.kind, right.kind) || compareCodepoints(left.id, right.id)
+    compareUtf8Bytes(left.kind, right.kind) || compareUtf8Bytes(left.id, right.id)
   ));
   const residualSource = Buffer.from(JSON.stringify(residual));
 
@@ -486,7 +502,7 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
   };
   ownership.resources.push(clusterResource);
   ownership.resources.sort((a, b) => (
-    compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id)
+    compareUtf8Bytes(a.kind, b.kind) || compareUtf8Bytes(a.id, b.id)
   ));
   const ownershipSource = Buffer.from(JSON.stringify(ownership));
 
@@ -499,7 +515,7 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     followUpAction: clusterResource.followUpAction,
   });
   retain.decisions.sort((a, b) => (
-    compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id)
+    compareUtf8Bytes(a.kind, b.kind) || compareUtf8Bytes(a.id, b.id)
   ));
   const retainSource = Buffer.from(JSON.stringify(retain));
 
@@ -531,7 +547,7 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     presentAfterCleanup: true,
   });
   residual.retained.sort((a, b) => (
-    compareCodepoints(a.kind, b.kind) || compareCodepoints(a.id, b.id)
+    compareUtf8Bytes(a.kind, b.kind) || compareUtf8Bytes(a.id, b.id)
   ));
   const residualSource = Buffer.from(JSON.stringify(residual));
 

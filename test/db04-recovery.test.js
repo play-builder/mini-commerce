@@ -44,6 +44,8 @@ function verify(value) {
   return verifyDb04RecoverySource(Buffer.from(JSON.stringify(value)), {
     incident: { id: 'INC-DB-04' }, scenario: { name: value.scenario },
     expectedScope: scope, releaseLineage,
+    indexStartedAt: new Date('2026-09-03T03:00:00Z'),
+    indexGeneratedAt: new Date('2026-09-03T04:00:00Z'),
   });
 }
 
@@ -67,7 +69,7 @@ test('Fix-Backward recovered identity는 stable의 repository identity까지 같
     mismatched.recovered[field] = `untrusted.example/${field}`;
     assert.throws(
       () => verify(mismatched),
-      /rollback must recover the stable identity/,
+      /recovered identity|rollback must recover the stable identity/,
     );
   }
 });
@@ -80,4 +82,47 @@ test('DB04 recovery source는 strategy와 workflow URL identity가 다르면 거
   const wrongUrl = source('break-glass-undo-plus-git');
   wrongUrl.workflow.runUrl = 'https://github.com/play-builder/cicd-course-sample-app/actions/runs/9999';
   assert.throws(() => verify(wrongUrl), /workflow identity is invalid/);
+});
+
+test('DB04 recovery source는 canonical application, workflow, ECR scope만 승인한다', () => {
+  const mutations = [
+    ['numeric run ID', (value) => { value.workflow.runId = 1001; }],
+    ['whitespace owner', (value) => {
+      for (const name of ['stable', 'faulty', 'recovered']) {
+        value[name].repository = 'play builder/cicd-course-sample-app';
+      }
+      value.workflow.runUrl = 'https://github.com/play builder/cicd-course-sample-app/actions/runs/1001';
+    }],
+    ['arbitrary source repository', (value) => {
+      for (const name of ['stable', 'faulty', 'recovered']) {
+        value[name].repository = 'evil/other-app';
+      }
+      value.workflow.runUrl = 'https://github.com/evil/other-app/actions/runs/1001';
+    }],
+    ['non-ECR repository', (value) => {
+      for (const name of ['stable', 'faulty', 'recovered']) value[name].imageRepository = 'not-ecr';
+    }],
+    ['cross-region ECR repository', (value) => {
+      for (const name of ['stable', 'faulty', 'recovered']) {
+        value[name].imageRepository = '123456789012.dkr.ecr.us-east-1.amazonaws.com/course/sample-app';
+      }
+    }],
+    ['foreign-account ECR repository', (value) => {
+      for (const name of ['stable', 'faulty', 'recovered']) {
+        value[name].imageRepository = '999999999999.dkr.ecr.ap-northeast-2.amazonaws.com/course/sample-app';
+      }
+    }],
+  ];
+
+  for (const [label, mutate] of mutations) {
+    const invalid = source('git-revert');
+    mutate(invalid);
+    assert.throws(() => verify(invalid), /identity|workflow|image repository/, label);
+  }
+});
+
+test('DB04 recovery source observedAt은 incident lifecycle 안에 있어야 한다', () => {
+  const future = source('git-revert');
+  future.observedAt = '2099-09-03T03:40:00Z';
+  assert.throws(() => verify(future), /outside incident lifecycle/);
 });

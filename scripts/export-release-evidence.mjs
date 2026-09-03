@@ -106,9 +106,7 @@ function canonicalize(value) {
 }
 
 function compareCodepoints(left, right) {
-  if (left < right) return -1;
-  if (left > right) return 1;
-  return 0;
+  return Buffer.compare(Buffer.from(left), Buffer.from(right));
 }
 
 function parseTimestamp(value, label) {
@@ -185,7 +183,9 @@ function verifyIncidentArtifact(bytes, {
   return { observedAt, envelope };
 }
 
-export function verifyDb04RecoverySource(bytes, { incident, scenario, expectedScope, releaseLineage }) {
+export function verifyDb04RecoverySource(bytes, {
+  incident, scenario, expectedScope, releaseLineage, indexStartedAt, indexGeneratedAt,
+}) {
   let value;
   try {
     value = JSON.parse(bytes.toString('utf8'));
@@ -212,9 +212,22 @@ export function verifyDb04RecoverySource(bytes, { incident, scenario, expectedSc
     || !Number.isSafeInteger(value.rolloutRevision) || value.rolloutRevision < 1) {
     throw new Error('INC-DB-04 recovery source identity mismatch');
   }
+  const applicationRepository = value.stable.repository;
+  if (!/^[^/\s]+\/cicd-course-sample-app$/.test(applicationRepository)) {
+    throw new Error('INC-DB-04 recovery source application identity is invalid');
+  }
+  const image = parseEcrRepository(
+    value.stable.imageRepository,
+    'INC-DB-04 stable image repository',
+  );
+  if (image.accountId !== expectedScope.accountId || image.region !== expectedScope.region
+    || !/(^|\/)sample-app$/.test(image.name)) {
+    throw new Error('INC-DB-04 recovery source ECR identity is invalid');
+  }
   for (const name of ['stable', 'faulty', 'recovered']) {
     const identity = value[name];
-    if (![identity.repository, identity.imageRepository].every(isNonemptyString)
+    if (identity.repository !== applicationRepository
+      || identity.imageRepository !== value.stable.imageRepository
       || !shaPattern.test(identity.sourceSha) || !digestPattern.test(identity.indexDigest)) {
       throw new Error(`INC-DB-04 recovery source ${name} identity is invalid`);
     }
@@ -226,13 +239,20 @@ export function verifyDb04RecoverySource(bytes, { incident, scenario, expectedSc
   if (value.recovered.strategy !== scenario.name) {
     throw new Error('INC-DB-04 recovery strategy/scenario mismatch');
   }
-  if (!/^\d+$/.test(String(value.workflow.runId))
+  const workflow = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(
+    value.workflow.runUrl,
+  );
+  if (typeof value.workflow.runId !== 'string' || !/^\d+$/.test(value.workflow.runId)
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
-    || !/^https:\/\/github\.com\/[^/]+\/[^/]+\/actions\/runs\/(\d+)$/.test(value.workflow.runUrl)
-    || !value.workflow.runUrl.endsWith(`/${value.workflow.runId}`)) {
+    || !workflow || workflow[1] !== applicationRepository || workflow[2] !== value.workflow.runId) {
     throw new Error('INC-DB-04 workflow identity is invalid');
   }
-  parseTimestamp(value.observedAt, 'INC-DB-04 recovery observedAt');
+  const observedAt = parseTimestamp(value.observedAt, 'INC-DB-04 recovery observedAt');
+  if (!(indexStartedAt instanceof Date) || Number.isNaN(indexStartedAt.valueOf())
+    || !(indexGeneratedAt instanceof Date) || Number.isNaN(indexGeneratedAt.valueOf())
+    || observedAt < indexStartedAt || observedAt > indexGeneratedAt) {
+    throw new Error('INC-DB-04 recovery observedAt is outside incident lifecycle');
+  }
   if (value.recovered.strategy === 'hotfix-fix-forward') {
     const lineage = releaseLineage?.v201HotfixOrderTotal;
     if (!lineage || value.recovered.sourceSha !== String(lineage.sourceSha)
@@ -364,6 +384,7 @@ function verifyIncidentIndex(source, {
                 const recoveryPath = fs.realpathSync(path.join(recoveryRoot, recoveryReference.path));
                 db04Recoveries.push(verifyDb04RecoverySource(fs.readFileSync(recoveryPath), {
                   incident, scenario, expectedScope, releaseLineage,
+                  indexStartedAt: startedAt, indexGeneratedAt: observedAt,
                 }));
               }
               const times = phaseTimes.get(phase) ?? [];
@@ -818,7 +839,7 @@ function verifyOwnership(value, mode, ownershipBytes) {
   if (new Set(keys).size !== keys.length) {
     throw new Error('cleanup ownership resource identities must be unique');
   }
-  if (JSON.stringify(keys) !== JSON.stringify([...keys].sort())) {
+  if (JSON.stringify(keys) !== JSON.stringify([...keys].sort(compareCodepoints))) {
     throw new Error('cleanup ownership resources must be sorted by kind and ID');
   }
   const secretProjection = value.resources
@@ -868,7 +889,7 @@ function verifyRetainDecisions(value, mode, ownership, ownershipResult) {
     keys.push(key);
   }
   const expected = ownership.resources.filter(({ decision }) => decision !== 'DELETE')
-    .map(({ kind, id }) => `${kind}\0${id}`).sort();
+    .map(({ kind, id }) => `${kind}\0${id}`).sort(compareCodepoints);
   if (JSON.stringify(keys) !== JSON.stringify(expected)) {
     throw new Error('cleanup retain decisions must be sorted and complete');
   }
@@ -1179,8 +1200,7 @@ export function exportReleaseEvidence(record, options = {}) {
   }
   if (!isNonemptyString(record.courseId) || !awsAccountPattern.test(record.accountId)
     || !supportedRegions.has(record.region)) throw new Error('invalid release evidence scope');
-  const observedAt = new Date(record.observedAt);
-  if (Number.isNaN(observedAt.valueOf())) throw new Error('invalid release evidence observedAt');
+  const observedAt = parseTimestamp(record.observedAt, 'release evidence observedAt');
   if (observedAt > now) throw new Error('future release evidence is not allowed');
   assertExactKeys(record.upstreamEvidence, [
     'devReadyDigest', 'prodBaselineDigest', 'prodSloDigest', 'rollbackCompatibilityDigest',
