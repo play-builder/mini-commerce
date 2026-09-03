@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { test } from 'node:test';
 import YAML from 'yaml';
 
@@ -194,6 +195,30 @@ test('runtime exporter는 canonical upstream symlink가 저장소 밖으로 나�
     gitopsRepoRoot: gitopsRoot,
     infraRepoRoot: infraRoot,
   }, now), /canonical upstream evidence escapes its repository root/);
+});
+
+test('runtime exporter는 final evidence directory symlink escape를 거부한다', async (t) => {
+  const sandbox = fs.mkdtempSync(path.join(path.dirname(new URL(import.meta.url).pathname), 'runtime-export-'));
+  t.after(() => fs.rmSync(sandbox, { recursive: true, force: true }));
+  const isolatedRoot = path.join(sandbox, 'sample-app');
+  const isolatedScripts = path.join(isolatedRoot, 'scripts');
+  const outside = path.join(sandbox, 'outside');
+  fs.mkdirSync(isolatedScripts, { recursive: true });
+  fs.mkdirSync(path.join(isolatedRoot, 'evidence'), { recursive: true });
+  fs.mkdirSync(outside);
+  for (const script of ['export-release-evidence.mjs', 'gitops-values-lib.mjs']) {
+    fs.copyFileSync(new URL(`../scripts/${script}`, import.meta.url), path.join(isolatedScripts, script));
+  }
+  fs.symlinkSync(outside, path.join(isolatedRoot, 'evidence/release'));
+  const isolatedExporter = await import(`${pathToFileURL(
+    path.join(isolatedScripts, 'export-release-evidence.mjs'),
+  ).href}?test=${Date.now()}`);
+
+  assert.throws(() => isolatedExporter.exportReleaseEvidenceFiles({
+    inputPath: path.join(isolatedRoot, 'input.json'),
+    gitopsRepoRoot: path.join(sandbox, 'argocd-gitops'),
+    infraRepoRoot: path.join(sandbox, 'EKS-infra'),
+  }, now), /canonical final evidence directory escapes the sample application repository/);
 });
 
 test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠짐없이 보존한다', () => {

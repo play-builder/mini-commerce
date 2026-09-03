@@ -61,6 +61,17 @@ test('DB04 recovery source는 v2prime/v2 lineage와 전략에 결속된다', () 
   assert.throws(() => verify(stableReuse), /hotfix does not match/);
 });
 
+test('Fix-Backward recovered identity는 stable의 repository identity까지 같아야 한다', () => {
+  for (const field of ['repository', 'imageRepository']) {
+    const mismatched = source('git-revert');
+    mismatched.recovered[field] = `untrusted.example/${field}`;
+    assert.throws(
+      () => verify(mismatched),
+      /rollback must recover the stable identity/,
+    );
+  }
+});
+
 test('DB04 recovery source는 strategy와 workflow URL identity가 다르면 거부한다', () => {
   const wrongStrategy = source('git-revert');
   wrongStrategy.recovered.strategy = 'hotfix-fix-forward';

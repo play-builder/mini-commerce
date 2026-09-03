@@ -236,9 +236,12 @@ export function verifyDb04RecoverySource(bytes, { incident, scenario, expectedSc
       ))) {
       throw new Error('INC-DB-04 hotfix does not match canonical release lineage');
     }
-  } else if (value.recovered.sourceSha !== value.stable.sourceSha
-    || value.recovered.indexDigest !== value.stable.indexDigest) {
-    throw new Error('INC-DB-04 rollback must recover the stable identity');
+  } else {
+    const { strategy: _strategy, ...recoveredIdentity } = value.recovered;
+    if (JSON.stringify(canonicalize(recoveredIdentity))
+      !== JSON.stringify(canonicalize(value.stable))) {
+      throw new Error('INC-DB-04 rollback must recover the stable identity');
+    }
   }
   const stableLineage = releaseLineage?.v2PrimeContractCompatible;
   const faultyLineage = releaseLineage?.v2FaultyOrderTotal;
@@ -1240,6 +1243,17 @@ const sampleRepositoryRoot = fs.realpathSync(path.resolve(
 ));
 const finalEvidencePath = path.join(sampleRepositoryRoot, 'evidence/release/final.json');
 
+function prepareFinalEvidenceDirectory() {
+  const outputDirectory = path.dirname(finalEvidencePath);
+  fs.mkdirSync(outputDirectory, { recursive: true, mode: 0o700 });
+  const outputReal = fs.realpathSync(outputDirectory);
+  if (outputReal !== path.resolve(outputDirectory)
+    || !isWithinRoot(outputReal, sampleRepositoryRoot)) {
+    throw new Error('canonical final evidence directory escapes the sample application repository');
+  }
+  return outputReal;
+}
+
 function isFixturePath(value) {
   const resolved = fs.existsSync(value) ? fs.realpathSync(value) : path.resolve(value);
   return new RegExp(`${path.sep}tests?${path.sep}fixtures${path.sep}`).test(resolved);
@@ -1282,6 +1296,7 @@ export function exportReleaseEvidenceFiles({
   if (!input || isFixturePath(input)) {
     throw new Error('test fixtures cannot be exported as runtime evidence');
   }
+  const finalEvidenceDirectory = prepareFinalEvidenceDirectory();
   const gitopsRoot = fs.realpathSync(toPath(gitopsRepoRoot));
   const infraRoot = fs.realpathSync(toPath(infraRepoRoot));
   const inputReal = fs.realpathSync(input);
@@ -1329,7 +1344,6 @@ export function exportReleaseEvidenceFiles({
     },
     incidentCatalog: loadIncidentCatalog(gitopsRoot),
   });
-  fs.mkdirSync(path.dirname(finalEvidencePath), { recursive: true, mode: 0o700 });
   if (fs.existsSync(finalEvidencePath)) {
     const existing = JSON.parse(fs.readFileSync(finalEvidencePath, 'utf8'));
     const incoming = JSON.parse(serialized);
@@ -1340,7 +1354,7 @@ export function exportReleaseEvidenceFiles({
     }
   }
   const temporary = path.join(
-    path.dirname(finalEvidencePath), `.${path.basename(finalEvidencePath)}.${process.pid}.tmp`,
+    finalEvidenceDirectory, `.${path.basename(finalEvidencePath)}.${process.pid}.tmp`,
   );
   let descriptor;
   try {
