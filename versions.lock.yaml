@@ -20,6 +20,8 @@ database:
 delivery:
   configureAwsCredentialsAction: "6.2.3"
   configureAwsCredentialsActionSha: "e6de054238d6b7531b4efff3b6587d9aade6a06c"
+  dependencyReviewAction: "5.0.0"
+  dependencyReviewActionSha: "a1d282b36b6f3519aa1f3fc636f609c47dddb294"
   targetPlatforms:
     - linux/amd64
     - linux/arm64

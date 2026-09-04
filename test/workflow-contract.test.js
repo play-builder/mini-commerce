@@ -182,6 +182,15 @@ test('README는 production promotion secret과 environment protection 경계를 
   assert.match(readme, /별도 GitHub App/);
 });
 
+test('dependency review action pin is recorded in the version contract', () => {
+  const versions = YAML.parse(fs.readFileSync(new URL('../versions.lock.yaml', import.meta.url), 'utf8'));
+  assert.equal(versions.delivery.dependencyReviewAction, '5.0.0');
+  assert.equal(
+    versions.delivery.dependencyReviewActionSha,
+    'a1d282b36b6f3519aa1f3fc636f609c47dddb294',
+  );
+});
+
 test('Dev와 Prod GitOps credential은 main-only environment 경계를 사용한다', () => {
   const ciJob = readWorkflow('ci.yml').jobs['update-dev-gitops'];
   assert.equal(ciJob.if, "${{ github.ref == 'refs/heads/main' }}");

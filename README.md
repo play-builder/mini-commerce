@@ -55,6 +55,11 @@ npm test
 bash test/curl-loop.test.sh
 ```
 
+`dependency-review.yml`은 `package.json`, `package-lock.json`, 또는 dependency-review 정책 변경 PR에서
+runtime dependency의 high 이상 취약점과 허용되지 않은 변경을 차단합니다. 이 검사는 GitHub dependency
+graph와 private repository에 적용되는 GitHub Code Security entitlement가 필요합니다. 해당 capability가 없는
+repository에서는 required check을 선택 사항으로 낮추지 말고 repository 설정을 먼저 충족해야 합니다.
+
 애플리케이션 실행:
 
 ```bash
