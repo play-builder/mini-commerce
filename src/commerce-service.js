@@ -14,6 +14,22 @@ export class ProductNotFoundError extends Error {
   }
 }
 
+export class OrderNotFoundError extends Error {
+  constructor(orderId) {
+    super(`order not found: ${orderId}`);
+    this.name = 'OrderNotFoundError';
+    this.statusCode = 404;
+  }
+}
+
+export class DatabaseUnavailableError extends Error {
+  constructor() {
+    super('database unavailable');
+    this.name = 'DatabaseUnavailableError';
+    this.statusCode = 503;
+  }
+}
+
 export class InsufficientStockError extends Error {
   constructor(productId, requested, available) {
     super(`insufficient stock for product ${productId}: requested=${requested}, available=${available}`);
@@ -73,7 +89,17 @@ export function createCommerceService(repository) {
     },
 
     getInventory(rawProductId) {
-      return repository.getInventory(readProductId(rawProductId));
+      return repository.getInventory(readProductId(rawProductId)).catch((error) => {
+        if (error instanceof ProductNotFoundError) throw error;
+        throw new DatabaseUnavailableError();
+      });
+    },
+
+    getOrder(rawOrderId) {
+      return repository.getOrder(readProductId(rawOrderId)).catch((error) => {
+        if (error instanceof OrderNotFoundError) throw error;
+        throw new DatabaseUnavailableError();
+      });
     },
 
     isReady() {
@@ -83,7 +109,8 @@ export function createCommerceService(repository) {
     async createOrder(input) {
       const normalized = normalizeOrderInput(input);
 
-      return repository.withTransaction(async (transaction) => {
+      try {
+        return await repository.withTransaction(async (transaction) => {
         await transaction.advisoryLock(normalized.idempotencyKey);
         const existing = await transaction.findOrderByIdempotencyKey(normalized.idempotencyKey);
         if (existing) return existing;
@@ -124,7 +151,12 @@ export function createCommerceService(repository) {
         }
 
         return { ...order, items: orderItems };
-      });
+        });
+      } catch (error) {
+        if (error instanceof ValidationError || error instanceof ProductNotFoundError
+          || error instanceof InsufficientStockError) throw error;
+        throw new DatabaseUnavailableError();
+      }
     },
   };
 }

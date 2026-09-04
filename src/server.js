@@ -1,57 +1,46 @@
 import { config } from './config.js';
-import { state, markReady, markShuttingDown } from './state.js';
-import { createApp } from './routes.js';
+import { createApplication } from './application.js';
 import { createCommerceService } from './commerce-service.js';
-import {
-  createDatabasePool,
-  createPostgresCommerceRepository,
-  PRODUCT_READ_CONTRACT,
-} from './database.js';
-import { initializeTelemetry, writeLog } from './telemetry.js';
+import { createDatabasePool, createPostgresCommerceRepository, PRODUCT_READ_CONTRACT } from './database.js';
+import { createManagement } from './management.js';
+import { createReadiness } from './readiness.js';
+import { initializeTelemetry } from './telemetry.js';
 
 const telemetry = initializeTelemetry({
-  serviceName: process.env.OTEL_SERVICE_NAME ?? 'sample-app',
+  serviceName: 'mini-commerce',
   endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
   resourceAttributes: process.env.OTEL_RESOURCE_ATTRIBUTES ?? '',
 });
-
 const pool = config.databaseEnabled ? createDatabasePool(config.database) : null;
 const commerceService = pool ? createCommerceService(createPostgresCommerceRepository(pool, {
   productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
-})) : null;
-const app = createApp({ databaseEnabled: config.databaseEnabled, commerceService });
-const server = app.listen(config.port, () => {
-  console.log(`listening on ${config.port}, version ${config.version}, pod ${config.podName}`);
+})) : {
+  listProducts: async () => { throw new Error('database unavailable'); },
+  getInventory: async () => { throw new Error('database unavailable'); },
+  getOrder: async () => { throw new Error('database unavailable'); },
+  createOrder: async () => { throw new Error('database unavailable'); },
+};
+const readiness = createReadiness({
+  dependencyPolicy: config.readinessDependencyPolicy,
+  checkDependency: async () => !pool || (await pool.query('SELECT 1'), true),
 });
+const publicServer = createApplication({ commerceService }).listen(config.publicPort);
+const managementServer = createManagement({
+  readiness,
+  metrics: { contentType: 'text/plain', metrics: async () => '' },
+  build: { version: config.version, gitSha: config.gitSha, buildDate: config.buildDate, nodeVersion: process.version, pod: config.podName },
+}).listen(config.managementPort);
+await readiness.initialize();
 
-if (config.readyDelayMs > 0) {
-  console.log(`readiness 를 ${config.readyDelayMs}ms 뒤에 켭니다`);
-  setTimeout(markReady, config.readyDelayMs);
-} else {
-  markReady();
+let stopping = false;
+async function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  readiness.markNotReady('shutting down');
+  publicServer.close();
+  if (pool) await pool.end();
+  await telemetry.shutdown();
+  managementServer.close(() => process.exit(0));
 }
-
-function shutdown(signal) {
-  if (state.shuttingDown) {
-    return;
-  }
-
-  markShuttingDown();
-  console.log(`${signal} 수신, readiness 해제. ${config.shutdownDelayMs}ms 뒤에 종료합니다`);
-
-  setTimeout(() => {
-    server.close(async () => {
-      if (pool) await pool.end();
-      try {
-        await telemetry.shutdown();
-      } catch {
-        writeLog({ level: 'error', event: 'telemetry.shutdown.failed' });
-      }
-      console.log('연결을 모두 닫았습니다');
-      process.exit(0);
-    });
-  }, config.shutdownDelayMs);
-}
-
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

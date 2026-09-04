@@ -1,6 +1,6 @@
 import pg from 'pg';
 
-import { ProductNotFoundError } from './commerce-service.js';
+import { OrderNotFoundError, ProductNotFoundError } from './commerce-service.js';
 import { withDatabaseSpan } from './telemetry.js';
 
 const { Pool } = pg;
@@ -95,6 +95,28 @@ export function createPostgresCommerceRepository(
       `, [productId]);
       if (result.rowCount === 0) throw new ProductNotFoundError(productId);
       return mapInventory(result.rows[0]);
+    },
+
+    async getOrder(orderId) {
+      const orderResult = await query(`
+        SELECT id, status, total_cents, created_at
+        FROM orders
+        WHERE id = $1
+      `, [orderId]);
+      if (orderResult.rowCount === 0) throw new OrderNotFoundError(orderId);
+      const itemResult = await query(`
+        SELECT product_id, sku, product_name, unit_price_cents, quantity
+        FROM order_items
+        WHERE order_id = $1
+        ORDER BY product_id
+      `, [orderId]);
+      return mapOrder(orderResult.rows[0], itemResult.rows.map((row) => ({
+        productId: Number(row.product_id),
+        sku: row.sku,
+        name: row.product_name,
+        unitPriceCents: Number(row.unit_price_cents),
+        quantity: Number(row.quantity),
+      })));
     },
 
     async isReady() {
