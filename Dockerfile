@@ -7,17 +7,17 @@ RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 FROM node:24.20.0-alpine3.23@sha256:0388af2af070cd4736a1567cfed02469ba117848845b4165d87a333edb53d2ca AS runtime
 
-RUN addgroup -g 1001 -S nodejs && adduser -S -u 1001 -G nodejs nodejs
+RUN addgroup -g 10001 -S nodejs && adduser -S -u 10001 -G nodejs nodejs
 
 WORKDIR /app
 
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --chown=nodejs:nodejs package.json ./
-COPY --chown=nodejs:nodejs src ./src
-COPY --chown=nodejs:nodejs migrations ./migrations
-COPY --chown=nodejs:nodejs scripts/migrate.mjs ./scripts/migrate.mjs
+COPY --from=deps --chown=10001:10001 /app/node_modules ./node_modules
+COPY --chown=10001:10001 package.json ./
+COPY --chown=10001:10001 src ./src
+COPY --chown=10001:10001 migrations ./migrations
+COPY --chown=10001:10001 scripts/migrate.mjs ./scripts/migrate.mjs
 
-USER nodejs
+USER 10001:10001
 
 ARG APP_VERSION=dev
 ARG GIT_SHA=unknown

@@ -8,6 +8,10 @@ const readWorkflow = (name) => YAML.parse(fs.readFileSync(
   new URL(`../.github/workflows/${name}`, import.meta.url),
   'utf8',
 ));
+const readVersionsLock = () => YAML.parse(fs.readFileSync(
+  new URL('../versions.lock.yaml', import.meta.url),
+  'utf8',
+));
 
 function assertPinnedActions(workflow) {
   for (const job of Object.values(workflow.jobs)) {
@@ -31,6 +35,20 @@ test('Dev delivery는 공식 queue를 사용하고 실행 중인 run을 취소�
     workflow['run-name'],
     'dev-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}',
   );
+});
+
+test('manual CI dispatch는 main ref가 아니면 AWS credential 발급 전에 중단한다', () => {
+  const buildSteps = readWorkflow('ci.yml').jobs.build.steps;
+  const guard = buildSteps[0];
+
+  assert.equal(guard.name, 'Reject non-main manual dispatch');
+  assert.equal(
+    guard.if,
+    "${{ github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main' }}",
+  );
+  assert.match(guard.run, /CI delivery is restricted to refs\/heads\/main/);
+  assert.match(guard.run, /exit 1/);
+  assert.ok(buildSteps.findIndex((step) => step.uses?.startsWith('aws-actions\/configure-aws-credentials@')) > 0);
 });
 
 test('CI job permissions와 multi-arch verification 의존성이 최소 권한 계약을 따른다', () => {
@@ -100,6 +118,46 @@ test('attestation job은 독립 AWS identity와 정확한 GitHub 권한을 가�
   assert.ok(verifyCommands.some((command) => (
     command.includes('--predicate-type "https://spdx.dev/Document/v2.3"')
   )));
+});
+
+test('supply-chain verification jobs use the dedicated AWS role', () => {
+  const workflow = readWorkflow('ci.yml');
+
+  for (const jobName of ['verify-image-index', 'attest-and-verify']) {
+    const credentials = workflow.jobs[jobName].steps.find((step) => (
+      step.uses === 'aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c'
+    ));
+    assert.equal(credentials.with['role-to-assume'], '${{ vars.AWS_ATTEST_VERIFY_ROLE_ARN }}');
+  }
+});
+
+test('Trivy scans use the verified action and explicit scanner version without waivers', () => {
+  const workflow = readWorkflow('ci.yml');
+  const scans = workflow.jobs['attest-and-verify'].steps.filter((step) => (
+    step.uses?.startsWith('aquasecurity/trivy-action@')
+  ));
+
+  assert.equal(scans.length, 2);
+  for (const scan of scans) {
+    assert.equal(scan.uses, 'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25');
+    assert.equal(scan.with.version, '0.74.0');
+    assert.equal(scan.with['trivy-version'], undefined);
+    assert.equal(Object.hasOwn(scan.with, 'ignore-unfixed'), false);
+  }
+  assert.equal(fs.existsSync(new URL('../.trivyignore.yaml', import.meta.url)), false);
+});
+
+test('version lock records the verified Trivy action and scanner release', () => {
+  const { trivy, trivyAction, trivyActionSha } = readVersionsLock().delivery;
+  assert.deepEqual({
+    trivy,
+    trivyAction,
+    trivyActionSha,
+  }, {
+    trivy: '0.74.0',
+    trivyAction: '0.36.0',
+    trivyActionSha: 'ed142fd0673e97e23eac54620cfb913e5ce36c25',
+  });
 });
 
 test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모드다', () => {
