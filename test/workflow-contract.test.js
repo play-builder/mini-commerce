@@ -216,6 +216,15 @@ test('모든 third-party Action은 full commit SHA로 고정된다', () => {
   }
 });
 
+test('dependency review is a read-only pinned pull-request gate', () => {
+  const workflow = readWorkflow('dependency-review.yml');
+  assert.deepEqual(workflow.permissions, { contents: 'read' });
+  assert.equal(
+    workflow.jobs['dependency-review'].steps[0].uses,
+    'actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294',
+  );
+});
+
 test('Dev update와 Prod promotion은 application과 migration digest 계약을 사용한다', () => {
   const ci = fs.readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const promotion = fs.readFileSync(new URL('../.github/workflows/promote.yml', import.meta.url), 'utf8');
