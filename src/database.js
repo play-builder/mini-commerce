@@ -1,7 +1,6 @@
 import pg from 'pg';
 
 import { OrderNotFoundError, ProductNotFoundError } from './commerce-service.js';
-import { withDatabaseSpan } from './telemetry.js';
 
 const { Pool } = pg;
 
@@ -65,14 +64,11 @@ export function createDatabasePool(databaseConfig) {
 
 export function createPostgresCommerceRepository(
   pool,
-  { productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME, tracer } = {},
+  { productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME } = {},
 ) {
   const nameProjection = productNameProjection[productReadContract];
   if (!nameProjection) throw new Error(`unsupported product read contract: ${productReadContract}`);
-  const query = (text, values) => withDatabaseSpan({
-    tracer,
-    execute: () => pool.query(text, values),
-  });
+  const query = (text, values) => pool.query(text, values);
   return {
     async listProducts() {
       const result = await query(`
@@ -127,10 +123,7 @@ export function createPostgresCommerceRepository(
     async withTransaction(callback) {
       const client = await pool.connect();
       try {
-        const transactionQuery = (text, values) => withDatabaseSpan({
-          tracer,
-          execute: () => client.query(text, values),
-        });
+        const transactionQuery = (text, values) => client.query(text, values);
         await transactionQuery('BEGIN');
         const transaction = {
           async advisoryLock(idempotencyKey) {
@@ -213,7 +206,7 @@ export function createPostgresCommerceRepository(
         await transactionQuery('COMMIT');
         return result;
       } catch (error) {
-        await withDatabaseSpan({ tracer, execute: () => client.query('ROLLBACK') });
+        await client.query('ROLLBACK');
         throw error;
       } finally {
         client.release();

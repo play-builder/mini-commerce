@@ -40,6 +40,11 @@ business listener는 관리 endpoint를 노출하지 않으며 management listen
 `openapi/mini-commerce.v1.yaml`은 business의 네 operation만 문서화하는 파일 계약입니다. PR에서는 base
 revision과 비교하는 compatibility verifier가 operation/응답 제거를 차단합니다.
 
+Runtime은 `node --import ./src/instrumentation.js src/server.js`로 시작합니다. HTTP, Express, PostgreSQL
+instrumentation은 management path를 제외하고 표준 span을 만들며, application은 order/create, inventory
+reserve, transaction의 bounded business span만 추가합니다. request header, request body, raw path ID, SQL과
+query parameter는 span 또는 Pino JSON event에 기록하지 않습니다.
+
 DB가 활성화된 production process는 bounded startup check가 성공한 뒤 readiness를 올립니다. 이후 DB가
 일시적으로 실패해도 startup-only policy는 이미 ready인 Pod를 내리지 않습니다. business request는 안전한
 `503 {"error":"database unavailable"}`로 실패하며 driver 오류와 SQL은 응답에 포함하지 않습니다.

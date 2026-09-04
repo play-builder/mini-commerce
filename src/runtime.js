@@ -7,16 +7,12 @@ import { createLifecycle } from './lifecycle.js';
 import { createLogger } from './logger.js';
 import { createManagement } from './management.js';
 import { createReadiness } from './readiness.js';
-import { initializeTelemetry } from './telemetry.js';
+import { getTracer } from './telemetry.js';
 
 export function createRuntime({ runtimeConfig, dependencies = {} }) {
-  const telemetry = dependencies.initializeTelemetry?.({
-    serviceName: 'mini-commerce', endpoint: runtimeConfig.otelEndpoint ?? '',
-    resourceAttributes: runtimeConfig.otelResourceAttributes ?? '',
-  }) ?? initializeTelemetry({
-    serviceName: 'mini-commerce', endpoint: runtimeConfig.otelEndpoint ?? '',
-    resourceAttributes: runtimeConfig.otelResourceAttributes ?? '',
-  });
+  const telemetry = dependencies.telemetry ?? {
+    tracer: getTracer(), shutdown: () => globalThis.__miniCommerceShutdownInstrumentation?.() ?? Promise.resolve(),
+  };
   const metrics = dependencies.createBusinessMetrics?.() ?? createBusinessMetrics();
   const logger = dependencies.createLogger?.({
     environment: runtimeConfig.environment, version: runtimeConfig.version,
@@ -38,15 +34,15 @@ export function createRuntime({ runtimeConfig, dependencies = {} }) {
   const observer = pool ? (dependencies.createDatabaseObservability?.({ pool, metrics, logger, readiness })
     ?? createDatabaseObservability({ pool, metrics, logger, readiness })) : null;
   const repository = pool ? createPostgresCommerceRepository(pool, {
-    productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME, tracer: telemetry.tracer,
+    productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
   }) : null;
-  const commerceService = repository ? createCommerceService(repository, { metrics }) : {
+  const commerceService = repository ? createCommerceService(repository, { metrics, logger, tracer: telemetry.tracer }) : {
     listProducts: async () => { throw new DatabaseUnavailableError(); },
     getInventory: async () => { throw new DatabaseUnavailableError(); },
     getOrder: async () => { throw new DatabaseUnavailableError(); },
     createOrder: async () => { throw new DatabaseUnavailableError(); },
   };
-  const application = createApplication({ commerceService, telemetryTracer: telemetry.tracer });
+  const application = createApplication({ commerceService });
   const management = createManagement({
     readiness,
     metrics: {

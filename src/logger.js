@@ -1,3 +1,4 @@
+import pino from 'pino';
 import { getRequestContext } from './request-context.js';
 
 const events = new Set([
@@ -6,11 +7,13 @@ const events = new Set([
   'application.shutdown.started', 'application.shutdown.completed', 'application.shutdown.forced',
 ]);
 
-export function createLogger({ write = console.log, now = () => new Date().toISOString(), service = 'mini-commerce', environment = 'development', version = 'dev' } = {}) {
+export function createLogger({ write, now = () => new Date().toISOString(), service = 'mini-commerce', environment = 'development', version = 'dev' } = {}) {
+  const destination = write ? { write } : undefined;
+  const sink = pino({ base: null, timestamp: false }, destination);
   function emit(level, event) {
     if (!events.has(event)) throw new TypeError('unsupported log event');
     const { requestId, traceId } = getRequestContext();
-    write(JSON.stringify({ timestamp: now(), level, service, environment, version, event, requestId, traceId }));
+    sink[level]({ timestamp: now(), service, environment, version, event, requestId, traceId });
   }
   return { info: (event) => emit('info', event), error: (event) => emit('error', event) };
 }
