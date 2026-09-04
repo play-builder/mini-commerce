@@ -1,0 +1,42 @@
+openapi: 3.1.0
+info:
+  title: Mini Commerce API
+  version: 1.0.0
+paths:
+  /products:
+    get:
+      responses:
+        '200': { description: Products }
+  /products/{id}/inventory:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Inventory }
+        '404': { description: Product not found }
+  /orders:
+    post:
+      parameters:
+        - name: Idempotency-Key
+          in: header
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 128 }
+      responses:
+        '201': { description: Created order }
+        '400': { description: Invalid order }
+        '409': { description: Insufficient stock }
+        '503': { description: Database unavailable }
+  /orders/{id}:
+    get:
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200': { description: Order }
+        '404': { description: Order not found }
+        '503': { description: Database unavailable }
