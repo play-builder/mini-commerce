@@ -85,7 +85,9 @@ export function createCommerceService(repository, { metrics } = {}) {
 
   return {
     listProducts() {
-      return repository.listProducts();
+      return repository.listProducts().catch(() => {
+        throw new DatabaseUnavailableError();
+      });
     },
 
     getInventory(rawProductId) {

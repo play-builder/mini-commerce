@@ -94,6 +94,13 @@ test('database failures become a stable safe 503 error', async () => {
   await assert.rejects(service.getOrder(1), DatabaseUnavailableError);
 });
 
+test('product lookup also normalizes database driver errors', async () => {
+  const service = createCommerceService(createRepository({
+    repository: { async listProducts() { throw new Error('SELECT secret FROM products'); } },
+  }));
+  await assert.rejects(service.listProducts(), DatabaseUnavailableError);
+});
+
 test('주문은 멱등성 lock과 재고 row lock을 잡고 하나의 transaction으로 저장한다', async () => {
   const repository = createRepository();
   const service = createCommerceService(repository);

@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { createApplication } from './application.js';
-import { createCommerceService } from './commerce-service.js';
+import { createCommerceService, DatabaseUnavailableError } from './commerce-service.js';
 import { createDatabasePool, createPostgresCommerceRepository, PRODUCT_READ_CONTRACT } from './database.js';
 import { createManagement } from './management.js';
 import { createReadiness } from './readiness.js';
@@ -15,10 +15,10 @@ const pool = config.databaseEnabled ? createDatabasePool(config.database) : null
 const commerceService = pool ? createCommerceService(createPostgresCommerceRepository(pool, {
   productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
 })) : {
-  listProducts: async () => { throw new Error('database unavailable'); },
-  getInventory: async () => { throw new Error('database unavailable'); },
-  getOrder: async () => { throw new Error('database unavailable'); },
-  createOrder: async () => { throw new Error('database unavailable'); },
+  listProducts: async () => { throw new DatabaseUnavailableError(); },
+  getInventory: async () => { throw new DatabaseUnavailableError(); },
+  getOrder: async () => { throw new DatabaseUnavailableError(); },
+  createOrder: async () => { throw new DatabaseUnavailableError(); },
 };
 const readiness = createReadiness({
   dependencyPolicy: config.readinessDependencyPolicy,

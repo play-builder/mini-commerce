@@ -26,7 +26,10 @@ export function createApplication({ commerceService }) {
   app.use((_req, res) => res.status(404).json({ error: 'not found' }));
   app.use((error, _req, res, _next) => {
     const status = error.statusCode ?? 500;
-    res.status(status).json({ error: status >= 500 ? 'internal server error' : error.message });
+    const message = error.name === 'DatabaseUnavailableError'
+      ? 'database unavailable'
+      : status >= 500 ? 'internal server error' : error.message;
+    res.status(status).json({ error: message });
   });
   return app;
 }
