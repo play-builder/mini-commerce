@@ -26,23 +26,25 @@ lint + test → Buildx(amd64/arm64) → ECR index digest
 이 그림에서 봐야 할 핵심은 prod에서 새 이미지를 다시 빌드하지 않는다는 점입니다. dev에서
 검증한 동일 digest를 복사해야 공급망과 승격 이력을 추적할 수 있습니다.
 
-## 엔드포인트와 장애 주입
+## 런타임 listener와 endpoint
 
-| 경로 | 역할 |
+| listener | 경로 | 역할 |
 | --- | --- |
-| `GET /` | 버전 응답, `FAILURE_RATE`와 `LATENCY_MS` 적용 |
-| `GET /healthz` | liveness probe |
-| `GET /readyz` | readiness probe |
-| `GET /version` | digest와 연결할 build metadata 확인 |
-| `GET /config` | secret 값은 숨기고 키 존재 여부·길이만 반환 |
-| `GET /metrics` | AMP로 수집할 Prometheus metrics |
-| `GET /products` | Stateful 모드의 mock 상품·재고 목록 |
-| `GET /products/:id/inventory` | 상품 한 개의 현재 재고 |
-| `POST /orders` | 멱등성 key를 사용하는 재고 차감·주문 transaction |
-| `GET /db/status` | PostgreSQL 연결 상태 |
+| business `PORT` (기본 `3000`) | `GET /products` | 상품 목록 |
+| business `PORT` | `GET /products/:id/inventory` | 현재 재고 |
+| business `PORT` | `POST /orders` | idempotency key를 사용하는 재고 차감·주문 transaction |
+| business `PORT` | `GET /orders/:id` | PostgreSQL canonical order repository의 주문 조회 |
+| management `MANAGEMENT_PORT` (기본 `3001`) | `GET /healthz`, `GET /readyz` | process liveness, readiness |
+| management `MANAGEMENT_PORT` | `GET /metrics`, `GET /version` | Prometheus metrics, build metadata |
 
-`FAILURE_RATE`는 `/`에만 적용됩니다. Probe까지 실패시키면 카나리 분석이 아니라
-`CrashLoopBackOff` 실습이 되므로 의도적으로 분리했습니다.
+business listener는 관리 endpoint를 노출하지 않으며 management listener는 주문 API를 노출하지 않습니다.
+`openapi/mini-commerce.v1.yaml`은 business의 네 operation만 문서화하는 파일 계약입니다. PR에서는 base
+revision과 비교하는 compatibility verifier가 operation/응답 제거를 차단합니다.
+
+DB가 활성화된 production process는 bounded startup check가 성공한 뒤 readiness를 올립니다. 이후 DB가
+일시적으로 실패해도 startup-only policy는 이미 ready인 Pod를 내리지 않습니다. business request는 안전한
+`503 {"error":"database unavailable"}`로 실패하며 driver 오류와 SQL은 응답에 포함하지 않습니다.
+`READINESS_DEPENDENCY_POLICY=continuous`는 development/test에서만 명시적으로 사용할 수 있습니다.
 
 ## 로컬 검증
 
@@ -64,8 +66,8 @@ repository에서는 required check을 선택 사항으로 낮추지 말고 repos
 
 ```bash
 npm start
-curl -fsS http://127.0.0.1:3000/readyz
-curl -fsS http://127.0.0.1:3000/version
+curl -fsS http://127.0.0.1:3001/readyz
+curl -fsS http://127.0.0.1:3001/version
 ```
 
 장애 응답을 생성할 때는 별도 shell에서 요청 부하를 유지합니다.
@@ -104,6 +106,7 @@ curl -fsS -X POST http://127.0.0.1:3000/orders \
   -H 'Content-Type: application/json' \
   -H 'Idempotency-Key: course-order-001' \
   -d '{"items":[{"productId":1,"quantity":2}]}'
+curl -fsS http://127.0.0.1:3000/orders/1
 ```
 
 동일한 `Idempotency-Key`로 주문을 다시 보내면 새 주문을 만들거나 재고를 다시 차감하지 않고 기존
@@ -137,9 +140,23 @@ docker compose down --volumes
 `--volumes`는 로컬 실습 DB를 삭제합니다. 보존할 데이터가 있는 Compose project에는 실행하지
 않습니다.
 
-`/readyz`는 Stateful 모드에서 DB query도 검사합니다. 이는 migration 전 application 유입을
-막는 데 유용하지만, DB 장애가 모든 Pod를 endpoint에서 제거할 수 있으므로 실제 운영에서는 timeout,
-grace period, dependency별 health 정책을 서비스 특성에 맞게 조정해야 합니다.
+## Evidence와 dependency-review 경계
+
+Release evidence v2는 mutable `owner/repository` display text 대신 GitHub numeric `repositoryId`를 사용합니다.
+workflow API의 `repository.id`와 evidence ID가 일치해야 하므로 repository rename은 허용하지만 같은 이름을
+가진 다른 repository는 거부합니다. v1 evidence는 migration window 동안 canonical ID `1352247019`에 한해
+validator 입력으로만 허용되며, 새 emitter는 v2만 작성합니다. ECR repository identity는 별도로 검증합니다.
+
+아래 로컬 명령은 static, unit, 또는 container 수준의 검증일 뿐 GitHub Actions required check, ingress
+listener 차단, managed PostgreSQL 장애, AMP/trace export, 또는 cloud rollout을 증명하지 않습니다.
+
+```bash
+node --test test/openapi-contract.test.js test/repository-identity-migration.test.js
+node scripts/verify-openapi-backward-compatibility.mjs \
+  --base-ref 0f6e4ce79e102054fa63c8d07b53f24dbdbb4d \
+  --bootstrap-base-sha 0f6e4ce79e102054fa63c8d07b53f24dbdbb4d \
+  --candidate openapi/mini-commerce.v1.yaml
+```
 
 ## Container image 계약
 
