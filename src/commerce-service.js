@@ -80,7 +80,7 @@ export function calculateOrderTotal(orderItems) {
   );
 }
 
-export function createCommerceService(repository) {
+export function createCommerceService(repository, { metrics } = {}) {
   if (!repository) throw new TypeError('commerce repository is required');
 
   return {
@@ -110,7 +110,7 @@ export function createCommerceService(repository) {
       const normalized = normalizeOrderInput(input);
 
       try {
-        return await repository.withTransaction(async (transaction) => {
+        const order = await repository.withTransaction(async (transaction) => {
         await transaction.advisoryLock(normalized.idempotencyKey);
         const existing = await transaction.findOrderByIdempotencyKey(normalized.idempotencyKey);
         if (existing) return existing;
@@ -152,7 +152,11 @@ export function createCommerceService(repository) {
 
         return { ...order, items: orderItems };
         });
+        metrics?.orderCreated();
+        return order;
       } catch (error) {
+        if (error instanceof InsufficientStockError) metrics?.inventoryConflict();
+        metrics?.orderFailed?.(error instanceof InsufficientStockError ? 'insufficient_stock' : 'database');
         if (error instanceof ValidationError || error instanceof ProductNotFoundError
           || error instanceof InsufficientStockError) throw error;
         throw new DatabaseUnavailableError();
