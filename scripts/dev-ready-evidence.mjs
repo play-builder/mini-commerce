@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import {
+  acceptsLegacyRepositoryIdentity,
+  assertRepositoryIdentity,
+  normalizeRepositoryId,
+} from './repository-identity.mjs';
 import { verifySupplyChain } from './verify-supply-chain.mjs';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
@@ -9,6 +14,7 @@ const rootKeys = [
   'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
   'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
 ];
+const v2RootKeys = ['repositoryId', ...rootKeys];
 const nestedKeys = {
   workflow: ['name', 'event', 'runId', 'runAttempt', 'runUrl'],
   image: ['repository', 'indexDigest', 'platforms'],
@@ -106,9 +112,13 @@ function validateRawSlo(slo) {
 }
 
 export function createDevReadyEvidence(input, now = new Date()) {
-  assertExactKeys(input, rootKeys, 'root');
+  const isV2 = input.schemaVersion === 'course.dev-ready/v2';
+  assertExactKeys(input, isV2 ? v2RootKeys : rootKeys, 'root');
   for (const [name, keys] of Object.entries(nestedKeys)) assertExactKeys(input[name], keys, name);
-  if (input.schemaVersion !== 'course.dev-ready/v1') throw new Error('unsupported DEV_READY schemaVersion');
+  if (!['course.dev-ready/v1', 'course.dev-ready/v2'].includes(input.schemaVersion)) {
+    throw new Error('unsupported DEV_READY schemaVersion');
+  }
+  if (isV2) normalizeRepositoryId(input.repositoryId);
   if (input.environment !== 'dev') throw new Error('DEV_READY environment must equal dev');
   if (!['ap-northeast-2', 'us-east-1'].includes(input.region)) throw new Error('unsupported DEV_READY region');
   if (!shaPattern.test(input.sourceSha)) throw new Error('invalid DEV_READY sourceSha');
@@ -118,7 +128,10 @@ export function createDevReadyEvidence(input, now = new Date()) {
     throw new Error('invalid workflow.runId');
   }
   if (!Number.isInteger(input.workflow.runAttempt) || input.workflow.runAttempt < 1) throw new Error('invalid workflow.runAttempt');
-  const runUrl = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(input.workflow.runUrl);
+  const runUrlPattern = isV2
+    ? /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)$/
+    : /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/;
+  const runUrl = runUrlPattern.exec(input.workflow.runUrl);
   if (!runUrl || runUrl[2] !== input.workflow.runId) throw new Error('invalid workflow.runUrl');
   const ecr = parseEcrRepository(input.image.repository);
   if (ecr.region !== input.region) throw new Error('image repository region mismatch');
@@ -153,6 +166,16 @@ export function createDevReadyEvidence(input, now = new Date()) {
 
 export function verifyDevReadyEvidence(evidence, expected = {}, now = new Date()) {
   const verified = createDevReadyEvidence(evidence, now);
+  if (verified.schemaVersion === 'course.dev-ready/v2') {
+    assertRepositoryIdentity({
+      repositoryId: verified.repositoryId,
+      workflowRun: expected.workflowRun,
+      expectedRepositoryId: expected.expectedRepositoryId ?? verified.repositoryId,
+    });
+  } else if (expected.expectedRepositoryId
+    && !acceptsLegacyRepositoryIdentity(expected.expectedRepositoryId)) {
+    throw new Error('REPOSITORY_ID_REQUIRED');
+  }
   const repository = expected.githubRepository;
   if (repository) {
     assertEqual(verified.workflow.runUrl, `https://github.com/${repository}/actions/runs/${verified.workflow.runId}`, 'workflow.runUrl');
@@ -233,9 +256,9 @@ export function verifyProdBaselineEvidence({ prodBaseline, candidateEvidence }, 
 }
 
 export function assembleDevReadyEvidence({
-  supplyChain, deployment, slo, workflowRun, githubRepository,
+  supplyChain, deployment, slo, workflowRun, githubRepository, repositoryId,
 }, now = new Date()) {
-  verifySupplyChain(supplyChain);
+  verifySupplyChain(supplyChain, { expectedRepositoryId: repositoryId });
   validateRawDeployment(deployment);
   validateRawSlo(slo);
   assertEqual(deployment.source.repository, githubRepository, 'deployment source.repository');
@@ -255,7 +278,8 @@ export function assembleDevReadyEvidence({
     throw new Error('SLO evidence predates deployment evidence');
   }
   const evidence = createDevReadyEvidence({
-    schemaVersion: 'course.dev-ready/v1',
+    schemaVersion: repositoryId ? 'course.dev-ready/v2' : 'course.dev-ready/v1',
+    ...(repositoryId ? { repositoryId: normalizeRepositoryId(repositoryId) } : {}),
     environment: 'dev',
     region: deployment.region,
     sourceSha: supplyChain.sourceSha,
@@ -284,7 +308,7 @@ export function assembleDevReadyEvidence({
     expiresAt: slo.expiresAt,
   }, now);
   return verifyDevReadyEvidence(evidence, {
-    githubRepository, workflowRun, supplyChain, deployment, slo,
+    githubRepository, workflowRun, supplyChain, deployment, slo, expectedRepositoryId: repositoryId,
   }, now);
 }
 
@@ -300,6 +324,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       slo: readJson(sloPath),
       workflowRun: readJson(workflowRunPath),
       githubRepository: repository,
+      repositoryId: process.env.REPOSITORY_ID,
     });
     if (process.env.EXPECTED_DIGEST && evidence.image.indexDigest !== process.env.EXPECTED_DIGEST) {
       throw new Error('expected digest does not match canonical DEV_READY evidence');
@@ -317,6 +342,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     const [evidencePath, workflowRunPath, repository] = args;
     verifyDevReadyEvidence(readJson(evidencePath), {
       workflowRun: readJson(workflowRunPath), githubRepository: repository,
+      expectedRepositoryId: process.env.REPOSITORY_ID,
     });
     console.log('PASS: canonical DEV_READY evidence');
   } else {

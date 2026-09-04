@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import { normalizeRepositoryId } from './repository-identity.mjs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -469,7 +470,11 @@ function verifyIncidentIndex(source, {
 }
 
 function verifyDevReady(value) {
-  assertExactKeys(value, [
+  const isV2 = value?.schemaVersion === 'course.dev-ready/v2';
+  assertExactKeys(value, isV2 ? [
+    'repositoryId', 'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
+    'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
+  ] : [
     'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
     'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
   ], 'DEV_READY');
@@ -481,7 +486,7 @@ function verifyDevReady(value) {
   assertExactKeys(value.gitops, ['devRevision'], 'DEV_READY.gitops');
   assertExactKeys(value.cluster, ['arn'], 'DEV_READY.cluster');
   assertExactKeys(value.slo, ['evidenceId'], 'DEV_READY.slo');
-  if (value.schemaVersion !== 'course.dev-ready/v1' || value.environment !== 'dev'
+  if (!['course.dev-ready/v1', 'course.dev-ready/v2'].includes(value.schemaVersion) || value.environment !== 'dev'
     || !supportedRegions.has(value.region) || value.workflow.name !== 'ci'
     || value.workflow.event !== 'push'
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
@@ -497,7 +502,11 @@ function verifyDevReady(value) {
   }
   if (!shaPattern.test(value.sourceSha) || !shaPattern.test(value.gitops.devRevision)
     || !digestPattern.test(value.image.indexDigest)) throw new Error('invalid DEV_READY immutable identity');
-  const runMatch = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(value.workflow.runUrl);
+  if (isV2) normalizeRepositoryId(value.repositoryId);
+  const runMatch = (isV2
+    ? /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)$/
+    : /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/
+  ).exec(value.workflow.runUrl);
   if (!runMatch || runMatch[2] !== String(value.workflow.runId)) {
     throw new Error('invalid DEV_READY workflow identity');
   }

@@ -265,7 +265,7 @@ test('runtime exporter는 final evidence directory symlink escape를 거부한�
   fs.mkdirSync(isolatedScripts, { recursive: true });
   fs.mkdirSync(path.join(isolatedRoot, 'evidence'), { recursive: true });
   fs.mkdirSync(outside);
-  for (const script of ['export-release-evidence.mjs', 'gitops-values-lib.mjs']) {
+  for (const script of ['export-release-evidence.mjs', 'gitops-values-lib.mjs', 'repository-identity.mjs']) {
     fs.copyFileSync(new URL(`../scripts/${script}`, import.meta.url), path.join(isolatedScripts, script));
   }
   fs.symlinkSync(outside, path.join(isolatedRoot, 'evidence/release'));

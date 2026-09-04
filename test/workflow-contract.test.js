@@ -234,6 +234,19 @@ test('dependency review is a read-only pinned pull-request gate', () => {
   );
 });
 
+test('supply-chain and promotion evidence pass the immutable repository ID', () => {
+  const ci = readWorkflow('ci.yml');
+  const verification = ci.jobs['attest-and-verify'].steps.find((step) => (
+    step.name === 'Verify GitHub attestation and OCI referrers'
+  ));
+  assert.equal(verification.env.REPOSITORY_ID, '${{ github.event.repository.id }}');
+  const promotion = readWorkflow('promote.yml');
+  const assembly = promotion.jobs['promotion-pr'].steps.find((step) => (
+    step.name === 'Assemble canonical DEV_READY from supply chain, deployment, and SLO'
+  ));
+  assert.equal(assembly.env.REPOSITORY_ID, '${{ github.event.repository.id }}');
+});
+
 test('Dev update와 Prod promotion은 application과 migration digest 계약을 사용한다', () => {
   const ci = fs.readFileSync(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const promotion = fs.readFileSync(new URL('../.github/workflows/promote.yml', import.meta.url), 'utf8');

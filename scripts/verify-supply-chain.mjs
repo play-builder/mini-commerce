@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { acceptsLegacyRepositoryIdentity, assertRepositoryIdentity } from './repository-identity.mjs';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const predicateTypes = Object.freeze({
@@ -23,7 +24,16 @@ export function selectReferrerDigests(referrers) {
   };
 }
 
-export function verifySupplyChain(evidence) {
+export function verifySupplyChain(evidence, { expectedRepositoryId } = {}) {
+  if (evidence.repositoryId !== undefined) {
+    assertRepositoryIdentity({
+      repositoryId: evidence.repositoryId,
+      repositoryName: evidence.repositoryName,
+      expectedRepositoryId: expectedRepositoryId ?? evidence.repositoryId,
+    });
+  } else if (expectedRepositoryId && !acceptsLegacyRepositoryIdentity(expectedRepositoryId)) {
+    throw new Error('REPOSITORY_ID_REQUIRED');
+  }
   if (!digestPattern.test(evidence.imageDigest)) throw new Error('invalid image digest');
   if (evidence.workflowName !== 'ci') throw new Error('workflow identity mismatch');
   if (!/^[0-9a-f]{40}$/.test(evidence.sourceSha)) throw new Error('invalid source SHA');
