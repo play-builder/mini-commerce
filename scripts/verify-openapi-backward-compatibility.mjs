@@ -27,7 +27,9 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
   const candidateDocument = YAML.parse(fs.readFileSync(candidatePath, 'utf8'));
   let baseSource;
   try {
-    baseSource = execFileSync('git', ['show', `${baseRef}:${candidatePath}`], { encoding: 'utf8' });
+    baseSource = execFileSync('git', ['show', `${baseRef}:${candidatePath}`], {
+      encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
+    });
   } catch {
     if (baseRef !== bootstrapBaseSha) throw new Error('OPENAPI_BASE_DOCUMENT_MISSING');
     baseSource = fs.readFileSync(candidatePath, 'utf8');
