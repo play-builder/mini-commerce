@@ -138,13 +138,15 @@ test('같은 Idempotency-Key 주문은 재고를 다시 차감하지 않고 기�
       },
     },
   });
-  const service = createCommerceService(repository);
+  let created = 0;
+  const service = createCommerceService(repository, { metrics: { orderCreated: () => { created += 1; } } });
 
   assert.equal(await service.createOrder({
     idempotencyKey: 'lesson-order-existing',
     items: [{ productId: 1, quantity: 1 }],
   }), existing);
   assert.ok(!repository.calls.some((call) => Array.isArray(call) && call[0] === 'decrementInventory'));
+  assert.equal(created, 0);
 });
 
 test('재고가 부족하면 주문 전체를 거부한다', async () => {
@@ -167,7 +169,8 @@ test('재고가 부족하면 주문 전체를 거부한다', async () => {
 });
 
 test('잘못된 상품 ID, 수량, 멱등성 key를 주문 전에 거부한다', async () => {
-  const service = createCommerceService(createRepository());
+  const reasons = [];
+  const service = createCommerceService(createRepository(), { metrics: { orderFailed: (reason) => reasons.push(reason) } });
 
   await assert.rejects(
     service.createOrder({ idempotencyKey: '', items: [{ productId: 1, quantity: 1 }] }),
@@ -178,4 +181,5 @@ test('잘못된 상품 ID, 수량, 멱등성 key를 주문 전에 거부한다',
     ValidationError,
   );
   assert.throws(() => service.getInventory('abc'), ValidationError);
+  assert.deepEqual(reasons, ['validation', 'validation']);
 });

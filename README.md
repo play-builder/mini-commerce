@@ -1,8 +1,7 @@
-# CI/CD course sample application
+# Mini Commerce
 
-이 저장소는 CI/CD와 GitOps 강의에서 빌드·테스트·배포할 Node.js 24 애플리케이션의 전체
-코드입니다. Ch01~Ch14에서는 기존 Stateless 운영 endpoint를 사용하고, 그 이후 Stateful 보충
-실습에서는 PostgreSQL 기반 Mini Commerce의 상품 조회·재고 확인·주문 생성을 활성화합니다.
+이 저장소는 PostgreSQL 기반 Mini Commerce production service의 Node.js 24 코드입니다.
+상품 조회·재고 확인·idempotent 주문 생성과 canonical 주문 조회를 제공합니다.
 CI는 ECR에 multi-architecture 이미지 인덱스를 푸시한 뒤 application과 migration image의
 index digest를 `argocd-gitops` 저장소에 반영합니다.
 
@@ -168,7 +167,7 @@ docker build \
   --build-arg APP_VERSION=local \
   --build-arg GIT_SHA=local \
   --build-arg BUILD_DATE=2026-09-01T00:00:00Z \
-  -t sample-app:local .
+  -t mini-commerce:local .
 ```
 
 CI에서는 `linux/amd64,linux/arm64`를 동시에 push하며 action 출력의 digest를 다시 inspect합니다.
@@ -203,7 +202,7 @@ canonical JSON으로 묶습니다. 최종 record는 만료되는 현재 상태�
 
 ```bash
 docker buildx imagetools inspect \
-  <account>.dkr.ecr.<region>.amazonaws.com/playdevops/sample-app@sha256:<digest>
+  <account>.dkr.ecr.<region>.amazonaws.com/playdevops/mini-commerce@sha256:<digest>
 ```
 
 정상 결과에는 `linux/amd64`와 `linux/arm64` platform manifest가 모두 보여야 합니다.
@@ -217,7 +216,7 @@ Repository variables:
 | `AWS_REGION` | `us-east-1` 또는 `ap-northeast-2` |
 | `AWS_ROLE_ARN` | EKS-infra의 `sample_app_push_role_arn` 출력 |
 | `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra의 supply-chain read/verify Role ARN 출력 |
-| `ECR_REPOSITORY` | `playdevops/sample-app` |
+| `ECR_REPOSITORY` | `playdevops/mini-commerce` |
 | `GITOPS_APP_ID` | GitOps용 GitHub App ID |
 | `GITOPS_OWNER` | GitOps 저장소 owner |
 | `GITOPS_REPOSITORY_NAME` | GitOps 저장소 이름 |
@@ -235,10 +234,10 @@ gitops-dev-delivery environment secret과 gitops-production environment secret�
 
 ```bash
 gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-dev-delivery \
-  --repo "<owner>/cicd-course-sample-app" < "<GitHub-App-private-key.pem>"
+  --repo "<owner>/mini-commerce" < "<GitHub-App-private-key.pem>"
 
 gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production \
-  --repo "<owner>/cicd-course-sample-app" < "<GitHub-App-private-key.pem>"
+  --repo "<owner>/mini-commerce" < "<GitHub-App-private-key.pem>"
 ```
 
 두 environment의 deployment branch를 `main`으로 제한합니다. `gitops-dev-delivery`는 main CI의

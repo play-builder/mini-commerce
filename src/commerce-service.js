@@ -109,13 +109,13 @@ export function createCommerceService(repository, { metrics } = {}) {
     },
 
     async createOrder(input) {
-      const normalized = normalizeOrderInput(input);
-
       try {
+        const normalized = normalizeOrderInput(input);
+        let replayed = false;
         const order = await repository.withTransaction(async (transaction) => {
         await transaction.advisoryLock(normalized.idempotencyKey);
         const existing = await transaction.findOrderByIdempotencyKey(normalized.idempotencyKey);
-        if (existing) return existing;
+        if (existing) { replayed = true; return existing; }
 
         const productIds = normalized.items.map((item) => item.productId);
         const inventoryRows = await transaction.lockInventory(productIds);
@@ -154,11 +154,14 @@ export function createCommerceService(repository, { metrics } = {}) {
 
         return { ...order, items: orderItems };
         });
-        metrics?.orderCreated();
+        if (!replayed) metrics?.orderCreated();
         return order;
       } catch (error) {
         if (error instanceof InsufficientStockError) metrics?.inventoryConflict();
-        metrics?.orderFailed?.(error instanceof InsufficientStockError ? 'insufficient_stock' : 'database');
+        const reason = error instanceof ValidationError ? 'validation'
+          : error instanceof ProductNotFoundError ? 'product_not_found'
+            : error instanceof InsufficientStockError ? 'insufficient_stock' : 'database';
+        metrics?.orderFailed?.(reason);
         if (error instanceof ValidationError || error instanceof ProductNotFoundError
           || error instanceof InsufficientStockError) throw error;
         throw new DatabaseUnavailableError();

@@ -1,5 +1,6 @@
 import express from 'express';
-import { startRequestTelemetry, writeLog } from './telemetry.js';
+import { runWithRequestContext } from './request-context.js';
+import { startRequestTelemetry } from './telemetry.js';
 
 export function createApplication({ commerceService, telemetryTracer } = {}) {
   if (!commerceService) throw new TypeError('commerceService is required');
@@ -8,17 +9,11 @@ export function createApplication({ commerceService, telemetryTracer } = {}) {
   app.use(express.json({ limit: '32kb' }));
   app.use((req, res, next) => {
     const requestTelemetry = startRequestTelemetry(req, res, { tracer: telemetryTracer });
-    res.on('finish', () => {
-      const completed = requestTelemetry.end(res.statusCode);
-      writeLog({
-        level: res.statusCode >= 500 ? 'error' : 'info', event: 'http.request.completed',
-        requestId: requestTelemetry.requestId, traceId: requestTelemetry.traceId,
-        spanId: requestTelemetry.spanId, method: req.method,
-        route: req.route?.path ?? 'unmatched', statusCode: res.statusCode,
-        durationMs: completed.durationMs,
-      });
-    });
-    requestTelemetry.run(next);
+    res.set('x-request-id', requestTelemetry.requestId);
+    res.on('finish', () => requestTelemetry.end(res.statusCode, req.route?.path ?? 'unmatched'));
+    requestTelemetry.run(() => runWithRequestContext({
+      requestId: requestTelemetry.requestId, traceId: requestTelemetry.traceId,
+    }, next));
   });
   app.get('/products', async (_req, res, next) => {
     try { res.json({ products: await commerceService.listProducts() }); } catch (error) { next(error); }

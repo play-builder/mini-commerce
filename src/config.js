@@ -48,6 +48,8 @@ export function createConfig(env = process.env) {
   if (environment === 'production' && readinessDependencyPolicy === 'continuous') {
     throw new ConfigError('READINESS_DEPENDENCY_POLICY', 'continuous is not allowed in production');
   }
+  const readinessFailureThreshold = integer(env.READINESS_FAILURE_THRESHOLD, 'READINESS_FAILURE_THRESHOLD', 1, 1, 100);
+  const readinessRecoveryThreshold = integer(env.READINESS_RECOVERY_THRESHOLD, 'READINESS_RECOVERY_THRESHOLD', 1, 1, 100);
   if (environment === 'production' && databaseEnabled && !ssl) {
     throw new ConfigError('DB_SSL', 'must be true in production');
   }
@@ -65,6 +67,8 @@ export function createConfig(env = process.env) {
     port: publicPort,
     managementPort,
     readinessDependencyPolicy,
+    readinessFailureThreshold,
+    readinessRecoveryThreshold,
     version: env.APP_VERSION ?? 'dev',
     gitSha: env.GIT_SHA ?? 'unknown',
     buildDate: env.BUILD_DATE ?? 'unknown',
@@ -75,6 +79,8 @@ export function createConfig(env = process.env) {
     readyDelayMs: integer(env.READY_DELAY_MS, 'READY_DELAY_MS', 0, 0, 600000),
     shutdownDelayMs: integer(env.SHUTDOWN_DELAY_MS, 'SHUTDOWN_DELAY_MS', 5000, 0, 600000),
     shutdownDeadlineMs: integer(env.SHUTDOWN_DEADLINE_MS, 'SHUTDOWN_DEADLINE_MS', 30000, 1, 600000),
+    otelEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
+    otelResourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES ?? '',
     secretKeys: (env.SECRET_KEYS ?? 'DB_HOST,DB_PASSWORD,API_KEY')
       .split(',').map((item) => item.trim()).filter(Boolean),
     databaseEnabled,

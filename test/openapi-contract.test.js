@@ -11,6 +11,18 @@ test('OpenAPI retains public operations and rejects response removal', () => {
   const changed = JSON.parse(JSON.stringify(document));
   delete changed.paths['/orders'].post.responses['201'];
   assert.throws(() => verifyBackwardCompatibility({ baseDocument: document, candidateDocument: changed }), /OPENAPI_RESPONSE_REMOVED/);
+  const parameterTightened = JSON.parse(JSON.stringify(document));
+  parameterTightened.paths['/orders'].post.parameters[0].required = false;
+  assert.throws(() => verifyBackwardCompatibility({ baseDocument: document, candidateDocument: parameterTightened }), /OPENAPI_PARAMETER_BECAME_REQUIRED/);
+  const requestTightened = JSON.parse(JSON.stringify(document));
+  requestTightened.paths['/orders'].post.requestBody.content['application/json'].schema.required.push('unexpected');
+  assert.throws(() => verifyBackwardCompatibility({ baseDocument: document, candidateDocument: requestTightened }), /OPENAPI_REQUEST_PROPERTY_BECAME_REQUIRED/);
+  const responseChanged = JSON.parse(JSON.stringify(document));
+  responseChanged.paths['/orders'].post.responses['201'].content['application/json'].schema.properties.order.type = 'string';
+  assert.throws(() => verifyBackwardCompatibility({ baseDocument: document, candidateDocument: responseChanged }), /OPENAPI_RESPONSE_SCHEMA_CHANGED/);
+  const enumNarrowed = JSON.parse(JSON.stringify(document));
+  enumNarrowed.paths['/orders/{id}'].get.responses['200'].content['application/json'].schema.properties.order.properties.status.enum = ['CONFIRMED'];
+  assert.throws(() => verifyBackwardCompatibility({ baseDocument: document, candidateDocument: enumNarrowed }), /OPENAPI_ENUM_NARROWED/);
 });
 
 test('OpenAPI compatibility CLI requires a base revision', () => {

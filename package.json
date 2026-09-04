@@ -1,7 +1,7 @@
 {
-  "name": "sample-app",
+  "name": "mini-commerce",
   "version": "1.1.0",
-  "description": "CI/CD 와 GitOps 강의용 샘플 애플리케이션",
+  "description": "Mini Commerce production service",
   "type": "module",
   "private": true,
   "engines": {

@@ -6,7 +6,8 @@ paths:
   /products:
     get:
       responses:
-        '200': { description: Products }
+        '200': { description: Products, content: { application/json: { schema: { type: object, properties: { products: { type: array } } } } } }
+        '503': { description: Database unavailable, content: { application/json: { schema: { type: object, properties: { error: { type: string } } } } } }
   /products/{id}/inventory:
     get:
       parameters:
@@ -15,8 +16,9 @@ paths:
           required: true
           schema: { type: integer, minimum: 1 }
       responses:
-        '200': { description: Inventory }
-        '404': { description: Product not found }
+        '200': { description: Inventory, content: { application/json: { schema: { type: object } } } }
+        '404': { description: Product not found, content: { application/json: { schema: { type: object } } } }
+        '503': { description: Database unavailable, content: { application/json: { schema: { type: object } } } }
   /orders:
     post:
       parameters:
@@ -24,11 +26,20 @@ paths:
           in: header
           required: true
           schema: { type: string, minLength: 1, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items: { type: array }
       responses:
-        '201': { description: Created order }
-        '400': { description: Invalid order }
-        '409': { description: Insufficient stock }
-        '503': { description: Database unavailable }
+        '201': { description: Created order, content: { application/json: { schema: { type: object, properties: { order: { type: object } } } } } }
+        '400': { description: Invalid order, content: { application/json: { schema: { type: object } } } }
+        '409': { description: Insufficient stock, content: { application/json: { schema: { type: object } } } }
+        '503': { description: Database unavailable, content: { application/json: { schema: { type: object } } } }
   /orders/{id}:
     get:
       parameters:
@@ -37,6 +48,6 @@ paths:
           required: true
           schema: { type: integer, minimum: 1 }
       responses:
-        '200': { description: Order }
-        '404': { description: Order not found }
-        '503': { description: Database unavailable }
+        '200': { description: Order, content: { application/json: { schema: { type: object, properties: { order: { type: object, properties: { status: { type: string, enum: [CONFIRMED, CANCELLED] } } } } } } } }
+        '404': { description: Order not found, content: { application/json: { schema: { type: object } } } }
+        '503': { description: Database unavailable, content: { application/json: { schema: { type: object } } } }

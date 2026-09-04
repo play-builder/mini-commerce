@@ -3,12 +3,43 @@ import { execFileSync } from 'node:child_process';
 import YAML from 'yaml';
 
 export function verifyBackwardCompatibility({ baseDocument, candidateDocument }) {
+  const required = (value) => new Set(value ?? []);
+  const assertEnumNotNarrowed = (baseSchema, candidateSchema) => {
+    if (baseSchema?.enum && (!candidateSchema?.enum
+      || baseSchema.enum.some((value) => !candidateSchema.enum.includes(value)))) {
+      throw new Error('OPENAPI_ENUM_NARROWED');
+    }
+    for (const [name, schema] of Object.entries(baseSchema?.properties ?? {})) {
+      assertEnumNotNarrowed(schema, candidateSchema?.properties?.[name]);
+    }
+    if (baseSchema?.items) assertEnumNotNarrowed(baseSchema.items, candidateSchema?.items);
+  };
   for (const [path, operations] of Object.entries(baseDocument.paths ?? {})) {
     for (const [method, base] of Object.entries(operations)) {
       const candidate = candidateDocument.paths?.[path]?.[method];
       if (!candidate) throw new Error('OPENAPI_OPERATION_REMOVED');
+      const candidateParameters = new Map((candidate.parameters ?? []).map((parameter) => [`${parameter.in}:${parameter.name}`, parameter]));
+      for (const parameter of base.parameters ?? []) {
+        const replacement = candidateParameters.get(`${parameter.in}:${parameter.name}`);
+        if (parameter.required && !replacement?.required) throw new Error('OPENAPI_PARAMETER_BECAME_REQUIRED');
+        assertEnumNotNarrowed(parameter.schema, replacement?.schema);
+      }
+      if (base.requestBody?.required && !candidate.requestBody?.required) {
+        throw new Error('OPENAPI_REQUEST_BODY_BECAME_REQUIRED');
+      }
+      const baseRequestSchema = base.requestBody?.content?.['application/json']?.schema;
+      const candidateRequestSchema = candidate.requestBody?.content?.['application/json']?.schema;
+      for (const property of required(candidateRequestSchema?.required)) {
+        if (!required(baseRequestSchema?.required).has(property)) throw new Error('OPENAPI_REQUEST_PROPERTY_BECAME_REQUIRED');
+      }
       for (const code of Object.keys(base.responses ?? {})) {
         if (!candidate.responses?.[code]) throw new Error('OPENAPI_RESPONSE_REMOVED');
+        const baseSchema = base.responses[code].content?.['application/json']?.schema;
+        const candidateSchema = candidate.responses[code].content?.['application/json']?.schema;
+        assertEnumNotNarrowed(baseSchema, candidateSchema);
+        if (JSON.stringify(baseSchema ?? null) !== JSON.stringify(candidateSchema ?? null)) {
+          throw new Error('OPENAPI_RESPONSE_SCHEMA_CHANGED');
+        }
       }
     }
   }

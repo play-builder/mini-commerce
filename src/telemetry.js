@@ -12,7 +12,7 @@ import { resourceFromAttributes } from '@opentelemetry/resources';
 import { NodeSDK } from '@opentelemetry/sdk-node';
 import { ATTR_SERVICE_NAME } from '@opentelemetry/semantic-conventions';
 
-let installedTracer = trace.getTracer('sample-app');
+let installedTracer = trace.getTracer('mini-commerce');
 
 function parseResourceAttributes(raw = '') {
   return Object.fromEntries(raw.split(',').map((entry) => entry.trim()).filter(Boolean).map((entry) => {
@@ -24,19 +24,19 @@ function parseResourceAttributes(raw = '') {
 
 export function initializeTelemetry({ serviceName, endpoint, resourceAttributes } = {}) {
   if (!endpoint) {
-    installedTracer = trace.getTracer(serviceName || 'sample-app');
+    installedTracer = trace.getTracer(serviceName || 'mini-commerce');
     return { tracer: installedTracer, shutdown: async () => {} };
   }
 
   const sdk = new NodeSDK({
     resource: resourceFromAttributes({
-      [ATTR_SERVICE_NAME]: serviceName || 'sample-app',
+      [ATTR_SERVICE_NAME]: serviceName || 'mini-commerce',
       ...parseResourceAttributes(resourceAttributes),
     }),
     traceExporter: new OTLPTraceExporter({ url: endpoint }),
   });
   sdk.start();
-  installedTracer = trace.getTracer(serviceName || 'sample-app');
+  installedTracer = trace.getTracer(serviceName || 'mini-commerce');
   return { tracer: installedTracer, shutdown: () => sdk.shutdown() };
 }
 
@@ -67,7 +67,6 @@ export function startRequestTelemetry(req, _res, { tracer = getTracer() } = {}) 
     kind: SpanKind.SERVER,
     attributes: {
       'http.request.method': req.method,
-      'url.path': req.path,
     },
   }, parentContext);
   const activeContext = trace.setSpan(parentContext, span);
@@ -82,10 +81,11 @@ export function startRequestTelemetry(req, _res, { tracer = getTracer() } = {}) 
     run(callback) {
       return context.with(activeContext, callback);
     },
-    end(statusCode) {
+    end(statusCode, route = 'unmatched') {
       const durationMs = Number(process.hrtime.bigint() - startedAt) / 1e6;
       if (!ended) {
         ended = true;
+        span.setAttribute('http.route', route);
         span.setAttribute('http.response.status_code', statusCode);
         span.setStatus(statusCode >= 500
           ? { code: SpanStatusCode.ERROR }

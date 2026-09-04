@@ -17,3 +17,20 @@ test('shutdown drains in deterministic order once', async () => {
   await lifecycle.shutdown();
   assert.deepEqual(calls, ['readiness', 'public', 'pool', 'telemetry', 'management', 'exit']);
 });
+
+test('shutdown deadline force-closes listeners and uses injected exit', () => {
+  let force;
+  const calls = [];
+  const lifecycle = createLifecycle({
+    readiness: { markNotReady() {} },
+    publicServer: { close() {}, closeAllConnections: () => calls.push('public-force') },
+    managementServer: { close() {}, closeAllConnections: () => calls.push('management-force') },
+    telemetry: { shutdown: async () => {} },
+    exit: (code) => calls.push(`exit-${code}`),
+    logger: { info() {}, error: (event) => calls.push(event) },
+    setTimer: (callback) => { force = callback; return 1; }, clearTimer() {},
+  });
+  lifecycle.shutdown();
+  force();
+  assert.deepEqual(calls, ['public-force', 'management-force', 'application.shutdown.forced', 'exit-1']);
+});
