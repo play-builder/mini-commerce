@@ -86,7 +86,10 @@ test('supply-chain, Dev deployment, SLO 세 증거가 일치할 때만 DEV_READY
   const supplyChain = fixture('supply-chain', 'verified.json');
   const deployment = fixture('dev-evidence', 'deployment.json');
   const slo = fixture('dev-evidence', 'slo.json');
-  const workflowRun = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
+  const workflowRun = {
+    ...fixture('dev-ready', 'workflow-run-ap-northeast-2.json'),
+    repository: { id: 1352247019 },
+  };
   const evidence = assembleDevReadyEvidence({
     supplyChain,
     deployment,
@@ -95,14 +98,44 @@ test('supply-chain, Dev deployment, SLO 세 증거가 일치할 때만 DEV_READY
     githubRepository: 'play-builder/cicd-course-sample-app',
   }, new Date('2026-09-03T00:30:00Z'));
   assert.deepEqual(Object.keys(evidence), [
-    'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
+    'repositoryId', 'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
     'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
   ]);
+  assert.equal(evidence.schemaVersion, 'course.dev-ready/v2');
+  assert.equal(evidence.repositoryId, '1352247019');
   assert.equal(Object.hasOwn(evidence, 'supplyChainEvidence'), false);
   assert.equal(evidence.workflow.runId, supplyChain.runId);
   assert.equal(evidence.image.indexDigest, supplyChain.imageDigest);
   assert.equal(evidence.issuedAt, slo.observedAt);
   assert.equal(evidence.expiresAt, slo.expiresAt);
+});
+
+test('DEV_READY assembly rejects a new emission without repository identity', () => {
+  const workflowRun = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
+  delete workflowRun.repository;
+  assert.throws(() => assembleDevReadyEvidence({
+    supplyChain: fixture('supply-chain', 'verified.json'),
+    deployment: fixture('dev-evidence', 'deployment.json'),
+    slo: fixture('dev-evidence', 'slo.json'),
+    workflowRun,
+    githubRepository: 'play-builder/cicd-course-sample-app',
+  }, new Date('2026-09-03T00:30:00Z')), /REPOSITORY_ID_REQUIRED/);
+});
+
+test('DEV_READY assembly refuses a fork repository identity at the emission boundary', () => {
+  const supplyChain = fixture('supply-chain', 'verified.json');
+  supplyChain.repositoryId = '999';
+  const workflowRun = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
+  workflowRun.repository = { id: 999 };
+
+  assert.throws(() => assembleDevReadyEvidence({
+    supplyChain,
+    deployment: fixture('dev-evidence', 'deployment.json'),
+    slo: fixture('dev-evidence', 'slo.json'),
+    workflowRun,
+    githubRepository: 'play-builder/cicd-course-sample-app',
+    repositoryId: '999',
+  }, new Date('2026-09-03T00:30:00Z')), /REPOSITORY_ID_MISMATCH/);
 });
 
 test('raw runtime evidence의 identity 또는 grade가 다르면 assembly를 거부한다', () => {
@@ -228,10 +261,10 @@ test('DEV_READY는 commercial ECR, canonical EKS ARN, UTC timestamp와 numeric a
   assert.throws(() => createDevReadyEvidence(mutate((value) => {
     value.attestation.githubId = 'attestation-alpha';
   }), now), /invalid attestation.githubId/);
-  assert.throws(() => createDevReadyEvidence(mutate((value) => {
+  assert.doesNotThrow(() => createDevReadyEvidence(mutate((value) => {
     value.workflow.runUrl = 'https://github.com/play-builder/renamed-app/actions/runs/1234567890';
     value.attestation.githubUrl = 'https://github.com/play-builder/renamed-app/attestations/1234567';
-  }), now), /invalid workflow.runUrl/);
+  }), now));
   assert.throws(() => createDevReadyEvidence(mutate((value) => {
     value.workflow.runUrl = 'https://github.com/play builder/cicd-course-sample-app/actions/runs/1234567890';
     value.attestation.githubUrl = 'https://github.com/play builder/cicd-course-sample-app/attestations/1234567';

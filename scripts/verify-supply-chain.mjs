@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import { acceptsLegacyRepositoryIdentity, assertRepositoryIdentity } from './repository-identity.mjs';
 
 const digestPattern = /^sha256:[0-9a-f]{64}$/;
 const predicateTypes = Object.freeze({
@@ -23,7 +24,25 @@ export function selectReferrerDigests(referrers) {
   };
 }
 
-export function verifySupplyChain(evidence) {
+export function verifySupplyChain(evidence, {
+  expectedRepositoryId, workflowRun, allowLegacyRepositoryIdentity = false,
+} = {}) {
+  if (evidence.schemaVersion !== undefined
+    && !['course.supply-chain/v1', 'course.supply-chain/v2'].includes(evidence.schemaVersion)) {
+    throw new Error('unsupported supply-chain schemaVersion');
+  }
+  if (evidence.schemaVersion === 'course.supply-chain/v2') {
+    if (evidence.repositoryId === undefined) throw new Error('REPOSITORY_ID_REQUIRED');
+    assertRepositoryIdentity({
+      repositoryId: evidence.repositoryId,
+      repositoryName: evidence.repositoryName,
+      expectedRepositoryId,
+      workflowRun,
+    });
+  } else if (!allowLegacyRepositoryIdentity || expectedRepositoryId === undefined
+    || !acceptsLegacyRepositoryIdentity(expectedRepositoryId)) {
+    throw new Error('LEGACY_REPOSITORY_IDENTITY_NOT_ALLOWED');
+  }
   if (!digestPattern.test(evidence.imageDigest)) throw new Error('invalid image digest');
   if (evidence.workflowName !== 'ci') throw new Error('workflow identity mismatch');
   if (!/^[0-9a-f]{40}$/.test(evidence.sourceSha)) throw new Error('invalid source SHA');
@@ -57,6 +76,8 @@ export function verifySupplyChain(evidence) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const input = process.argv[2];
   if (!input) throw new Error('usage: verify-supply-chain.mjs EVIDENCE_JSON');
-  verifySupplyChain(JSON.parse(fs.readFileSync(input, 'utf8')));
+  verifySupplyChain(JSON.parse(fs.readFileSync(input, 'utf8')), {
+    expectedRepositoryId: process.env.REPOSITORY_ID,
+  });
   console.log('PASS: verified supply-chain evidence');
 }

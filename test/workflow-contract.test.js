@@ -140,7 +140,7 @@ test('Trivy scans use the verified action and explicit scanner version without w
   assert.equal(scans.length, 2);
   for (const scan of scans) {
     assert.equal(scan.uses, 'aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25');
-    assert.equal(scan.with.version, '0.74.0');
+    assert.equal(scan.with.version, 'v0.74.0');
     assert.equal(scan.with['trivy-version'], undefined);
     assert.equal(Object.hasOwn(scan.with, 'ignore-unfixed'), false);
   }
@@ -240,6 +240,15 @@ test('README는 production promotion secret과 environment protection 경계를 
   assert.match(readme, /별도 GitHub App/);
 });
 
+test('dependency review action pin is recorded in the version contract', () => {
+  const versions = YAML.parse(fs.readFileSync(new URL('../versions.lock.yaml', import.meta.url), 'utf8'));
+  assert.equal(versions.delivery.dependencyReviewAction, '5.0.0');
+  assert.equal(
+    versions.delivery.dependencyReviewActionSha,
+    'a1d282b36b6f3519aa1f3fc636f609c47dddb294',
+  );
+});
+
 test('Dev와 Prod GitOps credential은 main-only environment 경계를 사용한다', () => {
   const ciJob = readWorkflow('ci.yml').jobs['update-dev-gitops'];
   assert.equal(ciJob.if, "${{ github.ref == 'refs/heads/main' }}");
@@ -272,6 +281,28 @@ test('모든 third-party Action은 full commit SHA로 고정된다', () => {
   for (const name of ['ci.yml', 'test.yml', 'promote.yml']) {
     assertPinnedActions(readWorkflow(name));
   }
+});
+
+test('dependency review is a read-only pinned pull-request gate', () => {
+  const workflow = readWorkflow('dependency-review.yml');
+  assert.deepEqual(workflow.permissions, { contents: 'read' });
+  assert.equal(
+    workflow.jobs['dependency-review'].steps[0].uses,
+    'actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294',
+  );
+});
+
+test('supply-chain and promotion evidence pass the immutable repository ID', () => {
+  const ci = readWorkflow('ci.yml');
+  const verification = ci.jobs['attest-and-verify'].steps.find((step) => (
+    step.name === 'Verify GitHub attestation and OCI referrers'
+  ));
+  assert.equal(verification.env.REPOSITORY_ID, '${{ github.event.repository.id }}');
+  const promotion = readWorkflow('promote.yml');
+  const assembly = promotion.jobs['promotion-pr'].steps.find((step) => (
+    step.name === 'Assemble canonical DEV_READY from supply chain, deployment, and SLO'
+  ));
+  assert.equal(assembly.env.REPOSITORY_ID, '${{ github.event.repository.id }}');
 });
 
 test('Dev update와 Prod promotion은 application과 migration digest 계약을 사용한다', () => {

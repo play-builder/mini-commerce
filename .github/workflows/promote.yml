@@ -86,6 +86,7 @@ jobs:
         id: dev-ready
         env:
           EXPECTED_DIGEST: ${{ inputs.expected_digest }}
+          REPOSITORY_ID: ${{ github.event.repository.id }}
         run: |
           node app/scripts/dev-ready-evidence.mjs assemble \
             evidence/supply-chain-evidence.json \

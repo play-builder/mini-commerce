@@ -1,57 +1,15 @@
 import { config } from './config.js';
-import { state, markReady, markShuttingDown } from './state.js';
-import { createApp } from './routes.js';
-import { createCommerceService } from './commerce-service.js';
-import {
-  createDatabasePool,
-  createPostgresCommerceRepository,
-  PRODUCT_READ_CONTRACT,
-} from './database.js';
-import { initializeTelemetry, writeLog } from './telemetry.js';
+import { createShutdownSignalHandler } from './lifecycle.js';
+import { createRuntime } from './runtime.js';
 
-const telemetry = initializeTelemetry({
-  serviceName: process.env.OTEL_SERVICE_NAME ?? 'sample-app',
-  endpoint: process.env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
-  resourceAttributes: process.env.OTEL_RESOURCE_ATTRIBUTES ?? '',
+const runtime = createRuntime({ runtimeConfig: config });
+await runtime.start();
+const shutdownOnSignal = createShutdownSignalHandler({
+  shutdown: () => runtime.shutdown(),
+  onFailure: (event) => {
+    runtime.logger.error(event);
+    process.exitCode = 1;
+  },
 });
-
-const pool = config.databaseEnabled ? createDatabasePool(config.database) : null;
-const commerceService = pool ? createCommerceService(createPostgresCommerceRepository(pool, {
-  productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
-})) : null;
-const app = createApp({ databaseEnabled: config.databaseEnabled, commerceService });
-const server = app.listen(config.port, () => {
-  console.log(`listening on ${config.port}, version ${config.version}, pod ${config.podName}`);
-});
-
-if (config.readyDelayMs > 0) {
-  console.log(`readiness 를 ${config.readyDelayMs}ms 뒤에 켭니다`);
-  setTimeout(markReady, config.readyDelayMs);
-} else {
-  markReady();
-}
-
-function shutdown(signal) {
-  if (state.shuttingDown) {
-    return;
-  }
-
-  markShuttingDown();
-  console.log(`${signal} 수신, readiness 해제. ${config.shutdownDelayMs}ms 뒤에 종료합니다`);
-
-  setTimeout(() => {
-    server.close(async () => {
-      if (pool) await pool.end();
-      try {
-        await telemetry.shutdown();
-      } catch {
-        writeLog({ level: 'error', event: 'telemetry.shutdown.failed' });
-      }
-      console.log('연결을 모두 닫았습니다');
-      process.exit(0);
-    });
-  }, config.shutdownDelayMs);
-}
-
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-process.on('SIGINT', () => shutdown('SIGINT'));
+process.on('SIGTERM', shutdownOnSignal);
+process.on('SIGINT', shutdownOnSignal);

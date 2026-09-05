@@ -1,25 +1,29 @@
 {
-  "name": "sample-app",
+  "name": "mini-commerce",
   "version": "1.1.0",
-  "description": "CI/CD 와 GitOps 강의용 샘플 애플리케이션",
+  "description": "Mini Commerce production service",
   "type": "module",
   "private": true,
   "engines": {
     "node": ">=24.0.0"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "node --import ./src/register-instrumentation-hooks.js --import ./src/instrumentation.js src/server.js",
+    "dev": "node --import ./src/register-instrumentation-hooks.js --import ./src/instrumentation.js --watch src/server.js",
     "lint": "eslint .",
     "migrate:up": "node scripts/migrate.mjs",
     "test": "node --test --test-concurrency=1 test/**/*.test.js",
     "test:integration": "node --test test/postgres.integration.test.js",
-    "test:postgres": "node --test --test-concurrency=1 test/postgres.integration.test.js test/commerce-concurrency.integration.test.js test/database-readiness.integration.test.js test/migration-ledger.integration.test.js test/compatibility.integration.test.js test/contract-003.integration.test.js test/restore-verifier.integration.test.js test/query-trace.integration.test.js test/commerce-invariants.integration.test.js",
+    "test:postgres": "node --test --test-concurrency=1 test/postgres.integration.test.js test/commerce-concurrency.integration.test.js test/instrumentation-postgres.integration.test.js test/migration-ledger.integration.test.js test/compatibility.integration.test.js test/contract-003.integration.test.js test/restore-verifier.integration.test.js test/commerce-invariants.integration.test.js",
     "test:coverage": "node --test --experimental-test-coverage test/**/*.test.js"
   },
   "dependencies": {
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-proto": "^0.222.0",
+    "@opentelemetry/instrumentation": "0.222.0",
+    "@opentelemetry/instrumentation-express": "0.70.0",
+    "@opentelemetry/instrumentation-http": "0.222.0",
+    "@opentelemetry/instrumentation-pg": "0.74.0",
     "@opentelemetry/resources": "^2.11.0",
     "@opentelemetry/sdk-node": "^0.222.0",
     "@opentelemetry/sdk-trace-base": "^2.11.0",
@@ -27,7 +31,8 @@
     "@prometheus-io/client": "^0.16.1",
     "express": "^5.2.1",
     "node-pg-migrate": "9.0.0",
-    "pg": "8.23.0"
+    "pg": "8.23.0",
+    "pino": "10.3.1"
   },
   "devDependencies": {
     "eslint": "^10.9.1",

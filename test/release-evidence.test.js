@@ -265,7 +265,7 @@ test('runtime exporter는 final evidence directory symlink escape를 거부한�
   fs.mkdirSync(isolatedScripts, { recursive: true });
   fs.mkdirSync(path.join(isolatedRoot, 'evidence'), { recursive: true });
   fs.mkdirSync(outside);
-  for (const script of ['export-release-evidence.mjs', 'gitops-values-lib.mjs']) {
+  for (const script of ['export-release-evidence.mjs', 'gitops-values-lib.mjs', 'repository-identity.mjs']) {
     fs.copyFileSync(new URL(`../scripts/${script}`, import.meta.url), path.join(isolatedScripts, script));
   }
   fs.symlinkSync(outside, path.join(isolatedRoot, 'evidence/release'));
@@ -668,18 +668,43 @@ test('final exporter는 noncanonical DEV_READY AWS identity를 거부한다', ()
   }
 });
 
-test('final exporter는 renamed sample application repository의 DEV_READY를 거부한다', () => {
+test('final exporter는 repository ID가 유지된 rename을 승인한다', () => {
   const input = fixture('complete.json');
   const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
   devReady.workflow.runUrl = 'https://github.com/play-builder/renamed-app/actions/runs/1234567890';
   devReady.attestation.githubUrl = 'https://github.com/play-builder/renamed-app/attestations/1234567';
+  input.runUrl = devReady.workflow.runUrl;
+  input.attestation.githubUrl = devReady.attestation.githubUrl;
+  const prodSlo = JSON.parse(upstreamSources.prodSloSource.toString('utf8'));
+  prodSlo.source.repository = 'play-builder/renamed-app';
+  const devReadySource = Buffer.from(JSON.stringify(devReady));
+  const prodSloSource = Buffer.from(JSON.stringify(prodSlo));
+  input.upstreamEvidence.devReadyDigest = `sha256:${rawSha256(devReadySource)}`;
+  input.upstreamEvidence.prodSloDigest = `sha256:${rawSha256(prodSloSource)}`;
+
+  assert.doesNotThrow(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    upstreamSources: { ...upstreamSources, devReadySource, prodSloSource },
+  }));
+});
+
+test('final exporter requires canonical DEV_READY repository identity', () => {
+  const input = fixture('complete.json');
+  const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
+  devReady.schemaVersion = 'course.dev-ready/v2';
+  devReady.repositoryId = '999';
   const devReadySource = Buffer.from(JSON.stringify(devReady));
   input.upstreamEvidence.devReadyDigest = `sha256:${rawSha256(devReadySource)}`;
 
   assert.throws(() => exportReleaseEvidence(input, {
     ...fixtureOptions,
     upstreamSources: { ...upstreamSources, devReadySource },
-  }), /invalid DEV_READY workflow identity/);
+  }), /REPOSITORY_ID_MISMATCH/);
+  assert.throws(() => exportReleaseEvidence(input, {
+    ...fixtureOptions,
+    expectedRepositoryId: '999',
+    upstreamSources: { ...upstreamSources, devReadySource },
+  }), /REPOSITORY_ID_MISMATCH/);
 });
 
 test('final exporter는 rollback window 안의 모든 v2prime candidate를 보존한다', () => {

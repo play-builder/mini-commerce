@@ -29,12 +29,13 @@ ENV APP_VERSION=$APP_VERSION
 ENV GIT_SHA=$GIT_SHA
 ENV BUILD_DATE=$BUILD_DATE
 
-LABEL org.opencontainers.image.title="sample-app"
-LABEL org.opencontainers.image.description="CI/CD 와 GitOps 강의용 샘플 애플리케이션"
+LABEL org.opencontainers.image.title="mini-commerce"
+LABEL org.opencontainers.image.description="Mini Commerce production service"
 LABEL org.opencontainers.image.version=$APP_VERSION
 LABEL org.opencontainers.image.revision=$GIT_SHA
 LABEL org.opencontainers.image.created=$BUILD_DATE
 
 EXPOSE 3000
+EXPOSE 3001
 
-CMD ["node", "src/server.js"]
+CMD ["node", "--import", "./src/register-instrumentation-hooks.js", "--import", "./src/instrumentation.js", "src/server.js"]

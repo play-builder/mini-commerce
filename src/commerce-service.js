@@ -1,3 +1,5 @@
+import { withBusinessSpan } from './telemetry.js';
+
 export class ValidationError extends Error {
   constructor(message) {
     super(message);
@@ -11,6 +13,22 @@ export class ProductNotFoundError extends Error {
     super(`product not found: ${productId}`);
     this.name = 'ProductNotFoundError';
     this.statusCode = 404;
+  }
+}
+
+export class OrderNotFoundError extends Error {
+  constructor(orderId) {
+    super(`order not found: ${orderId}`);
+    this.name = 'OrderNotFoundError';
+    this.statusCode = 404;
+  }
+}
+
+export class DatabaseUnavailableError extends Error {
+  constructor() {
+    super('database unavailable');
+    this.name = 'DatabaseUnavailableError';
+    this.statusCode = 503;
   }
 }
 
@@ -64,16 +82,28 @@ export function calculateOrderTotal(orderItems) {
   );
 }
 
-export function createCommerceService(repository) {
+export function createCommerceService(repository, { metrics, logger, tracer } = {}) {
   if (!repository) throw new TypeError('commerce repository is required');
 
   return {
     listProducts() {
-      return repository.listProducts();
+      return repository.listProducts().catch(() => {
+        throw new DatabaseUnavailableError();
+      });
     },
 
     getInventory(rawProductId) {
-      return repository.getInventory(readProductId(rawProductId));
+      return repository.getInventory(readProductId(rawProductId)).catch((error) => {
+        if (error instanceof ProductNotFoundError) throw error;
+        throw new DatabaseUnavailableError();
+      });
+    },
+
+    getOrder(rawOrderId) {
+      return repository.getOrder(readProductId(rawOrderId)).catch((error) => {
+        if (error instanceof OrderNotFoundError) throw error;
+        throw new DatabaseUnavailableError();
+      });
     },
 
     isReady() {
@@ -81,15 +111,22 @@ export function createCommerceService(repository) {
     },
 
     async createOrder(input) {
-      const normalized = normalizeOrderInput(input);
-
-      return repository.withTransaction(async (transaction) => {
+      try {
+        const normalized = normalizeOrderInput(input);
+        let replayed = false;
+        const order = await withBusinessSpan({
+          name: 'commerce.order.create', tracer, attributes: { 'commerce.item_count': normalized.items.length },
+          execute: () => repository.withTransaction(async (transaction) => withBusinessSpan({
+            name: 'commerce.db.transaction', tracer, execute: async () => {
         await transaction.advisoryLock(normalized.idempotencyKey);
         const existing = await transaction.findOrderByIdempotencyKey(normalized.idempotencyKey);
-        if (existing) return existing;
+        if (existing) { replayed = true; return existing; }
 
         const productIds = normalized.items.map((item) => item.productId);
-        const inventoryRows = await transaction.lockInventory(productIds);
+        const inventoryRows = await withBusinessSpan({
+          name: 'commerce.inventory.reserve', tracer, attributes: { 'commerce.item_count': productIds.length },
+          execute: () => transaction.lockInventory(productIds),
+        });
         const inventoryByProduct = new Map(inventoryRows.map((row) => [row.productId, row]));
 
         const orderItems = normalized.items.map((item) => {
@@ -124,7 +161,23 @@ export function createCommerceService(repository) {
         }
 
         return { ...order, items: orderItems };
-      });
+            },
+          })),
+        });
+        if (replayed) logger?.info?.('commerce.order.replayed');
+        else { metrics?.orderCreated(); logger?.info?.('commerce.order.created'); }
+        return order;
+      } catch (error) {
+        if (error instanceof InsufficientStockError) { metrics?.inventoryConflict(); logger?.error?.('commerce.inventory.conflict'); }
+        const reason = error instanceof ValidationError ? 'validation'
+          : error instanceof ProductNotFoundError ? 'product_not_found'
+            : error instanceof InsufficientStockError ? 'insufficient_stock' : 'database';
+        metrics?.orderFailed?.(reason);
+        logger?.error?.('commerce.order.rejected', { reason });
+        if (error instanceof ValidationError || error instanceof ProductNotFoundError
+          || error instanceof InsufficientStockError) throw error;
+        throw new DatabaseUnavailableError();
+      }
     },
   };
 }

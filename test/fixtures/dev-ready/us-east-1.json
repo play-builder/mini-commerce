@@ -1,5 +1,6 @@
 {
-  "schemaVersion": "course.dev-ready/v1",
+  "repositoryId": "1352247019",
+  "schemaVersion": "course.dev-ready/v2",
   "environment": "dev",
   "region": "us-east-1",
   "sourceSha": "89abcdef0123456789abcdef0123456789abcdef",

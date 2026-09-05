@@ -31,6 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
@@ -43,6 +45,14 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Verify OpenAPI backward compatibility
+        if: github.event_name == 'pull_request'
+        run: >-
+          node scripts/verify-openapi-backward-compatibility.mjs
+          --base-ref "${{ github.event.pull_request.base.sha }}"
+          --bootstrap-base-sha "0f6e4ce79e102054fa63c8d07b53f24dbdbb4d"
+          --candidate openapi/mini-commerce.v1.yaml
 
       - name: Unit tests
         run: npm test

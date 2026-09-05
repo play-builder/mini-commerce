@@ -1,9 +1,10 @@
-export function selectExactRun({ runs, workflowName, event, headSha, beforeRunId }) {
+export function selectExactRun({ runs, workflowName, event, headSha, beforeRunId, repositoryId }) {
   const candidates = runs.filter((run) => (
     run.name === workflowName
     && run.event === event
     && run.head_sha === headSha
     && run.id > beforeRunId
+    && (repositoryId === undefined || String(run.repository?.id) === String(repositoryId))
     && run.run_name === `dev-${headSha}-${run.id}-${run.run_attempt ?? 1}`
   ));
   if (candidates.length === 0) throw new Error('EXACT_RUN_NOT_FOUND');
@@ -16,6 +17,7 @@ export function selectExactRun({ runs, workflowName, event, headSha, beforeRunId
     event: run.event,
     workflowName: run.name,
     runName: run.run_name,
+    ...(run.repository?.id ? { repositoryId: String(run.repository.id) } : {}),
   };
 }
 

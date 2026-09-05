@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  DatabaseUnavailableError,
   InsufficientStockError,
+  OrderNotFoundError,
   ValidationError,
   createCommerceService,
 } from '../src/commerce-service.js';
@@ -66,6 +68,39 @@ test('상품 조회와 재고 조회를 repository에 위임한다', async () =>
   assert.deepEqual(await service.getInventory(1), { productId: 1, availableQuantity: 5 });
 });
 
+test('order read validates ID, preserves stored fields, and hides idempotency key', async () => {
+  const repository = createRepository({
+    repository: {
+      async getOrder(orderId) {
+        if (orderId === 404) throw new OrderNotFoundError(orderId);
+        return { id: orderId, status: 'CONFIRMED', totalCents: 129900, items: [] };
+      },
+    },
+  });
+  const service = createCommerceService(repository);
+
+  assert.deepEqual(await service.getOrder('77'), {
+    id: 77, status: 'CONFIRMED', totalCents: 129900, items: [],
+  });
+  await assert.rejects(service.getOrder('404'), OrderNotFoundError);
+  assert.throws(() => service.getOrder('bad'), ValidationError);
+});
+
+test('database failures become a stable safe 503 error', async () => {
+  const service = createCommerceService(createRepository({
+    repository: { async getOrder() { throw new Error('SELECT secret FROM orders'); } },
+  }));
+
+  await assert.rejects(service.getOrder(1), DatabaseUnavailableError);
+});
+
+test('product lookup also normalizes database driver errors', async () => {
+  const service = createCommerceService(createRepository({
+    repository: { async listProducts() { throw new Error('SELECT secret FROM products'); } },
+  }));
+  await assert.rejects(service.listProducts(), DatabaseUnavailableError);
+});
+
 test('주문은 멱등성 lock과 재고 row lock을 잡고 하나의 transaction으로 저장한다', async () => {
   const repository = createRepository();
   const service = createCommerceService(repository);
@@ -103,13 +138,15 @@ test('같은 Idempotency-Key 주문은 재고를 다시 차감하지 않고 기�
       },
     },
   });
-  const service = createCommerceService(repository);
+  let created = 0;
+  const service = createCommerceService(repository, { metrics: { orderCreated: () => { created += 1; } } });
 
   assert.equal(await service.createOrder({
     idempotencyKey: 'lesson-order-existing',
     items: [{ productId: 1, quantity: 1 }],
   }), existing);
   assert.ok(!repository.calls.some((call) => Array.isArray(call) && call[0] === 'decrementInventory'));
+  assert.equal(created, 0);
 });
 
 test('재고가 부족하면 주문 전체를 거부한다', async () => {
@@ -132,7 +169,8 @@ test('재고가 부족하면 주문 전체를 거부한다', async () => {
 });
 
 test('잘못된 상품 ID, 수량, 멱등성 key를 주문 전에 거부한다', async () => {
-  const service = createCommerceService(createRepository());
+  const reasons = [];
+  const service = createCommerceService(createRepository(), { metrics: { orderFailed: (reason) => reasons.push(reason) } });
 
   await assert.rejects(
     service.createOrder({ idempotencyKey: '', items: [{ productId: 1, quantity: 1 }] }),
@@ -143,4 +181,5 @@ test('잘못된 상품 ID, 수량, 멱등성 key를 주문 전에 거부한다',
     ValidationError,
   );
   assert.throws(() => service.getInventory('abc'), ValidationError);
+  assert.deepEqual(reasons, ['validation', 'validation']);
 });

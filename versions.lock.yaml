@@ -18,11 +18,14 @@ database:
   imageIndexDigest: "sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
 
 delivery:
-  configureAwsCredentialsAction: "6.2.3"
-  configureAwsCredentialsActionSha: "e6de054238d6b7531b4efff3b6587d9aade6a06c"
   trivy: "0.74.0"
   trivyAction: "0.36.0"
   trivyActionSha: "ed142fd0673e97e23eac54620cfb913e5ce36c25"
+  trivyLinuxAmd64Sha256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+  configureAwsCredentialsAction: "6.2.3"
+  configureAwsCredentialsActionSha: "e6de054238d6b7531b4efff3b6587d9aade6a06c"
+  dependencyReviewAction: "5.0.0"
+  dependencyReviewActionSha: "a1d282b36b6f3519aa1f3fc636f609c47dddb294"
   targetPlatforms:
     - linux/amd64
     - linux/arm64

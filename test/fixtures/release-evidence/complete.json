@@ -6,7 +6,7 @@
   "region": "ap-northeast-2",
   "observedAt": "2026-09-03T04:00:00Z",
   "upstreamEvidence": {
-    "devReadyDigest": "sha256:00cc9438cee8be56412d56b9bddcc980b79b3d1d9a7358a476daa93a70e64e9d",
+    "devReadyDigest": "sha256:03b0f1410077adbaeeeaef9f66129ebb81cc3ef92b6aee044aaebae9f7a6f270",
     "prodBaselineDigest": "sha256:0d7507850865e77d91fd9ca19cff30b5516a5ae77bc1ebe84e68d6ff19037da2",
     "prodSloDigest": "sha256:00f89e29e628a84883c90390ecb30879537a5ad1b058cfbd78443a22cc537f49",
     "rollbackCompatibilityDigest": "sha256:31b70b30cc2c06688ce9959cfd3cbc90e9cec4ad1727177b22026efaa8cf6a1e",

@@ -26,5 +26,6 @@ test('CI와 local PostgreSQL은 실행 시 주입한 password만 사용한다', 
   }
 
   assert.match(read('compose.yaml'), /POSTGRES_PASSWORD: ["']?\$\{DB_PASSWORD:\?/);
-  assert.match(read('.env.example'), /^DB_PASSWORD=$/m);
+  assert.match(read('.env.example'), /^DATABASE_ENABLED=false$/m);
+  assert.doesNotMatch(read('.env.example'), /^DB_PASSWORD=/m);
 });

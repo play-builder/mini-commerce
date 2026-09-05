@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import {
+  acceptsLegacyRepositoryIdentity,
+  assertRepositoryIdentity,
+} from './repository-identity.mjs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -468,8 +472,14 @@ function verifyIncidentIndex(source, {
   return index;
 }
 
-function verifyDevReady(value) {
-  assertExactKeys(value, [
+function verifyDevReady(value, {
+  expectedRepositoryId, allowLegacyRepositoryIdentity = false,
+} = {}) {
+  const isV2 = value?.schemaVersion === 'course.dev-ready/v2';
+  assertExactKeys(value, isV2 ? [
+    'repositoryId', 'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
+    'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
+  ] : [
     'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
     'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
   ], 'DEV_READY');
@@ -481,7 +491,7 @@ function verifyDevReady(value) {
   assertExactKeys(value.gitops, ['devRevision'], 'DEV_READY.gitops');
   assertExactKeys(value.cluster, ['arn'], 'DEV_READY.cluster');
   assertExactKeys(value.slo, ['evidenceId'], 'DEV_READY.slo');
-  if (value.schemaVersion !== 'course.dev-ready/v1' || value.environment !== 'dev'
+  if (!['course.dev-ready/v1', 'course.dev-ready/v2'].includes(value.schemaVersion) || value.environment !== 'dev'
     || !supportedRegions.has(value.region) || value.workflow.name !== 'ci'
     || value.workflow.event !== 'push'
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
@@ -497,7 +507,19 @@ function verifyDevReady(value) {
   }
   if (!shaPattern.test(value.sourceSha) || !shaPattern.test(value.gitops.devRevision)
     || !digestPattern.test(value.image.indexDigest)) throw new Error('invalid DEV_READY immutable identity');
-  const runMatch = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(value.workflow.runUrl);
+  if (isV2) {
+    assertRepositoryIdentity({
+      repositoryId: value.repositoryId,
+      expectedRepositoryId,
+    });
+  } else if (!allowLegacyRepositoryIdentity || expectedRepositoryId === undefined
+    || !acceptsLegacyRepositoryIdentity(expectedRepositoryId)) {
+    throw new Error('LEGACY_REPOSITORY_IDENTITY_NOT_ALLOWED');
+  }
+  const runMatch = (isV2
+    ? /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)$/
+    : /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/
+  ).exec(value.workflow.runUrl);
   if (!runMatch || runMatch[2] !== String(value.workflow.runId)) {
     throw new Error('invalid DEV_READY workflow identity');
   }
@@ -1028,6 +1050,7 @@ function verifyResidual(value, mode, {
 
 function verifyUpstreamEvidence(record, {
   upstreamSources, mode, expectedGrade, observedAt, now, artifactRoots = {}, incidentCatalog,
+  expectedRepositoryId, allowLegacyRepositoryIdentity,
 }) {
   if (!upstreamSources || typeof upstreamSources !== 'object') {
     throw new Error('all eleven upstream evidence sources are required');
@@ -1068,7 +1091,7 @@ function verifyUpstreamEvidence(record, {
   const freeze = parsed.freezeSource.value;
   const removal = parsed.removalSource.value;
   const residual = parsed.residualSource.value;
-  verifyDevReady(devReady);
+  verifyDevReady(devReady, { expectedRepositoryId, allowLegacyRepositoryIdentity });
   verifyProdBaseline(baseline, mode);
   verifyProdSlo(prodSlo, mode);
   const rollback = verifyRollbackCompatibility(
@@ -1181,6 +1204,7 @@ function verifyUpstreamEvidence(record, {
 export function exportReleaseEvidence(record, options = {}) {
   const {
     upstreamSources, mode = 'runtime', now = new Date(), artifactRoots, incidentCatalog,
+    expectedRepositoryId, allowLegacyRepositoryIdentity = false,
   } = options;
   if (!record || typeof record !== 'object' || Array.isArray(record)) {
     throw new Error('release evidence must be an object');
@@ -1285,6 +1309,7 @@ export function exportReleaseEvidence(record, options = {}) {
   }
   const derived = verifyUpstreamEvidence(record, {
     upstreamSources, mode, expectedGrade, observedAt, now, artifactRoots, incidentCatalog,
+    expectedRepositoryId, allowLegacyRepositoryIdentity,
   });
   const canonical = canonicalize(Object.fromEntries(requiredKeys.map((key) => [
     key, key === 'rollbackCandidates' ? derived.rollbackCandidates : record[key],
@@ -1398,6 +1423,7 @@ export function exportReleaseEvidenceFiles({
       'EKS-infra': infraRoot,
     },
     incidentCatalog: loadIncidentCatalog(gitopsRoot),
+    expectedRepositoryId: process.env.REPOSITORY_ID,
   });
   if (fs.existsSync(finalEvidencePath)) {
     const existing = JSON.parse(fs.readFileSync(finalEvidencePath, 'utf8'));

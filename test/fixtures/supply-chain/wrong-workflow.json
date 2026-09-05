@@ -1,4 +1,7 @@
 {
+  "schemaVersion": "course.supply-chain/v2",
+  "repositoryId": "1352247019",
+  "repositoryName": "play-builder/cicd-course-sample-app",
   "sourceSha": "0123456789abcdef0123456789abcdef01234567",
   "workflowName": "untrusted-workflow",
   "workflowEvent": "push",
