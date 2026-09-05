@@ -173,7 +173,7 @@ export function createCommerceService(repository, { metrics, logger, tracer } = 
           : error instanceof ProductNotFoundError ? 'product_not_found'
             : error instanceof InsufficientStockError ? 'insufficient_stock' : 'database';
         metrics?.orderFailed?.(reason);
-        logger?.error?.('commerce.order.rejected');
+        logger?.error?.('commerce.order.rejected', { reason });
         if (error instanceof ValidationError || error instanceof ProductNotFoundError
           || error instanceof InsufficientStockError) throw error;
         throw new DatabaseUnavailableError();

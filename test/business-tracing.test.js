@@ -39,3 +39,21 @@ test('order creation emits only bounded business spans and allowlisted Pino even
   assert.equal(lines[0].event, 'commerce.order.created');
   assert.equal(JSON.stringify({ spans, lines }).includes('private-key'), false);
 });
+
+test('order rejection log carries only a bounded failure reason', async () => {
+  const lines = [];
+  const logger = createLogger({ write: (line) => lines.push(JSON.parse(line)) });
+  const service = createCommerceService({
+    async withTransaction() { throw new Error('not reached'); },
+  }, { logger });
+
+  await assert.rejects(service.createOrder({ idempotencyKey: '', items: [] }));
+
+  assert.deepEqual({ event: lines[0].event, reason: lines[0].reason }, {
+    event: 'commerce.order.rejected',
+    reason: 'validation',
+  });
+  assert.deepEqual(Object.keys(lines[0]).sort(), [
+    'environment', 'event', 'level', 'reason', 'service', 'timestamp', 'version',
+  ]);
+});

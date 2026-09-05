@@ -14,3 +14,30 @@ test('logger emits fixed safe JSON fields', () => {
     requestId: 'request-1', traceId: 'trace-1',
   });
 });
+
+test('logger accepts only bounded database operation details', () => {
+  const lines = [];
+  const logger = createLogger({ write: (value) => lines.push(JSON.parse(value)) });
+
+  logger.error('database.operation.failed', {
+    operation: 'list_products',
+    reason: 'query_failed',
+    durationMs: 17,
+  });
+
+  assert.deepEqual({
+    operation: lines[0].operation,
+    reason: lines[0].reason,
+    durationMs: lines[0].durationMs,
+  }, { operation: 'list_products', reason: 'query_failed', durationMs: 17 });
+  assert.throws(() => logger.error('database.operation.failed', {
+    operation: 'customer-8472',
+    reason: 'password=secret',
+    durationMs: 17,
+  }), /unsupported database operation details/);
+  assert.throws(() => logger.error('database.operation.failed', {
+    operation: 'list_products',
+    reason: 'query_failed',
+    durationMs: -1,
+  }), /unsupported database operation details/);
+});

@@ -35,7 +35,7 @@ export function createRuntime({ runtimeConfig, dependencies = {} }) {
     ?? createDatabaseObservability({ pool, metrics, logger, readiness })) : null;
   const repository = pool ? createPostgresCommerceRepository(pool, {
     productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
-    dependencySignals: readiness,
+    dependencySignals: observer,
   }) : null;
   const commerceService = repository ? createCommerceService(repository, { metrics, logger, tracer: telemetry.tracer }) : {
     listProducts: async () => { throw new DatabaseUnavailableError(); },

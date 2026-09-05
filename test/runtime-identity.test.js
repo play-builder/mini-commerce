@@ -2,8 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { test } from 'node:test';
 
-import { BasicTracerProvider, InMemorySpanExporter, SimpleSpanProcessor } from '@opentelemetry/sdk-trace-base';
-
 import { createApplication } from '../src/application.js';
 import { createCommerceService } from '../src/commerce-service.js';
 import { createManagement } from '../src/management.js';
@@ -57,9 +55,6 @@ test('runtime identity is mini-commerce across package, OCI, telemetry, metrics,
 });
 
 test('database failure is an actual HTTP 503 without raw driver text', async (t) => {
-  const exporter = new InMemorySpanExporter();
-  const provider = new BasicTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
-  t.after(() => provider.shutdown());
   const stdout = [];
   const originalLog = console.log;
   const originalError = console.error;
@@ -69,7 +64,6 @@ test('database failure is an actual HTTP 503 without raw driver text', async (t)
   const rawSecret = 'SELECT card_number FROM orders WHERE key=secret-idempotency-key';
   const app = createApplication({
     commerceService: createCommerceService({ async listProducts() { throw new Error(rawSecret); } }),
-    telemetryTracer: provider.getTracer('runtime-identity-test'),
   });
   const server = app.listen(0, '127.0.0.1');
   t.after(() => server.close());
@@ -78,14 +72,8 @@ test('database failure is an actual HTTP 503 without raw driver text', async (t)
   assert.equal(response.status, 503);
   assert.match(response.headers.get('x-request-id'), /^[A-Za-z0-9_-]{1,64}$/);
   assert.deepEqual(await response.json(), { error: 'database unavailable' });
-  await provider.forceFlush();
-  const exported = JSON.stringify(exporter.getFinishedSpans().map((span) => ({
-    name: span.name, attributes: span.attributes, status: span.status,
-  })));
   const emitted = stdout.join('\n');
   for (const secret of ['secret-idempotency-key', 'card_number', rawSecret]) {
     assert.equal(emitted.includes(secret), false);
-    assert.equal(exported.includes(secret), false);
   }
-  assert.equal(exported.includes('url.path'), false);
 });

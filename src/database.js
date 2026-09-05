@@ -64,109 +64,140 @@ export function createDatabasePool(databaseConfig) {
 
 export function createPostgresCommerceRepository(
   pool,
-  { productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME, dependencySignals } = {},
+  {
+    productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME,
+    dependencySignals,
+    now = Date.now,
+  } = {},
 ) {
   const nameProjection = productNameProjection[productReadContract];
   if (!nameProjection) throw new Error(`unsupported product read contract: ${productReadContract}`);
-  const observeQuery = async (execute) => {
+  const observeOperation = async (operation, execute) => {
+    const startedAt = now();
+    let databaseFailed = false;
+    let failureReason = 'query_failed';
+    const databaseCall = async (call, reason = 'query_failed') => {
+      try {
+        return await call();
+      } catch (error) {
+        databaseFailed = true;
+        failureReason = reason;
+        throw error;
+      }
+    };
     try {
-      const result = await execute();
-      dependencySignals?.recordDependencyRecovery();
+      const result = await execute(databaseCall);
+      dependencySignals?.recordOperationRecovery?.();
       return result;
     } catch (error) {
-      dependencySignals?.recordDependencyFailure();
+      if (databaseFailed) {
+        const durationMs = Math.min(300000, Math.max(0, Math.round(now() - startedAt)));
+        dependencySignals?.recordOperationFailure?.({
+          operation, reason: failureReason, durationMs,
+        });
+      } else {
+        dependencySignals?.recordOperationRecovery?.();
+      }
       throw error;
     }
   };
-  const query = (text, values) => observeQuery(() => pool.query(text, values));
   return {
     async listProducts() {
-      const result = await query(`
-        SELECT p.id, p.sku, ${nameProjection},
-               p.price_cents, i.available_quantity
-        FROM products p
-        JOIN inventory i ON i.product_id = p.id
-        ORDER BY p.id
-      `);
-      return result.rows.map(mapProduct);
+      return observeOperation('list_products', async (databaseCall) => {
+        const result = await databaseCall(() => pool.query(`
+          SELECT p.id, p.sku, ${nameProjection},
+                 p.price_cents, i.available_quantity
+          FROM products p
+          JOIN inventory i ON i.product_id = p.id
+          ORDER BY p.id
+        `));
+        return result.rows.map(mapProduct);
+      });
     },
 
     async getInventory(productId) {
-      const result = await query(`
-        SELECT p.id, p.sku, ${nameProjection},
-               p.price_cents, i.available_quantity
-        FROM products p
-        JOIN inventory i ON i.product_id = p.id
-        WHERE p.id = $1
-      `, [productId]);
-      if (result.rowCount === 0) throw new ProductNotFoundError(productId);
-      return mapInventory(result.rows[0]);
+      return observeOperation('get_inventory', async (databaseCall) => {
+        const result = await databaseCall(() => pool.query(`
+          SELECT p.id, p.sku, ${nameProjection},
+                 p.price_cents, i.available_quantity
+          FROM products p
+          JOIN inventory i ON i.product_id = p.id
+          WHERE p.id = $1
+        `, [productId]));
+        if (result.rowCount === 0) throw new ProductNotFoundError(productId);
+        return mapInventory(result.rows[0]);
+      });
     },
 
     async getOrder(orderId) {
-      const orderResult = await query(`
-        SELECT id, status, total_cents, created_at
-        FROM orders
-        WHERE id = $1
-      `, [orderId]);
-      if (orderResult.rowCount === 0) throw new OrderNotFoundError(orderId);
-      const itemResult = await query(`
-        SELECT product_id, sku, product_name, unit_price_cents, quantity
-        FROM order_items
-        WHERE order_id = $1
-        ORDER BY product_id
-      `, [orderId]);
-      return mapOrder(orderResult.rows[0], itemResult.rows.map((row) => ({
-        productId: Number(row.product_id),
-        sku: row.sku,
-        name: row.product_name,
-        unitPriceCents: Number(row.unit_price_cents),
-        quantity: Number(row.quantity),
-      })));
+      return observeOperation('get_order', async (databaseCall) => {
+        const orderResult = await databaseCall(() => pool.query(`
+          SELECT id, status, total_cents, created_at
+          FROM orders
+          WHERE id = $1
+        `, [orderId]));
+        if (orderResult.rowCount === 0) throw new OrderNotFoundError(orderId);
+        const itemResult = await databaseCall(() => pool.query(`
+          SELECT product_id, sku, product_name, unit_price_cents, quantity
+          FROM order_items
+          WHERE order_id = $1
+          ORDER BY product_id
+        `, [orderId]));
+        return mapOrder(orderResult.rows[0], itemResult.rows.map((row) => ({
+          productId: Number(row.product_id),
+          sku: row.sku,
+          name: row.product_name,
+          unitPriceCents: Number(row.unit_price_cents),
+          quantity: Number(row.quantity),
+        })));
+      });
     },
 
     async isReady() {
-      await query('SELECT 1');
-      return true;
+      return observeOperation('readiness', async (databaseCall) => {
+        await databaseCall(() => pool.query('SELECT 1'));
+        return true;
+      });
     },
 
     async withTransaction(callback) {
-      const client = await observeQuery(() => pool.connect());
-      try {
-        const transactionQuery = (text, values) => observeQuery(() => client.query(text, values));
-        await transactionQuery('BEGIN');
-        const transaction = {
-          async advisoryLock(idempotencyKey) {
-            await transactionQuery('SELECT pg_advisory_xact_lock(hashtext($1))', [idempotencyKey]);
-          },
+      return observeOperation('transaction', async (databaseCall) => {
+        const client = await databaseCall(() => pool.connect(), 'connection_failed');
+        try {
+          const transactionQuery = (text, values) => databaseCall(() => client.query(text, values));
+          await transactionQuery('BEGIN');
+          const transaction = {
+            async advisoryLock(idempotencyKey) {
+              await transactionQuery('SELECT pg_advisory_xact_lock(hashtext($1))', [idempotencyKey]);
+            },
 
-          async findOrderByIdempotencyKey(idempotencyKey) {
-            const orderResult = await transactionQuery(`
+            async findOrderByIdempotencyKey(idempotencyKey) {
+              const orderResult = await transactionQuery(`
               SELECT id, status, total_cents, created_at
               FROM orders
               WHERE idempotency_key = $1
             `, [idempotencyKey]);
-            if (orderResult.rowCount === 0) return null;
+              if (orderResult.rowCount === 0) return null;
 
-            const orderId = orderResult.rows[0].id;
-            const itemResult = await transactionQuery(`
+              const orderId = orderResult.rows[0].id;
+              const itemResult = await transactionQuery(`
               SELECT product_id, sku, product_name, unit_price_cents, quantity
               FROM order_items
               WHERE order_id = $1
               ORDER BY product_id
             `, [orderId]);
-            const items = itemResult.rows.map((row) => ({
-              productId: Number(row.product_id),
-              sku: row.sku,
-              name: row.product_name,
-              unitPriceCents: Number(row.unit_price_cents),
-              quantity: Number(row.quantity),
-            }));
-            return mapOrder(orderResult.rows[0], items);
-          },
+              const items = itemResult.rows.map((row) => ({
+                productId: Number(row.product_id),
+                sku: row.sku,
+                name: row.product_name,
+                unitPriceCents: Number(row.unit_price_cents),
+                quantity: Number(row.quantity),
+              }));
+              return mapOrder(orderResult.rows[0], items);
+            },
 
-          async lockInventory(productIds) {
-            const result = await transactionQuery(`
+            async lockInventory(productIds) {
+              const result = await transactionQuery(`
               SELECT p.id, p.sku, ${nameProjection},
                      p.price_cents, i.available_quantity
               FROM products p
@@ -175,20 +206,20 @@ export function createPostgresCommerceRepository(
               ORDER BY p.id
               FOR UPDATE OF i
             `, [productIds]);
-            return result.rows.map(mapInventory);
-          },
+              return result.rows.map(mapInventory);
+            },
 
-          async insertOrder({ idempotencyKey, status, totalCents }) {
-            const result = await transactionQuery(`
+            async insertOrder({ idempotencyKey, status, totalCents }) {
+              const result = await transactionQuery(`
               INSERT INTO orders (idempotency_key, status, total_cents)
               VALUES ($1, $2, $3)
               RETURNING id, status, total_cents, created_at
             `, [idempotencyKey, status, totalCents]);
-            return mapOrder(result.rows[0]);
-          },
+              return mapOrder(result.rows[0]);
+            },
 
-          async insertOrderItem(item) {
-            await transactionQuery(`
+            async insertOrderItem(item) {
+              await transactionQuery(`
               INSERT INTO order_items
                 (order_id, product_id, sku, product_name, unit_price_cents, quantity)
               VALUES ($1, $2, $3, $4, $5, $6)
@@ -200,31 +231,32 @@ export function createPostgresCommerceRepository(
               item.unitPriceCents,
               item.quantity,
             ]);
-          },
+            },
 
-          async decrementInventory(productId, quantity) {
-            await transactionQuery(`
+            async decrementInventory(productId, quantity) {
+              await transactionQuery(`
               UPDATE inventory
               SET available_quantity = available_quantity - $2,
                   updated_at = CURRENT_TIMESTAMP
               WHERE product_id = $1
             `, [productId, quantity]);
-          },
-        };
+            },
+          };
 
-        const result = await callback(transaction);
-        await transactionQuery('COMMIT');
-        return result;
-      } catch (error) {
-        try {
-          await client.query('ROLLBACK');
-        } catch {
-          // The original business operation error remains the stable boundary.
+          const result = await callback(transaction);
+          await transactionQuery('COMMIT');
+          return result;
+        } catch (error) {
+          try {
+            await databaseCall(() => client.query('ROLLBACK'));
+          } catch {
+            // The original business operation error remains the stable boundary.
+          }
+          throw error;
+        } finally {
+          client.release();
         }
-        throw error;
-      } finally {
-        client.release();
-      }
+      });
     },
   };
 }

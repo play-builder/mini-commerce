@@ -14,24 +14,63 @@ export function verifyBackwardCompatibility({ baseDocument, candidateDocument })
     }
     if (baseSchema?.items) assertEnumNotNarrowed(baseSchema.items, candidateSchema?.items);
   };
+  const assertInputSchemaNotNarrowed = (baseSchema, candidateSchema) => {
+    if (!baseSchema || !candidateSchema) return;
+    if (candidateSchema.type !== undefined
+      && (baseSchema.type === undefined
+        || JSON.stringify(baseSchema.type) !== JSON.stringify(candidateSchema.type))) {
+      throw new Error('OPENAPI_SCHEMA_TYPE_CHANGED');
+    }
+    if (candidateSchema.enum && (!baseSchema.enum
+      || baseSchema.enum.some((value) => !candidateSchema.enum.includes(value)))) {
+      throw new Error('OPENAPI_ENUM_NARROWED');
+    }
+    for (const field of ['minimum', 'exclusiveMinimum', 'minLength', 'minItems', 'minProperties']) {
+      if (candidateSchema[field] !== undefined
+        && (baseSchema[field] === undefined || candidateSchema[field] > baseSchema[field])) {
+        throw new Error('OPENAPI_SCHEMA_BOUND_NARROWED');
+      }
+    }
+    for (const field of ['maximum', 'exclusiveMaximum', 'maxLength', 'maxItems', 'maxProperties']) {
+      if (candidateSchema[field] !== undefined
+        && (baseSchema[field] === undefined || candidateSchema[field] < baseSchema[field])) {
+        throw new Error('OPENAPI_SCHEMA_BOUND_NARROWED');
+      }
+    }
+    if (candidateSchema.pattern !== undefined && candidateSchema.pattern !== baseSchema.pattern) {
+      throw new Error('OPENAPI_SCHEMA_BOUND_NARROWED');
+    }
+    const baseRequired = required(baseSchema.required);
+    for (const property of required(candidateSchema.required)) {
+      if (!baseRequired.has(property)) throw new Error('OPENAPI_REQUEST_PROPERTY_BECAME_REQUIRED');
+    }
+    for (const [name, schema] of Object.entries(baseSchema?.properties ?? {})) {
+      assertInputSchemaNotNarrowed(schema, candidateSchema?.properties?.[name]);
+    }
+    if (baseSchema?.items) assertInputSchemaNotNarrowed(baseSchema.items, candidateSchema?.items);
+  };
   for (const [path, operations] of Object.entries(baseDocument.paths ?? {})) {
     for (const [method, base] of Object.entries(operations)) {
       const candidate = candidateDocument.paths?.[path]?.[method];
       if (!candidate) throw new Error('OPENAPI_OPERATION_REMOVED');
+      const baseParameters = new Map((base.parameters ?? []).map((parameter) => [`${parameter.in}:${parameter.name}`, parameter]));
       const candidateParameters = new Map((candidate.parameters ?? []).map((parameter) => [`${parameter.in}:${parameter.name}`, parameter]));
       for (const parameter of base.parameters ?? []) {
         const replacement = candidateParameters.get(`${parameter.in}:${parameter.name}`);
-        if (parameter.required && !replacement?.required) throw new Error('OPENAPI_PARAMETER_BECAME_REQUIRED');
-        assertEnumNotNarrowed(parameter.schema, replacement?.schema);
+        if (!parameter.required && replacement?.required) throw new Error('OPENAPI_PARAMETER_BECAME_REQUIRED');
+        assertInputSchemaNotNarrowed(parameter.schema, replacement?.schema);
       }
-      if (base.requestBody?.required && !candidate.requestBody?.required) {
+      for (const parameter of candidate.parameters ?? []) {
+        if (parameter.required && !baseParameters.has(`${parameter.in}:${parameter.name}`)) {
+          throw new Error('OPENAPI_REQUIRED_PARAMETER_ADDED');
+        }
+      }
+      if (!base.requestBody?.required && candidate.requestBody?.required) {
         throw new Error('OPENAPI_REQUEST_BODY_BECAME_REQUIRED');
       }
       const baseRequestSchema = base.requestBody?.content?.['application/json']?.schema;
       const candidateRequestSchema = candidate.requestBody?.content?.['application/json']?.schema;
-      for (const property of required(candidateRequestSchema?.required)) {
-        if (!required(baseRequestSchema?.required).has(property)) throw new Error('OPENAPI_REQUEST_PROPERTY_BECAME_REQUIRED');
-      }
+      assertInputSchemaNotNarrowed(baseRequestSchema, candidateRequestSchema);
       for (const code of Object.keys(base.responses ?? {})) {
         if (!candidate.responses?.[code]) throw new Error('OPENAPI_RESPONSE_REMOVED');
         const baseSchema = base.responses[code].content?.['application/json']?.schema;
