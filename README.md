@@ -253,7 +253,7 @@ repository visibility에서 protection rule을 지원하면 실행자와 다른 
 확인한 뒤 삭제합니다. 이 경계로 인해 다른 ref에서는 credential을 읽을 수 없고, Prod promotion은
 승인 전에는 private key를 읽지 못합니다.
 
-교육 환경에서는 같은 GitHub App credential을 두 environment에 저장할 수 있습니다. 다만 main
+동일한 신뢰 경계를 공유한다면 같은 GitHub App credential을 두 environment에 저장할 수 있습니다. 다만 main
 workflow가 침해되었을 때 credential 자체를 Dev와 Prod 사이에서 격리해야 하는 조직은 별도 GitHub App을
 사용해 App ID와 private key를 분리합니다. 어느 방식이든 GitHub App을 Ruleset bypass actor로 지정하지
 않고 CODEOWNERS와 required status check를 그대로 통과시킵니다.
