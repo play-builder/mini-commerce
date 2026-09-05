@@ -163,17 +163,39 @@ jobs:
           echo "amd64=$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "amd64") | .digest' image-index.json)" >> "$GITHUB_OUTPUT"
           echo "arm64=$(jq -r '.manifests[] | select(.platform.os == "linux" and .platform.architecture == "arm64") | .digest' image-index.json)" >> "$GITHUB_OUTPUT"
 
+      - name: Install checksum-verified Trivy
+        id: install-trivy
+        env:
+          TRIVY_VERSION: "0.74.0"
+          TRIVY_ARCHIVE_SHA256: "2ae6fe3ee734b7fdf11335663e18c75ea12dccc76062f09f164a3b0f8be4371a"
+        run: |
+          set -Eeuo pipefail
+          install_dir="$RUNNER_TEMP/trivy-bin"
+          archive="$RUNNER_TEMP/trivy-${TRIVY_VERSION}-linux-amd64.tar.gz"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz" -o "$archive"
+          echo "$TRIVY_ARCHIVE_SHA256  $archive" | sha256sum -c -
+          mkdir -p "$install_dir"
+          tar -xzf "$archive" -C "$install_dir" trivy
+          chmod 755 "$install_dir/trivy"
+          echo "$install_dir" >> "$GITHUB_PATH"
+          "$install_dir/trivy" --version
+
       - name: Scan linux amd64 child manifest
-        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.24.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.74.0
+          skip-setup-trivy: true
           image-ref: ${{ needs.build.outputs.image_repository }}@${{ steps.platforms.outputs.amd64 }}
           format: table
           exit-code: 1
           severity: CRITICAL,HIGH
 
       - name: Scan linux arm64 child manifest
-        uses: aquasecurity/trivy-action@76071ef0d7ec797419534a183b498b4d6366cf37 # v0.24.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
+          version: v0.74.0
+          skip-setup-trivy: true
           image-ref: ${{ needs.build.outputs.image_repository }}@${{ steps.platforms.outputs.arm64 }}
           format: table
           exit-code: 1

@@ -216,7 +216,7 @@ Repository variables:
 | --- | --- |
 | `AWS_REGION` | `us-east-1` 또는 `ap-northeast-2` |
 | `AWS_ROLE_ARN` | EKS-infra의 `sample_app_push_role_arn` 출력 |
-| `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra의 supply-chain read/verify Role ARN 출력 |
+| `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra의 `sample_app_attest_verify_role_arn` 출력; ECR 조회 및 OCI attestation push 권한 |
 | `ECR_REPOSITORY` | `playdevops/mini-commerce` |
 | `GITOPS_APP_ID` | GitOps용 GitHub App ID |
 | `GITOPS_OWNER` | GitOps 저장소 owner |
@@ -267,6 +267,12 @@ Dev delivery는 application build와 검증 job의 AWS session을 공유하지 �
 `attest-and-verify`가 별도의 OIDC Role로 ECR에 로그인하고, `linux/amd64`와 `linux/arm64`
 child manifest를 각각 Trivy로 검사합니다. GitHub build attestation과 ECR OCI referrer가 동일한
 index digest를 가리킬 때만 GitOps update job으로 넘어갑니다.
+
+Trivy action과 scanner 버전은 `versions.lock.yaml`에 별도로 고정합니다. CI는 공식 Linux amd64
+release archive를 저장된 SHA-256과 비교한 뒤 설치하고 `skip-setup-trivy`로 전이 설치를 생략합니다.
+scanner 실행 파일을 고정해도 취약점 DB는 갱신되므로 같은 이미지의 이후 scan 결과가 달라질 수 있습니다.
+두 AWS Role이 같은 OIDC subject를 신뢰할 경우 별도 세션·감사 식별은 제공하지만 job 간 강제 격리는
+아닙니다. Attestation job은 OCI artifact를 쓰므로 read-only ECR Role을 사용할 수 없습니다.
 
 CI는 검증된 supply-chain evidence artifact까지만 보관합니다. Dev 배포 뒤 EKS-infra runtime
 checker와 SLO gate가 각각 GitOps 저장소에 기록한 deployment·SLO evidence를 promotion workflow가
