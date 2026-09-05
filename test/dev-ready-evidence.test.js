@@ -122,6 +122,22 @@ test('DEV_READY assembly rejects a new emission without repository identity', ()
   }, new Date('2026-09-03T00:30:00Z')), /REPOSITORY_ID_REQUIRED/);
 });
 
+test('DEV_READY assembly refuses a fork repository identity at the emission boundary', () => {
+  const supplyChain = fixture('supply-chain', 'verified.json');
+  supplyChain.repositoryId = '999';
+  const workflowRun = fixture('dev-ready', 'workflow-run-ap-northeast-2.json');
+  workflowRun.repository = { id: 999 };
+
+  assert.throws(() => assembleDevReadyEvidence({
+    supplyChain,
+    deployment: fixture('dev-evidence', 'deployment.json'),
+    slo: fixture('dev-evidence', 'slo.json'),
+    workflowRun,
+    githubRepository: 'play-builder/cicd-course-sample-app',
+    repositoryId: '999',
+  }, new Date('2026-09-03T00:30:00Z')), /REPOSITORY_ID_MISMATCH/);
+});
+
 test('raw runtime evidence의 identity 또는 grade가 다르면 assembly를 거부한다', () => {
   const supplyChain = fixture('supply-chain', 'verified.json');
   const deployment = fixture('dev-evidence', 'deployment.json');

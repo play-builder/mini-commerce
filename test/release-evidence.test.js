@@ -688,7 +688,7 @@ test('final exporter는 repository ID가 유지된 rename을 승인한다', () =
   }));
 });
 
-test('final exporter requires canonical or explicit DEV_READY repository identity', () => {
+test('final exporter requires canonical DEV_READY repository identity', () => {
   const input = fixture('complete.json');
   const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
   devReady.schemaVersion = 'course.dev-ready/v2';
@@ -700,11 +700,11 @@ test('final exporter requires canonical or explicit DEV_READY repository identit
     ...fixtureOptions,
     upstreamSources: { ...upstreamSources, devReadySource },
   }), /REPOSITORY_ID_MISMATCH/);
-  assert.doesNotThrow(() => exportReleaseEvidence(input, {
+  assert.throws(() => exportReleaseEvidence(input, {
     ...fixtureOptions,
     expectedRepositoryId: '999',
     upstreamSources: { ...upstreamSources, devReadySource },
-  }));
+  }), /REPOSITORY_ID_MISMATCH/);
 });
 
 test('final exporter는 rollback window 안의 모든 v2prime candidate를 보존한다', () => {

@@ -13,6 +13,9 @@ const fixture = (name) => JSON.parse(fs.readFileSync(
 test('repository ID is decimal, safe, and independent of display name', () => {
   assert.equal(normalizeRepositoryId('1352247019'), '1352247019');
   assert.throws(() => normalizeRepositoryId('play-builder/mini-commerce'), /repositoryId must be decimal/);
+  assert.throws(() => assertRepositoryIdentity({
+    repositoryId: 1352247019,
+  }), /repositoryId must be decimal/);
   assert.doesNotThrow(() => assertRepositoryIdentity({
     repositoryId: '1352247019', repositoryName: 'renamed-owner/renamed-app',
     expectedRepositoryId: '1352247019',
@@ -54,9 +57,9 @@ test('DEV_READY accepts canonical v1 input and validates v2 against workflow rep
     () => verifyDevReadyEvidence({ ...v2, repositoryId: '999' }, {}, now),
     /REPOSITORY_ID_MISMATCH/,
   );
-  assert.doesNotThrow(() => verifyDevReadyEvidence({ ...v2, repositoryId: '999' }, {
+  assert.throws(() => verifyDevReadyEvidence({ ...v2, repositoryId: '999' }, {
     expectedRepositoryId: '999',
-  }, now));
+  }, now), /REPOSITORY_ID_MISMATCH/);
   assert.throws(() => verifyDevReadyEvidence({ ...v2, repositoryId: '1352247020' }, {
     expectedRepositoryId: '1352247019', workflowRun: run,
   }, now), /REPOSITORY_ID_MISMATCH/);
