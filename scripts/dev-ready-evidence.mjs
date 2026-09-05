@@ -170,11 +170,12 @@ export function verifyDevReadyEvidence(evidence, expected = {}, now = new Date()
     assertRepositoryIdentity({
       repositoryId: verified.repositoryId,
       workflowRun: expected.workflowRun,
-      expectedRepositoryId: expected.expectedRepositoryId ?? verified.repositoryId,
+      expectedRepositoryId: expected.expectedRepositoryId,
     });
-  } else if (expected.expectedRepositoryId
-    && !acceptsLegacyRepositoryIdentity(expected.expectedRepositoryId)) {
-    throw new Error('REPOSITORY_ID_REQUIRED');
+  } else if (!expected.allowLegacyRepositoryIdentity
+    || expected.expectedRepositoryId === undefined
+    || !acceptsLegacyRepositoryIdentity(expected.expectedRepositoryId)) {
+    throw new Error('LEGACY_REPOSITORY_IDENTITY_NOT_ALLOWED');
   }
   const repository = expected.githubRepository;
   if (repository) {
@@ -258,7 +259,13 @@ export function verifyProdBaselineEvidence({ prodBaseline, candidateEvidence }, 
 export function assembleDevReadyEvidence({
   supplyChain, deployment, slo, workflowRun, githubRepository, repositoryId,
 }, now = new Date()) {
-  verifySupplyChain(supplyChain, { expectedRepositoryId: repositoryId });
+  const identity = repositoryId ?? workflowRun?.repository?.id;
+  if (identity === undefined) throw new Error('REPOSITORY_ID_REQUIRED');
+  const resolvedRepositoryId = normalizeRepositoryId(String(identity));
+  verifySupplyChain(supplyChain, {
+    expectedRepositoryId: resolvedRepositoryId,
+    workflowRun,
+  });
   validateRawDeployment(deployment);
   validateRawSlo(slo);
   assertEqual(deployment.source.repository, githubRepository, 'deployment source.repository');
@@ -278,8 +285,8 @@ export function assembleDevReadyEvidence({
     throw new Error('SLO evidence predates deployment evidence');
   }
   const evidence = createDevReadyEvidence({
-    schemaVersion: repositoryId ? 'course.dev-ready/v2' : 'course.dev-ready/v1',
-    ...(repositoryId ? { repositoryId: normalizeRepositoryId(repositoryId) } : {}),
+    repositoryId: resolvedRepositoryId,
+    schemaVersion: 'course.dev-ready/v2',
     environment: 'dev',
     region: deployment.region,
     sourceSha: supplyChain.sourceSha,
@@ -308,7 +315,8 @@ export function assembleDevReadyEvidence({
     expiresAt: slo.expiresAt,
   }, now);
   return verifyDevReadyEvidence(evidence, {
-    githubRepository, workflowRun, supplyChain, deployment, slo, expectedRepositoryId: repositoryId,
+    githubRepository, workflowRun, supplyChain, deployment, slo,
+    expectedRepositoryId: resolvedRepositoryId,
   }, now);
 }
 
@@ -343,6 +351,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     verifyDevReadyEvidence(readJson(evidencePath), {
       workflowRun: readJson(workflowRunPath), githubRepository: repository,
       expectedRepositoryId: process.env.REPOSITORY_ID,
+      allowLegacyRepositoryIdentity: process.env.ALLOW_LEGACY_REPOSITORY_IDENTITY === 'true',
     });
     console.log('PASS: canonical DEV_READY evidence');
   } else {

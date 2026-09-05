@@ -1,4 +1,4 @@
-const canonicalRepositoryId = '1352247019';
+export const canonicalRepositoryId = '1352247019';
 
 export function normalizeRepositoryId(value) {
   if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value)) {
@@ -9,9 +9,17 @@ export function normalizeRepositoryId(value) {
   return String(numeric);
 }
 
+export function resolveExpectedRepositoryId({ expectedRepositoryId, workflowRun } = {}) {
+  if (expectedRepositoryId !== undefined) return normalizeRepositoryId(String(expectedRepositoryId));
+  if (workflowRun?.repository?.id !== undefined) {
+    return normalizeRepositoryId(String(workflowRun.repository.id));
+  }
+  return canonicalRepositoryId;
+}
+
 export function assertRepositoryIdentity({ repositoryId, repositoryName, workflowRun, expectedRepositoryId }) {
   const actualId = normalizeRepositoryId(repositoryId);
-  const expectedId = normalizeRepositoryId(expectedRepositoryId);
+  const expectedId = resolveExpectedRepositoryId({ expectedRepositoryId, workflowRun });
   if (actualId !== expectedId) throw new Error('REPOSITORY_ID_MISMATCH');
   if (repositoryName !== undefined && (typeof repositoryName !== 'string' || repositoryName.length === 0)) {
     throw new Error('repositoryName must be nonempty when present');

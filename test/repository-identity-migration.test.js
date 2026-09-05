@@ -35,9 +35,27 @@ test('DEV_READY accepts canonical v1 input and validates v2 against workflow rep
     head_branch: 'main',
   };
   const now = new Date('2026-09-03T01:00:00Z');
-  assert.doesNotThrow(() => verifyDevReadyEvidence(v1, { expectedRepositoryId: '1352247019' }, now));
+  assert.throws(
+    () => verifyDevReadyEvidence(v1, { expectedRepositoryId: '1352247019' }, now),
+    /LEGACY_REPOSITORY_IDENTITY_NOT_ALLOWED/,
+  );
+  assert.doesNotThrow(() => verifyDevReadyEvidence(v1, {
+    expectedRepositoryId: '1352247019',
+    allowLegacyRepositoryIdentity: true,
+  }, now));
+  assert.throws(() => verifyDevReadyEvidence(v1, {
+    expectedRepositoryId: '999',
+    allowLegacyRepositoryIdentity: true,
+  }, now), /LEGACY_REPOSITORY_IDENTITY_NOT_ALLOWED/);
   assert.doesNotThrow(() => verifyDevReadyEvidence(v2, {
     expectedRepositoryId: '1352247019', workflowRun: run,
+  }, now));
+  assert.throws(
+    () => verifyDevReadyEvidence({ ...v2, repositoryId: '999' }, {}, now),
+    /REPOSITORY_ID_MISMATCH/,
+  );
+  assert.doesNotThrow(() => verifyDevReadyEvidence({ ...v2, repositoryId: '999' }, {
+    expectedRepositoryId: '999',
   }, now));
   assert.throws(() => verifyDevReadyEvidence({ ...v2, repositoryId: '1352247020' }, {
     expectedRepositoryId: '1352247019', workflowRun: run,

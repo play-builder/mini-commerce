@@ -24,15 +24,24 @@ export function selectReferrerDigests(referrers) {
   };
 }
 
-export function verifySupplyChain(evidence, { expectedRepositoryId } = {}) {
-  if (evidence.repositoryId !== undefined) {
+export function verifySupplyChain(evidence, {
+  expectedRepositoryId, workflowRun, allowLegacyRepositoryIdentity = false,
+} = {}) {
+  if (evidence.schemaVersion !== undefined
+    && !['course.supply-chain/v1', 'course.supply-chain/v2'].includes(evidence.schemaVersion)) {
+    throw new Error('unsupported supply-chain schemaVersion');
+  }
+  if (evidence.schemaVersion === 'course.supply-chain/v2') {
+    if (evidence.repositoryId === undefined) throw new Error('REPOSITORY_ID_REQUIRED');
     assertRepositoryIdentity({
       repositoryId: evidence.repositoryId,
       repositoryName: evidence.repositoryName,
-      expectedRepositoryId: expectedRepositoryId ?? evidence.repositoryId,
+      expectedRepositoryId,
+      workflowRun,
     });
-  } else if (expectedRepositoryId && !acceptsLegacyRepositoryIdentity(expectedRepositoryId)) {
-    throw new Error('REPOSITORY_ID_REQUIRED');
+  } else if (!allowLegacyRepositoryIdentity || expectedRepositoryId === undefined
+    || !acceptsLegacyRepositoryIdentity(expectedRepositoryId)) {
+    throw new Error('LEGACY_REPOSITORY_IDENTITY_NOT_ALLOWED');
   }
   if (!digestPattern.test(evidence.imageDigest)) throw new Error('invalid image digest');
   if (evidence.workflowName !== 'ci') throw new Error('workflow identity mismatch');
@@ -67,6 +76,8 @@ export function verifySupplyChain(evidence, { expectedRepositoryId } = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const input = process.argv[2];
   if (!input) throw new Error('usage: verify-supply-chain.mjs EVIDENCE_JSON');
-  verifySupplyChain(JSON.parse(fs.readFileSync(input, 'utf8')));
+  verifySupplyChain(JSON.parse(fs.readFileSync(input, 'utf8')), {
+    expectedRepositoryId: process.env.REPOSITORY_ID,
+  });
   console.log('PASS: verified supply-chain evidence');
 }
