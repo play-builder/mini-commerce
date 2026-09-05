@@ -8,9 +8,19 @@ import {
 } from '../../src/instrumentation-policy.js';
 
 const delegate = new InMemorySpanExporter();
+const processor = new SimpleSpanProcessor(createPrivacyFilteringExporter(delegate));
+// Hold a real SDK resource attribute until HTTP has completed, independently of
+// how quickly host resource detection happens on the machine running the test.
+const deferredResource = process.argv.includes('--defer-resource')
+  ? Promise.withResolvers() : undefined;
 const sdk = new NodeSDK({
   resource: resourceFromAttributes({ 'service.name': 'mini-commerce-test' }),
-  spanProcessors: [new SimpleSpanProcessor(createPrivacyFilteringExporter(delegate))],
+  ...(deferredResource ? {
+    resourceDetectors: [{
+      detect: () => ({ attributes: { 'test.resource.ready': deferredResource.promise } }),
+    }],
+  } : {}),
+  spanProcessors: [processor],
   instrumentations: createRuntimeInstrumentations(),
 });
 sdk.start();
@@ -76,6 +86,10 @@ const summarize = (span) => ({
   events: span.events,
   links: span.links,
 });
+deferredResource?.resolve(true);
+// Completed HTTP requests may still have exports waiting for SDK resources.
+// Flush the processor before reading; shutdown clears the in-memory exporter.
+await processor.forceFlush();
 process.stdout.write(`${JSON.stringify({
   runtimeSpans: delegate.getFinishedSpans().map(summarize),
   syntheticSpan: summarize(syntheticCaptured[0]),
