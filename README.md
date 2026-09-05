@@ -81,7 +81,7 @@ curl -fsS http://127.0.0.1:3001/version
 
 ## Stateful Mini Commerce 로컬 실행
 
-DB 기능은 기본적으로 꺼져 있으므로 기존 Stateless 실습 결과는 바뀌지 않습니다. 로컬 DB의
+DB 기능은 기본적으로 꺼져 있으므로 기존 stateless 실행 경로는 바뀌지 않습니다. 로컬 DB의
 기본 host port는 다른 PostgreSQL과의 충돌을 줄이기 위해 `55432`입니다.
 
 ```bash
@@ -92,9 +92,14 @@ export DB_HOST=127.0.0.1
 export DB_PORT=55432
 export DB_NAME=commerce
 export DB_USER=commerce
-npm run migrate:up
+npm run migrate:up -- --target 002_expand_product_display_name
 npm start
 ```
+
+현재 application은 `display_name`을 읽는 `v2prime` 계약이므로 초기 로컬 실행에는
+001과002까지 적용합니다. target003은 legacy column을 제거하므로 별도 rollback-candidate
+evidence가 준비되기 전 실행하지 않습니다. `--target` 생략은 전체 migration 자동 적용이 아니라
+`MIGRATION_TARGET_REQUIRED` 오류로 중단됩니다.
 
 다른 terminal에서 세 비즈니스 동작을 확인합니다.
 
