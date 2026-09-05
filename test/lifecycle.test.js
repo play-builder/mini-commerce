@@ -11,11 +11,11 @@ test('shutdown drains in deterministic order once', async () => {
     managementServer: { close: close('management') },
     pool: { end: async () => calls.push('pool') },
     telemetry: { shutdown: async () => calls.push('telemetry') },
-    exit: () => calls.push('exit'),
+    exit: (code) => calls.push(`exit-${code}`),
   });
   await lifecycle.shutdown();
   await lifecycle.shutdown();
-  assert.deepEqual(calls, ['readiness', 'public', 'pool', 'telemetry', 'management', 'exit']);
+  assert.deepEqual(calls, ['readiness', 'public', 'pool', 'telemetry', 'management', 'exit-0']);
 });
 
 test('shutdown deadline force-closes listeners and uses injected exit', () => {

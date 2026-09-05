@@ -64,11 +64,21 @@ export function createDatabasePool(databaseConfig) {
 
 export function createPostgresCommerceRepository(
   pool,
-  { productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME } = {},
+  { productReadContract = PRODUCT_READ_CONTRACT.V2_PRIME, dependencySignals } = {},
 ) {
   const nameProjection = productNameProjection[productReadContract];
   if (!nameProjection) throw new Error(`unsupported product read contract: ${productReadContract}`);
-  const query = (text, values) => pool.query(text, values);
+  const observeQuery = async (execute) => {
+    try {
+      const result = await execute();
+      dependencySignals?.recordDependencyRecovery();
+      return result;
+    } catch (error) {
+      dependencySignals?.recordDependencyFailure();
+      throw error;
+    }
+  };
+  const query = (text, values) => observeQuery(() => pool.query(text, values));
   return {
     async listProducts() {
       const result = await query(`
@@ -121,9 +131,9 @@ export function createPostgresCommerceRepository(
     },
 
     async withTransaction(callback) {
-      const client = await pool.connect();
+      const client = await observeQuery(() => pool.connect());
       try {
-        const transactionQuery = (text, values) => client.query(text, values);
+        const transactionQuery = (text, values) => observeQuery(() => client.query(text, values));
         await transactionQuery('BEGIN');
         const transaction = {
           async advisoryLock(idempotencyKey) {
@@ -206,7 +216,11 @@ export function createPostgresCommerceRepository(
         await transactionQuery('COMMIT');
         return result;
       } catch (error) {
-        await client.query('ROLLBACK');
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // The original business operation error remains the stable boundary.
+        }
         throw error;
       } finally {
         client.release();

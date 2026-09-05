@@ -19,3 +19,11 @@ test('continuous readiness is an explicit non-production policy', async () => {
   assert.equal(readiness.snapshot().ready, false);
   assert.equal(readiness.snapshot().reason, 'dependency unavailable');
 });
+
+test('a rejected initial dependency check is represented as sanitized not-ready state', async () => {
+  const readiness = createReadiness({ checkDependency: async () => { throw new Error('password=private'); } });
+  await readiness.initialize();
+  assert.deepEqual(readiness.snapshot(), {
+    ready: false, phase: 'not-ready', dependencyPolicy: 'startup-only', reason: 'dependency unavailable',
+  });
+});

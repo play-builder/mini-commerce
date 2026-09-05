@@ -35,6 +35,7 @@ export function createRuntime({ runtimeConfig, dependencies = {} }) {
     ?? createDatabaseObservability({ pool, metrics, logger, readiness })) : null;
   const repository = pool ? createPostgresCommerceRepository(pool, {
     productReadContract: PRODUCT_READ_CONTRACT.V2_PRIME,
+    dependencySignals: readiness,
   }) : null;
   const commerceService = repository ? createCommerceService(repository, { metrics, logger, tracer: telemetry.tracer }) : {
     listProducts: async () => { throw new DatabaseUnavailableError(); },
@@ -61,9 +62,10 @@ export function createRuntime({ runtimeConfig, dependencies = {} }) {
       await readiness.initialize();
       const publicServer = application.listen(runtimeConfig.publicPort);
       const managementServer = management.listen(runtimeConfig.managementPort);
-      lifecycle = createLifecycle({
+      const lifecycleFactory = dependencies.createLifecycle ?? createLifecycle;
+      lifecycle = lifecycleFactory({
         readiness, publicServer, managementServer, pool, telemetry, observer, logger,
-        deadlineMs: runtimeConfig.shutdownDeadlineMs, exit: dependencies.exit,
+        deadlineMs: runtimeConfig.shutdownDeadlineMs, exit: dependencies.exit ?? process.exit,
       });
       return { publicServer, managementServer };
     },

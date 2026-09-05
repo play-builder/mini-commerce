@@ -8,7 +8,13 @@ export function createReadiness({
   let recoveries = 0;
   return {
     async initialize() {
-      if (await checkDependency()) {
+      let dependencyAvailable = false;
+      try {
+        dependencyAvailable = await checkDependency();
+      } catch {
+        dependencyAvailable = false;
+      }
+      if (dependencyAvailable) {
         ready = true;
         reason = undefined;
       } else {
