@@ -38,4 +38,4 @@ LABEL org.opencontainers.image.created=$BUILD_DATE
 EXPOSE 3000
 EXPOSE 3001
 
-CMD ["node", "--import", "./src/instrumentation.js", "src/server.js"]
+CMD ["node", "--import", "./src/register-instrumentation-hooks.js", "--import", "./src/instrumentation.js", "src/server.js"]

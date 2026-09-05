@@ -3,6 +3,21 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import { test } from 'node:test';
 
+function dockerRuntimeCommand() {
+  const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
+  const command = dockerfile.match(/^CMD (\[.*\])$/m)?.[1];
+  assert.ok(command, 'Dockerfile must define a JSON-form CMD');
+  return JSON.parse(command);
+}
+
+function runTelemetry(arguments_ = []) {
+  const result = spawnSync(process.execPath, [
+    ...arguments_, 'test/fixtures/run-http-telemetry.mjs',
+  ], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout.trim().split('\n').at(-1));
+}
+
 test('instrumentation preload installs explicit HTTP, Express, and PostgreSQL instrumentation', () => {
   const packageManifest = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(
@@ -21,12 +36,8 @@ test('instrumentation preload installs explicit HTTP, Express, and PostgreSQL in
 });
 
 test('runtime telemetry exports route templates without HTTP or database secrets', () => {
-  const result = spawnSync(process.execPath, [
-    '--import', './src/register-instrumentation-hooks.js',
-    'test/fixtures/run-http-telemetry.mjs',
-  ], { encoding: 'utf8' });
-  assert.equal(result.status, 0, result.stderr);
-  const output = JSON.parse(result.stdout.trim().split('\n').at(-1));
+  const [, ...arguments_] = dockerRuntimeCommand();
+  const output = runTelemetry(arguments_.slice(0, 2));
   const serialized = JSON.stringify(output);
   for (const secret of [
     'customer-8472', 'query-secret', 'authorization-secret', 'ua-secret',
@@ -46,4 +57,14 @@ test('runtime telemetry exports route templates without HTTP or database secrets
   assert.deepEqual(output.syntheticSpan.status, { code: 2 });
   assert.deepEqual(output.syntheticSpan.events, []);
   assert.deepEqual(output.syntheticSpan.links[0].attributes, {});
+});
+
+test('production Docker entrypoint includes the registration hook required by runtime telemetry', () => {
+  assert.deepEqual(dockerRuntimeCommand(), [
+    'node',
+    '--import', './src/register-instrumentation-hooks.js',
+    '--import', './src/instrumentation.js',
+    'src/server.js',
+  ]);
+  assert.deepEqual(runTelemetry().runtimeSpans, []);
 });
