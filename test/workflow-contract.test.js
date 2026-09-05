@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 
 import YAML from 'yaml';
@@ -287,9 +290,52 @@ test('dependency review is a read-only pinned pull-request gate', () => {
   const workflow = readWorkflow('dependency-review.yml');
   assert.deepEqual(workflow.permissions, { contents: 'read' });
   assert.equal(
-    workflow.jobs['dependency-review'].steps[0].uses,
+    workflow.jobs['dependency-review'].steps.find((step) => (
+      step.uses?.startsWith('actions/dependency-review-action@')
+    )).uses,
     'actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294',
   );
+  assertPinnedActions(workflow);
+});
+
+function simulateDependencyReview(changedPath) {
+  const workflow = readWorkflow('dependency-review.yml');
+  if (!workflow.on.pull_request.paths.some((pattern) => path.matchesGlob(changedPath, pattern))) {
+    return undefined;
+  }
+  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'dependency-review-'));
+  try {
+    for (const step of workflow.jobs['dependency-review'].steps) {
+      if (step.uses?.startsWith('actions/checkout@')) {
+        // Model a clean runner checkout using the actual tracked policy file.
+        const configPath = '.github/dependency-review-config.yml';
+        const content = execFileSync('git', ['show', `HEAD:${configPath}`], { encoding: 'utf8' });
+        fs.mkdirSync(path.join(workspace, '.github'), { recursive: true });
+        fs.writeFileSync(path.join(workspace, configPath), content);
+      }
+      if (step.uses?.startsWith('actions/dependency-review-action@')) {
+        return YAML.parse(fs.readFileSync(path.join(workspace, step.with['config-file']), 'utf8'));
+      }
+    }
+    assert.fail('triggered dependency review must consume its policy');
+  } finally {
+    fs.rmSync(workspace, { recursive: true, force: true });
+  }
+}
+
+test('dependency review reads its tracked local policy after checkout on a clean runner', () => {
+  for (const changedPath of ['package.json', 'package-lock.json', '.github/dependency-review-config.yml']) {
+    assert.deepEqual(simulateDependencyReview(changedPath), {
+      'fail-on-severity': 'high', 'fail-on-scopes': 'runtime',
+    });
+  }
+});
+
+test('dependency review validates changes to its own workflow and ignores unrelated source', () => {
+  assert.deepEqual(simulateDependencyReview('.github/workflows/dependency-review.yml'), {
+    'fail-on-severity': 'high', 'fail-on-scopes': 'runtime',
+  });
+  assert.equal(simulateDependencyReview('src/application.js'), undefined);
 });
 
 test('supply-chain and promotion evidence pass the immutable repository ID', () => {

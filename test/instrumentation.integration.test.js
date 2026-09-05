@@ -10,9 +10,9 @@ function dockerRuntimeCommand() {
   return JSON.parse(command);
 }
 
-function runTelemetry(arguments_ = []) {
+function runTelemetry(arguments_ = [], fixtureArguments = []) {
   const result = spawnSync(process.execPath, [
-    ...arguments_, 'test/fixtures/run-http-telemetry.mjs',
+    ...arguments_, 'test/fixtures/run-http-telemetry.mjs', ...fixtureArguments,
   ], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout.trim().split('\n').at(-1));
@@ -66,5 +66,26 @@ test('production Docker entrypoint includes the registration hook required by ru
     '--import', './src/instrumentation.js',
     'src/server.js',
   ]);
-  assert.deepEqual(runTelemetry().runtimeSpans, []);
+  const output = runTelemetry([], ['--defer-resource']);
+  // The CommonJS HTTP patch still works without the ESM registration hook;
+  // Express route templates and layer spans require that hook.
+  assert.ok(output.runtimeSpans.some((span) => (
+    span.scope === '@opentelemetry/instrumentation-http'
+  )));
+  assert.ok(output.runtimeSpans.every((span) => span.attributes['http.route'] === undefined));
+  assert.ok(output.runtimeSpans.every((span) => (
+    span.scope !== '@opentelemetry/instrumentation-express'
+  )));
+});
+
+test('telemetry snapshot waits for exports blocked by asynchronous resource detection', () => {
+  const [, ...arguments_] = dockerRuntimeCommand();
+  const output = runTelemetry(arguments_.slice(0, 2), ['--defer-resource']);
+  assert.ok(output.runtimeSpans.some((span) => (
+    span.scope === '@opentelemetry/instrumentation-http'
+      && span.attributes['http.route'] === '/orders/:id'
+  )), 'completed HTTP route must be exported before the telemetry snapshot');
+  assert.ok(output.runtimeSpans.some((span) => (
+    span.scope === '@opentelemetry/instrumentation-express'
+  )));
 });
