@@ -40,7 +40,8 @@ business listener는 관리 endpoint를 노출하지 않으며 management listen
 `openapi/mini-commerce.v1.yaml`은 business의 네 operation만 문서화하는 파일 계약입니다. PR에서는 base
 revision과 비교하는 compatibility verifier가 operation/응답 제거를 차단합니다.
 
-Runtime은 `node --import ./src/instrumentation.js src/server.js`로 시작합니다. HTTP, Express, PostgreSQL
+Runtime은 `node --import ./src/register-instrumentation-hooks.js --import ./src/instrumentation.js src/server.js`로
+시작합니다. HTTP, Express, PostgreSQL
 instrumentation은 management path를 제외하고 표준 span을 만들며, application은 order/create, inventory
 reserve, transaction의 bounded business span만 추가합니다. request header, request body, raw path ID, SQL과
 query parameter는 span 또는 Pino JSON event에 기록하지 않습니다.
@@ -74,15 +75,9 @@ curl -fsS http://127.0.0.1:3001/readyz
 curl -fsS http://127.0.0.1:3001/version
 ```
 
-장애 응답을 생성할 때는 별도 shell에서 요청 부하를 유지합니다.
-
-```bash
-FAILURE_RATE=0.5 npm start
-bash scripts/curl-loop.sh http://127.0.0.1:3000/ 2400 0.25
-```
-
-종료 시 애플리케이션은 먼저 readiness를 내리고 `SHUTDOWN_DELAY_MS` 동안 in-flight 요청을
-기다린 뒤 종료합니다. Kubernetes의 `terminationGracePeriodSeconds`는 이 값보다 커야 합니다.
+종료 시 애플리케이션은 먼저 readiness를 내리고 business listener를 닫아 신규 요청을 차단한 뒤,
+`SHUTDOWN_DEADLINE_MS` 안에서 database pool과 telemetry exporter를 정리합니다. management listener는
+마지막에 닫히며, Kubernetes의 `terminationGracePeriodSeconds`는 이 deadline보다 커야 합니다.
 
 ## Stateful Mini Commerce 로컬 실행
 
@@ -146,7 +141,8 @@ docker compose down --volumes
 
 ## Evidence와 dependency-review 경계
 
-Release evidence v2는 mutable `owner/repository` display text 대신 GitHub numeric `repositoryId`를 사용합니다.
+Supply-chain 및 DEV_READY evidence v2는 mutable `owner/repository` display text 대신 GitHub numeric
+`repositoryId`를 사용합니다.
 workflow API의 `repository.id`와 evidence ID가 일치해야 하므로 repository rename은 허용하지만 같은 이름을
 가진 다른 repository는 거부합니다. v1 evidence는 migration window 동안 canonical ID `1352247019`에 한해
 validator 입력으로만 허용되며, 새 emitter는 v2만 작성합니다. ECR repository identity는 별도로 검증합니다.

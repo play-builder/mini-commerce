@@ -22,15 +22,6 @@ function integer(value, field, fallback, min, max) {
   return parsed;
 }
 
-function rate(value, field, fallback) {
-  if (value === undefined) return fallback;
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
-    throw new ConfigError(field, 'must be a number between 0 and 1');
-  }
-  return parsed;
-}
-
 export function createConfig(env = process.env) {
   const environment = env.APP_ENV ?? 'development';
   if (!['development', 'test', 'production'].includes(environment)) {
@@ -74,10 +65,6 @@ export function createConfig(env = process.env) {
     buildDate: env.BUILD_DATE ?? 'unknown',
     podName: env.POD_NAME ?? 'local',
     nodeName: env.NODE_NAME ?? 'local',
-    failureRate: rate(env.FAILURE_RATE, 'FAILURE_RATE', 0),
-    latencyMs: integer(env.LATENCY_MS, 'LATENCY_MS', 0, 0, 600000),
-    readyDelayMs: integer(env.READY_DELAY_MS, 'READY_DELAY_MS', 0, 0, 600000),
-    shutdownDelayMs: integer(env.SHUTDOWN_DELAY_MS, 'SHUTDOWN_DELAY_MS', 5000, 0, 600000),
     shutdownDeadlineMs: integer(env.SHUTDOWN_DEADLINE_MS, 'SHUTDOWN_DEADLINE_MS', 30000, 1, 600000),
     otelEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
     otelResourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES ?? '',

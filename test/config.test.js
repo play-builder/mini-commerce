@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { test } from 'node:test';
 
 import { ConfigError, createConfig } from '../src/config.js';
@@ -33,4 +34,15 @@ test('safe defaults separate public and management listeners', () => {
   assert.equal(config.managementPort, 3001);
   assert.equal(config.readinessDependencyPolicy, 'startup-only');
   assert.equal(Object.isFrozen(config), true);
+});
+
+test('.env.example is runnable without local database credentials', () => {
+  const env = Object.fromEntries(fs.readFileSync(
+    new URL('../.env.example', import.meta.url), 'utf8',
+  ).trim().split('\n').map((line) => line.split('=', 2)));
+
+  const config = createConfig(env);
+  assert.equal(config.databaseEnabled, false);
+  assert.equal(config.readinessDependencyPolicy, 'startup-only');
+  assert.equal(config.shutdownDeadlineMs, 30000);
 });
