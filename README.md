@@ -199,12 +199,10 @@ DB_USER="commerce" DB_PASSWORD="[secret]" DB_SSL=false \
 node scripts/verify-commerce-invariants.mjs
 ```
 
-`scripts/export-release-evidence.mjs`는 source/run/image/attestation, Dev·Prod GitOps revision,
-Argo·Rollout·AnalysisRun·SLO, rollback candidate와 cleanup 결과를 `playbuilder.release-evidence/v1`
-canonical JSON으로 묶습니다. 최종 record는 만료되는 현재 상태가 아니라 보존할 audit artifact이므로
-`INCIDENT_EVIDENCE`, 관측 시각, DEV_READY·Prod baseline·Prod SLO·incident index의 SHA-256을
-기록합니다. 이 스크립트는 전달받은 증거를 검증·직렬화할 뿐 cloud 실행이나 cleanup을 수행하지
-않습니다.
+운영 release 검증은 `scripts/write-supply-chain-evidence.mjs`,
+`scripts/verify-supply-chain.mjs`, `scripts/dev-ready-evidence.mjs`를 사용합니다.
+강의 incident·전체 cleanup 완료 증빙은 교육 워크스페이스의
+`course/tooling/mini-commerce/`에서 관리하며 앱 release의 필수 단계에 포함하지 않습니다.
 
 ```bash
 docker buildx imagetools inspect \

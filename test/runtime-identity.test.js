@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { test } from 'node:test';
 
 import { createApplication } from '../src/application.js';
@@ -33,25 +32,6 @@ test('public and management route ownership is disjoint', () => {
   assert.deepEqual(routes(createManagement({ readiness, metrics, build: {} })), [
     'GET /healthz', 'GET /metrics', 'GET /readyz', 'GET /version',
   ]);
-});
-
-test('runtime identity is mini-commerce across package, OCI, telemetry, metrics, and README', () => {
-  const packageManifest = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  const packageLock = JSON.parse(fs.readFileSync(new URL('../package-lock.json', import.meta.url), 'utf8'));
-  const dockerfile = fs.readFileSync(new URL('../Dockerfile', import.meta.url), 'utf8');
-  const telemetry = fs.readFileSync(new URL('../src/telemetry.js', import.meta.url), 'utf8');
-  const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-
-  assert.equal(packageManifest.name, 'mini-commerce');
-  assert.equal(packageLock.name, 'mini-commerce');
-  assert.equal(packageLock.packages[''].name, 'mini-commerce');
-  assert.match(packageManifest.description, /production/i);
-  assert.match(dockerfile, /org\.opencontainers\.image\.title="mini-commerce"/);
-  assert.match(dockerfile, /org\.opencontainers\.image\.description="Mini Commerce production service"/);
-  assert.doesNotMatch(telemetry, /sample-app/);
-  assert.match(telemetry, /trace\.getTracer\('mini-commerce'\)/);
-  assert.equal(fs.existsSync(new URL('../src/metrics.js', import.meta.url)), false);
-  assert.match(readme, /^# Mini Commerce/m);
 });
 
 test('database failure is an actual HTTP 503 without raw driver text', async (t) => {

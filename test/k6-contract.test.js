@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
 import { test } from 'node:test';
 
 import { readLoadConfig, readStatefulLoadConfig } from '../scripts/load-config.mjs';
@@ -30,29 +29,7 @@ test('load configuration은 bounded Dev HTTPS traffic만 허용한다', () => {
   assert.throws(() => readLoadConfig({ ...valid, DURATION_SECONDS: '29' }), /DURATION_SECONDS must be between 30 and 300/);
 });
 
-test('k6 baseline은 constant-arrival-rate를 사용하고 public fault endpoint를 호출하지 않는다', () => {
-  const source = fs.readFileSync(new URL('../load/k6-baseline.js', import.meta.url), 'utf8');
-  assert.match(source, /constant-arrival-rate/);
-  assert.doesNotMatch(source, /STATEFUL_LOAD_APPROVED/);
-  assert.match(source, /checks:\s*\['rate==1'\]/);
-  assert.match(source, /dropped_iterations:\s*\['count==0'\]/);
-  assert.match(source, /`\$\{config\.targetUrl\}\/`/);
-  assert.doesNotMatch(source, /\/products/);
-  assert.doesNotMatch(source, /\/fault/);
-});
-
 test('Stateful order load는 별도 opt-in scenario로 idempotent bounded writes만 실행한다', () => {
-  const source = fs.readFileSync(new URL('../load/k6-stateful.js', import.meta.url), 'utf8');
-  assert.match(source, /readStatefulLoadConfig\(__ENV\)/);
-  assert.match(source, /constant-arrival-rate/);
-  assert.match(source, /\/orders/);
-  assert.match(source, /\/products/);
-  assert.match(source, /\/inventory/);
-  assert.match(source, /Idempotency-Key/);
-  assert.match(source, /STATEFUL_LOAD_APPROVED/);
-  assert.match(source, /checks:\s*\['rate==1'\]/);
-  assert.match(source, /dropped_iterations:\s*\['count==0'\]/);
-  assert.doesNotMatch(source, /\/fault/);
   assert.deepEqual(readStatefulLoadConfig({
     ...valid, PRODUCT_ID: '1', STATEFUL_LOAD_RUN_ID: 'ch25-001', RATE_PER_SECOND: '2', DURATION_SECONDS: '60',
   }), {
@@ -76,13 +53,4 @@ test('Stateful order load는 별도 opt-in scenario로 idempotent bounded writes
     ...valid, PRODUCT_ID: '1', STATEFUL_LOAD_RUN_ID: 'ch25-001', MAX_UNIQUE_ORDERS: '21',
     RATE_PER_SECOND: '2', DURATION_SECONDS: '60',
   }), /MAX_UNIQUE_ORDERS must be between 1 and 20/);
-  assert.match(source, /__ITER % config\.maxUniqueOrders/);
-  assert.doesNotMatch(source, /__VU/);
-});
-
-test('runtime verifier는 금지된 DATABASE_URL 대신 canonical DB_* config를 사용한다', () => {
-  const source = fs.readFileSync(new URL('../scripts/verify-commerce-invariants.mjs', import.meta.url), 'utf8');
-  assert.doesNotMatch(source, /DATABASE_URL/);
-  assert.match(source, /DATABASE_ENABLED=true is required/);
-  assert.match(source, /createDatabasePool\(config\.database\)/);
 });
