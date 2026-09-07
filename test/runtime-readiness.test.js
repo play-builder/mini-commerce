@@ -18,17 +18,21 @@ function poolWithQuery(query) {
   return Object.assign(new EventEmitter(), { totalCount: 0, idleCount: 0, waitingCount: 0, query, end: async () => {} });
 }
 
-test('failed initial dependency check starts both listeners in sanitized not-ready state', async (t) => {
+test('failed initial dependency check rejects startup and releases the pool without leaking the driver error', async () => {
+  let closed = false;
+  const pool = poolWithQuery(async () => { throw new Error('password=private'); });
+  pool.end = async () => { closed = true; };
   const runtime = createRuntime({
     runtimeConfig: runtimeConfig(),
-    dependencies: { createDatabasePool: () => poolWithQuery(async () => { throw new Error('password=private'); }), exit() {} },
+    dependencies: { createDatabasePool: () => pool, exit() {} },
   });
-  const { publicServer, managementServer } = await runtime.start();
-  t.after(() => runtime.shutdown());
-  const response = await fetch(`http://127.0.0.1:${managementServer.address().port}/readyz`);
-  assert.equal(response.status, 503);
-  assert.deepEqual(await response.json(), { status: 'not ready', reason: 'dependency unavailable' });
-  assert.ok(publicServer.listening);
+  await assert.rejects(runtime.start(), (error) => {
+    assert.match(error.message, /application startup failed/);
+    assert.doesNotMatch(error.message, /password|private/);
+    return true;
+  });
+  assert.equal(closed, true);
+  assert.equal(runtime.readiness.snapshot().ready, false);
 });
 
 test('runtime default lifecycle receives process.exit without invoking it during construction', async (t) => {

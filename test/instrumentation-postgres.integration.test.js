@@ -16,9 +16,10 @@ test('PostgreSQL telemetry exports no SQL text or query parameter', {
     createRuntimeInstrumentations,
   } = await import('../src/instrumentation-policy.js');
   const delegate = new InMemorySpanExporter();
+  const processor = new SimpleSpanProcessor(createPrivacyFilteringExporter(delegate));
   const sdk = new NodeSDK({
     resource: resourceFromAttributes({ 'service.name': 'mini-commerce-postgres-test' }),
-    spanProcessors: [new SimpleSpanProcessor(createPrivacyFilteringExporter(delegate))],
+    spanProcessors: [processor],
     instrumentations: createRuntimeInstrumentations(),
   });
   sdk.start();
@@ -27,6 +28,8 @@ test('PostgreSQL telemetry exports no SQL text or query parameter', {
   try {
     const result = await pool.query("SELECT $1::text AS value /* sql-text-secret */", ['db-param-secret']);
     assert.equal(result.rows[0].value, 'db-param-secret');
+    // Resource detection/export may complete asynchronously after the query returns.
+    await processor.forceFlush();
     const spans = delegate.getFinishedSpans();
     assert.ok(spans.some((span) => span.instrumentationScope.name === '@opentelemetry/instrumentation-pg'));
     const serialized = JSON.stringify(spans.map((span) => ({

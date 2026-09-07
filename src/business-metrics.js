@@ -1,6 +1,6 @@
 import { Counter, Gauge, Registry, collectDefaultMetrics } from '@prometheus-io/client';
 
-const reasons = new Set(['validation', 'product_not_found', 'insufficient_stock', 'database', 'internal']);
+const reasons = new Set(['validation', 'product_not_found', 'insufficient_stock', 'idempotency_conflict', 'database', 'internal']);
 const databaseOperations = new Set([
   'list_products', 'get_inventory', 'get_order', 'readiness', 'transaction',
 ]);

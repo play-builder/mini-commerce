@@ -32,6 +32,14 @@ export class DatabaseUnavailableError extends Error {
   }
 }
 
+export class IdempotencyConflictError extends Error {
+  constructor() {
+    super('Idempotency-Key was already used for a different order');
+    this.name = 'IdempotencyConflictError';
+    this.statusCode = 409;
+  }
+}
+
 export class InsufficientStockError extends Error {
   constructor(productId, requested, available) {
     super(`insufficient stock for product ${productId}: requested=${requested}, available=${available}`);
@@ -41,6 +49,9 @@ export class InsufficientStockError extends Error {
 }
 
 function readProductId(raw) {
+  if (!(typeof raw === 'number' || (typeof raw === 'string' && /^[1-9]\d*$/.test(raw)))) {
+    throw new ValidationError('productId must be a positive integer');
+  }
   const productId = Number(raw);
   if (!Number.isSafeInteger(productId) || productId <= 0) {
     throw new ValidationError('productId must be a positive integer');
@@ -49,22 +60,25 @@ function readProductId(raw) {
 }
 
 function normalizeOrderInput(input) {
-  const idempotencyKey = input?.idempotencyKey?.trim();
+  const idempotencyKey = typeof input?.idempotencyKey === 'string' ? input.idempotencyKey.trim() : '';
   if (!idempotencyKey || idempotencyKey.length > 128) {
     throw new ValidationError('Idempotency-Key must contain between 1 and 128 characters');
   }
-  if (!Array.isArray(input.items) || input.items.length === 0) {
-    throw new ValidationError('items must be a non-empty array');
+  if (!Array.isArray(input.items) || input.items.length === 0 || input.items.length > 100) {
+    throw new ValidationError('items must contain between 1 and 100 entries');
   }
 
   const quantities = new Map();
   for (const item of input.items) {
-    const productId = readProductId(item?.productId);
-    const quantity = Number(item?.quantity);
+    if (typeof item?.productId !== 'number') throw new ValidationError('productId must be a positive integer');
+    const productId = readProductId(item.productId);
+    const quantity = item?.quantity;
     if (!Number.isSafeInteger(quantity) || quantity <= 0 || quantity > 100) {
       throw new ValidationError('quantity must be an integer between 1 and 100');
     }
-    quantities.set(productId, (quantities.get(productId) ?? 0) + quantity);
+    const combined = (quantities.get(productId) ?? 0) + quantity;
+    if (combined > 100) throw new ValidationError('combined quantity must not exceed 100 per product');
+    quantities.set(productId, combined);
   }
 
   return {
@@ -76,10 +90,14 @@ function normalizeOrderInput(input) {
 }
 
 export function calculateOrderTotal(orderItems) {
-  return orderItems.reduce(
+  const total = orderItems.reduce(
     (total, item) => total + (item.unitPriceCents * item.quantity),
     0,
   );
+  if (!Number.isSafeInteger(total) || total < 0 || total > 2147483647) {
+    throw new ValidationError('order total exceeds the supported amount');
+  }
+  return total;
 }
 
 export function createCommerceService(repository, { metrics, logger, tracer } = {}) {
@@ -118,49 +136,55 @@ export function createCommerceService(repository, { metrics, logger, tracer } = 
           name: 'commerce.order.create', tracer, attributes: { 'commerce.item_count': normalized.items.length },
           execute: () => repository.withTransaction(async (transaction) => withBusinessSpan({
             name: 'commerce.db.transaction', tracer, execute: async () => {
-        await transaction.advisoryLock(normalized.idempotencyKey);
-        const existing = await transaction.findOrderByIdempotencyKey(normalized.idempotencyKey);
-        if (existing) { replayed = true; return existing; }
+              await transaction.advisoryLock(normalized.idempotencyKey);
+              const existing = await transaction.findOrderByIdempotencyKey(normalized.idempotencyKey);
+              if (existing) {
+                const existingItems = existing.items.map(({ productId, quantity }) => ({ productId, quantity }))
+                  .sort((left, right) => left.productId - right.productId);
+                if (JSON.stringify(existingItems) !== JSON.stringify(normalized.items)) throw new IdempotencyConflictError();
+                replayed = true;
+                return existing;
+              }
 
-        const productIds = normalized.items.map((item) => item.productId);
-        const inventoryRows = await withBusinessSpan({
-          name: 'commerce.inventory.reserve', tracer, attributes: { 'commerce.item_count': productIds.length },
-          execute: () => transaction.lockInventory(productIds),
-        });
-        const inventoryByProduct = new Map(inventoryRows.map((row) => [row.productId, row]));
+              const productIds = normalized.items.map((item) => item.productId);
+              const inventoryRows = await withBusinessSpan({
+                name: 'commerce.inventory.reserve', tracer, attributes: { 'commerce.item_count': productIds.length },
+                execute: () => transaction.lockInventory(productIds),
+              });
+              const inventoryByProduct = new Map(inventoryRows.map((row) => [row.productId, row]));
 
-        const orderItems = normalized.items.map((item) => {
-          const inventory = inventoryByProduct.get(item.productId);
-          if (!inventory) throw new ProductNotFoundError(item.productId);
-          if (inventory.availableQuantity < item.quantity) {
-            throw new InsufficientStockError(
-              item.productId,
-              item.quantity,
-              inventory.availableQuantity,
-            );
-          }
-          return {
-            productId: item.productId,
-            sku: inventory.sku,
-            name: inventory.name,
-            unitPriceCents: inventory.priceCents,
-            quantity: item.quantity,
-          };
-        });
+              const orderItems = normalized.items.map((item) => {
+                const inventory = inventoryByProduct.get(item.productId);
+                if (!inventory) throw new ProductNotFoundError(item.productId);
+                if (inventory.availableQuantity < item.quantity) {
+                  throw new InsufficientStockError(
+                    item.productId,
+                    item.quantity,
+                    inventory.availableQuantity,
+                  );
+                }
+                return {
+                  productId: item.productId,
+                  sku: inventory.sku,
+                  name: inventory.name,
+                  unitPriceCents: inventory.priceCents,
+                  quantity: item.quantity,
+                };
+              });
 
-        const totalCents = calculateOrderTotal(orderItems);
-        const order = await transaction.insertOrder({
-          idempotencyKey: normalized.idempotencyKey,
-          status: 'CONFIRMED',
-          totalCents,
-        });
+              const totalCents = calculateOrderTotal(orderItems);
+              const order = await transaction.insertOrder({
+                idempotencyKey: normalized.idempotencyKey,
+                status: 'CONFIRMED',
+                totalCents,
+              });
 
-        for (const item of orderItems) {
-          await transaction.insertOrderItem({ orderId: order.id, ...item });
-          await transaction.decrementInventory(item.productId, item.quantity);
-        }
+              for (const item of orderItems) {
+                await transaction.insertOrderItem({ orderId: order.id, ...item });
+                await transaction.decrementInventory(item.productId, item.quantity);
+              }
 
-        return { ...order, items: orderItems };
+              return { ...order, items: orderItems };
             },
           })),
         });
@@ -171,11 +195,12 @@ export function createCommerceService(repository, { metrics, logger, tracer } = 
         if (error instanceof InsufficientStockError) { metrics?.inventoryConflict(); logger?.error?.('commerce.inventory.conflict'); }
         const reason = error instanceof ValidationError ? 'validation'
           : error instanceof ProductNotFoundError ? 'product_not_found'
-            : error instanceof InsufficientStockError ? 'insufficient_stock' : 'database';
+            : error instanceof InsufficientStockError ? 'insufficient_stock'
+              : error instanceof IdempotencyConflictError ? 'idempotency_conflict' : 'database';
         metrics?.orderFailed?.(reason);
         logger?.error?.('commerce.order.rejected', { reason });
         if (error instanceof ValidationError || error instanceof ProductNotFoundError
-          || error instanceof InsufficientStockError) throw error;
+          || error instanceof InsufficientStockError || error instanceof IdempotencyConflictError) throw error;
         throw new DatabaseUnavailableError();
       }
     },

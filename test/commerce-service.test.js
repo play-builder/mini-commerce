@@ -106,7 +106,7 @@ test('주문은 멱등성 lock과 재고 row lock을 잡고 하나의 transactio
   const service = createCommerceService(repository);
 
   const order = await service.createOrder({
-    idempotencyKey: 'lesson-order-001',
+    idempotencyKey: 'order-001',
     items: [
       { productId: 2, quantity: 1 },
       { productId: 1, quantity: 2 },
@@ -122,15 +122,15 @@ test('주문은 멱등성 lock과 재고 row lock을 잡고 하나의 transactio
   ]);
   assert.deepEqual(repository.calls.slice(0, 4), [
     'BEGIN',
-    ['advisoryLock', 'lesson-order-001'],
-    ['findOrderByIdempotencyKey', 'lesson-order-001'],
+    ['advisoryLock', 'order-001'],
+    ['findOrderByIdempotencyKey', 'order-001'],
     ['lockInventory', [1, 2]],
   ]);
   assert.equal(repository.calls.at(-1), 'COMMIT');
 });
 
 test('같은 Idempotency-Key 주문은 재고를 다시 차감하지 않고 기존 주문을 반환한다', async () => {
-  const existing = { id: 12, status: 'CONFIRMED', totalCents: 129900, items: [] };
+  const existing = { id: 12, status: 'CONFIRMED', totalCents: 129900, items: [{ productId: 1, quantity: 1 }] };
   const repository = createRepository({
     transaction: {
       async findOrderByIdempotencyKey() {
@@ -142,7 +142,7 @@ test('같은 Idempotency-Key 주문은 재고를 다시 차감하지 않고 기�
   const service = createCommerceService(repository, { metrics: { orderCreated: () => { created += 1; } } });
 
   assert.equal(await service.createOrder({
-    idempotencyKey: 'lesson-order-existing',
+    idempotencyKey: 'order-existing',
     items: [{ productId: 1, quantity: 1 }],
   }), existing);
   assert.ok(!repository.calls.some((call) => Array.isArray(call) && call[0] === 'decrementInventory'));
@@ -161,7 +161,7 @@ test('재고가 부족하면 주문 전체를 거부한다', async () => {
 
   await assert.rejects(
     service.createOrder({
-      idempotencyKey: 'lesson-order-no-stock',
+      idempotencyKey: 'order-no-stock',
       items: [{ productId: 1, quantity: 2 }],
     }),
     InsufficientStockError,

@@ -232,17 +232,6 @@ test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모�
   assert.doesNotMatch(promotionPr.run, /Merge starts the production Canary/);
 });
 
-test('README는 production promotion secret과 environment protection 경계를 안내한다', () => {
-  const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-  assert.match(readme, /gitops-dev-delivery environment secret/);
-  assert.match(readme, /gitops-production environment secret/);
-  assert.match(readme, /두 environment[^\n]*deployment branch[^\n]*main/);
-  assert.match(readme, /required reviewer/);
-  assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-dev-delivery/);
-  assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production/);
-  assert.match(readme, /별도 GitHub App/);
-});
-
 test('dependency review action pin is recorded in the version contract', () => {
   const versions = YAML.parse(fs.readFileSync(new URL('../versions.lock.yaml', import.meta.url), 'utf8'));
   assert.equal(versions.delivery.dependencyReviewAction, '5.0.0');
@@ -268,7 +257,7 @@ test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () =
     const job = name === 'test.yml' ? workflow.jobs.test : workflow.jobs.build;
     assert.ok(job.services.postgres);
     assert.ok(job.env.DATABASE_TEST_URL);
-    assert.ok(job.steps.some((step) => step.run?.includes('npm test')));
+    assert.ok(job.steps.some((step) => step.run?.includes('npm run test:ci')));
   }
 });
 

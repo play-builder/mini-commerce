@@ -23,7 +23,7 @@ function integer(value, field, fallback, min, max) {
 }
 
 export function createConfig(env = process.env) {
-  const environment = env.APP_ENV ?? 'development';
+  const environment = env.APP_ENV ?? env.NODE_ENV ?? 'development';
   if (!['development', 'test', 'production'].includes(environment)) {
     throw new ConfigError('APP_ENV', 'must be development, test, or production');
   }
@@ -32,6 +32,9 @@ export function createConfig(env = process.env) {
   if (publicPort === managementPort) throw new ConfigError('MANAGEMENT_PORT', 'must differ from PORT');
   const databaseEnabled = bool(env.DATABASE_ENABLED, 'DATABASE_ENABLED', false);
   const ssl = bool(env.DB_SSL, 'DB_SSL', false);
+  if (environment === 'production' && !databaseEnabled) {
+    throw new ConfigError('DATABASE_ENABLED', 'must be true in production');
+  }
   const readinessDependencyPolicy = env.READINESS_DEPENDENCY_POLICY ?? 'startup-only';
   if (!['startup-only', 'continuous'].includes(readinessDependencyPolicy)) {
     throw new ConfigError('READINESS_DEPENDENCY_POLICY', 'must be startup-only or continuous');
@@ -55,7 +58,6 @@ export function createConfig(env = process.env) {
   return Object.freeze({
     environment,
     publicPort,
-    port: publicPort,
     managementPort,
     readinessDependencyPolicy,
     readinessFailureThreshold,
@@ -64,12 +66,7 @@ export function createConfig(env = process.env) {
     gitSha: env.GIT_SHA ?? 'unknown',
     buildDate: env.BUILD_DATE ?? 'unknown',
     podName: env.POD_NAME ?? 'local',
-    nodeName: env.NODE_NAME ?? 'local',
     shutdownDeadlineMs: integer(env.SHUTDOWN_DEADLINE_MS, 'SHUTDOWN_DEADLINE_MS', 30000, 1, 600000),
-    otelEndpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT ?? '',
-    otelResourceAttributes: env.OTEL_RESOURCE_ATTRIBUTES ?? '',
-    secretKeys: (env.SECRET_KEYS ?? 'DB_HOST,DB_PASSWORD,API_KEY')
-      .split(',').map((item) => item.trim()).filter(Boolean),
     databaseEnabled,
     database: Object.freeze({
       host: env.DB_HOST ?? '127.0.0.1',
@@ -78,8 +75,12 @@ export function createConfig(env = process.env) {
       user: env.DB_USER ?? 'commerce',
       password: env.DB_PASSWORD ?? '',
       ssl,
+      poolMax: integer(env.DB_POOL_MAX, 'DB_POOL_MAX', 10, 1, 100),
+      statementTimeoutMs: integer(env.DB_STATEMENT_TIMEOUT_MS, 'DB_STATEMENT_TIMEOUT_MS', 2000, 1, 600000),
+      lockTimeoutMs: integer(env.DB_LOCK_TIMEOUT_MS, 'DB_LOCK_TIMEOUT_MS', 1000, 1, 600000),
+      idleTransactionTimeoutMs: integer(env.DB_IDLE_TRANSACTION_TIMEOUT_MS, 'DB_IDLE_TRANSACTION_TIMEOUT_MS', 10000, 1, 600000),
       connectionTimeoutMs: integer(env.DB_CONNECTION_TIMEOUT_MS, 'DB_CONNECTION_TIMEOUT_MS', 2000, 1, 600000),
-      queryTimeoutMs: integer(env.DB_QUERY_TIMEOUT_MS, 'DB_QUERY_TIMEOUT_MS', 2000, 1, 600000),
+      queryTimeoutMs: integer(env.DB_QUERY_TIMEOUT_MS, 'DB_QUERY_TIMEOUT_MS', 3000, 1, 600000),
     }),
   });
 }

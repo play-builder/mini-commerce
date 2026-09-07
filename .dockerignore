@@ -13,3 +13,11 @@ eslint.config.js
 
 npm-debug.log*
 .DS_Store
+
+.env
+.env.*
+.npmrc
+**/*.pem
+**/*.key
+docs
+load

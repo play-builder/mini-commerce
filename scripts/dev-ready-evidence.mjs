@@ -154,7 +154,6 @@ export function createDevReadyEvidence(input, now = new Date()) {
   if (!shaPattern.test(input.gitops.devRevision)) throw new Error('invalid gitops.devRevision');
   const cluster = parseClusterArn(input.cluster.arn);
   if (cluster.region !== input.region) throw new Error('cluster.arn region mismatch');
-  if (cluster.accountId !== ecr.accountId) throw new Error('ECR and EKS account mismatch');
   requireNonEmpty(input.slo.evidenceId, 'slo.evidenceId');
   const issuedAt = parseTimestamp(input.issuedAt, 'DEV_READY issuedAt');
   const expiresAt = parseTimestamp(input.expiresAt, 'DEV_READY expiresAt');
@@ -238,7 +237,6 @@ export function verifyProdBaselineEvidence({ prodBaseline, candidateEvidence }, 
   if (baselineEcr.region !== prodBaseline.region || baselineCluster.region !== prodBaseline.region) {
     throw new Error('Prod baseline region mismatch');
   }
-  if (baselineEcr.accountId !== baselineCluster.accountId) throw new Error('Prod baseline account mismatch');
   const observedAt = parseTimestamp(prodBaseline.observedAt, 'Prod baseline observedAt');
   if (observedAt > now) throw new Error('future Prod baseline observedAt is not allowed');
 
@@ -248,8 +246,6 @@ export function verifyProdBaselineEvidence({ prodBaseline, candidateEvidence }, 
   if (candidate.cluster.arn === prodBaseline.clusterArn) {
     throw new Error('PROD_CLUSTER_MUST_DIFFER_FROM_DEV_CLUSTER');
   }
-  const candidateEcr = parseEcrRepository(candidate.image.repository);
-  if (candidateEcr.accountId !== baselineCluster.accountId) throw new Error('Prod baseline candidate account mismatch');
   if (prodBaseline.image.indexDigest === candidate.image.indexDigest) {
     throw new Error('CANDIDATE_DIGEST_MUST_DIFFER_FROM_PROD_BASELINE');
   }

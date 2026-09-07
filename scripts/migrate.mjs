@@ -27,7 +27,11 @@ const filenames = fs.readdirSync(migrationsDirectory)
   .sort();
 const target = parseMigrationTarget(process.argv.slice(2), filenames);
 
-const ledgerPool = createDatabasePool(config.database);
+// The ledger transaction spans a separate DDL runner. Runtime SQL/idle deadlines
+// must not kill it halfway through a migration; the migration Job bounds the run.
+const ledgerPool = createDatabasePool({
+  ...config.database, statementTimeoutMs: 0, lockTimeoutMs: 0, idleTransactionTimeoutMs: 0,
+});
 try {
   const migrations = await withLedgerSerialization(ledgerPool, async (ledgerClient) => {
     const appliedBefore = await verifyAppliedMigrationLedger(ledgerClient, migrationsDirectory);

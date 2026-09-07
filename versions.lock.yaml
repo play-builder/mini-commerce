@@ -18,6 +18,10 @@ database:
   imageIndexDigest: "sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94"
 
 delivery:
+  qemuVerifiedAt: "2026-09-08"
+  qemuAction: "4.3.0"
+  qemuActionSha: "1f40c72289eff860ee54a304f1438e3cff362e0a"
+  binfmtImageIndexDigest: "sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0"
   trivy: "0.74.0"
   trivyAction: "0.36.0"
   trivyActionSha: "ed142fd0673e97e23eac54620cfb913e5ce36c25"

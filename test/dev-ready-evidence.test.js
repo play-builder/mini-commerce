@@ -270,3 +270,16 @@ test('DEV_READY는 commercial ECR, canonical EKS ARN, UTC timestamp와 numeric a
     value.attestation.githubUrl = 'https://github.com/play builder/mini-commerce/attestations/1234567';
   }), now), /invalid workflow.runUrl/);
 });
+
+// Registry, Dev and Prod are separate identities in a multi-account deployment.
+test('Network ECR과 Dev/Prod 계정이 달라도 정확한 repository와 cluster 결속을 유지한다', () => {
+  const candidate = fixture('dev-ready', 'ap-northeast-2.json');
+  const baseline = fixture('prod-baseline', 'healthy-revision-1.json');
+  candidate.cluster.arn = candidate.cluster.arn.replace(/:[0-9]{12}:cluster\//, ':111111111111:cluster/');
+  baseline.clusterArn = baseline.clusterArn.replace(/:[0-9]{12}:cluster\//, ':222222222222:cluster/');
+  const result = verifyProdBaselineEvidence({ prodBaseline: baseline, candidateEvidence: candidate }, new Date('2026-09-03T00:30:00Z'));
+  assert.equal(result.candidateEvidence.cluster.arn, candidate.cluster.arn);
+  assert.equal(result.prodBaseline.image.repository, candidate.image.repository);
+  baseline.image.repository = baseline.image.repository.replace(/^[0-9]{12}/, '999999999999');
+  assert.throws(() => verifyProdBaselineEvidence({ prodBaseline: baseline, candidateEvidence: candidate }, new Date('2026-09-03T00:30:00Z')), /repository/);
+});
