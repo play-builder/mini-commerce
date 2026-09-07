@@ -132,7 +132,10 @@ Ruleset bypass actor로 등록하지 않으며, Prod PR은 자동 merge하지 �
 격리해야 하면 별도 App ID/private key를 사용합니다. **코드 검사로 실제 GitHub 설정을 증명할 수 없습니다.**
 
 PR와 main은 실제 PostgreSQL 테스트, ESLint, runtime dependency `npm audit`를 수행합니다.
-PR dependency-review는 별도의 변경분 취약점 gate이며, GitHub의 해당 기능 사용 권한이 필요합니다.
+PR의 `dependency-review` job은 lock 파일 기준 전체 production dependency graph를
+`npm audit --omit=dev --audit-level=high`로 검사합니다. High/Critical 취약점이나 검사 오류는
+job을 실패시킵니다. GitHub Dependency Review API의 403 오류를 해결하기 위해 npm 검사로 전환했으며,
+기존 required check 이름은 유지합니다. GitHub의 변경분 dependency review와는 검사 범위가 다릅니다.
 Required check를 특정 path 변경에만 실행되는 dependency-review에 단독 의존하지 마세요. 모든 PR에서 실행하는
 `test` job도 보호 규칙에 포함하고, 실제 조직/저장소 Ruleset에서 병합 차단 여부를 확인해야 합니다.
 
