@@ -84,7 +84,7 @@ export function verifyBackwardCompatibility({ baseDocument, candidateDocument })
   }
 }
 
-if (process.argv[1] === new URL(import.meta.url).pathname) {
+if (import.meta.main) {
   const valueAfter = (flag) => {
     const index = process.argv.indexOf(flag);
     return index === -1 ? undefined : process.argv[index + 1];

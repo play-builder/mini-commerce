@@ -30,15 +30,16 @@ flowchart LR
     DevPR --> GitOps[argocd-gitops]
     Infra[EKS-infra: IAM · registry · cluster · DB] --> Runtime[Dev runtime]
     GitOps --> Runtime
-    Runtime --> Evidence[배포·SLO 증빙]
-    Verify --> Promote[정확한 CI run + Dev 증빙 결속]
-    Evidence --> Promote
+    Runtime --> Observe[운영자의 Dev 상태·지표 확인]
+    Verify --> Promote[성공한 CI run·attempt와 Dev digest 확인]
+    Observe --> Approval[GitHub environment 승인]
+    Approval --> Promote
     Promote --> ProdPR[승인받는 Prod digest PR]
     ProdPR --> Sync[운영자 Argo CD Sync]
     Sync --> Canary[Prod Canary]
 ```
 
-이 그림에서 봐야 할 핵심은 이미지 검증, 실제 Dev 실행 증거, Prod 승인이 서로 다른 gate라는 점입니다.
+이 그림에서 봐야 할 핵심은 이미지 검증, Dev 상태 확인, Prod 승인이 서로 다른 gate라는 점입니다.
 앱 저장소가 소유하는 것은 `.github/workflows/ci.yml`, `promote.yml`의 image 발행·검증·PR 생성까지입니다.
 실제 Argo 설정, migration hook, Canary analysis, rollback은 GitOps 저장소에서 교차 검토해야 합니다.
 
@@ -176,7 +177,7 @@ runtime 모듈을 역할에 따라 읽으면 됩니다. 같은 파일을 여러 
 | 관측 | `business-metrics.js`, `database-observability.js`, `logger.js`: bounded reason/operation label |
 | Trace | `telemetry.js`, `instrumentation.js`, `instrumentation-policy.js`, `register-instrumentation-hooks.js` |
 | Schema | `migration-plan.js`, `migration-ledger.js`, `migrations/`, `scripts/migrate.mjs` |
-| Delivery | `delivery-preflight.mjs`, supply-chain/DEV_READY/GitOps 값 도구, workflow 정의 |
+| Delivery | `delivery-preflight.mjs`, supply-chain/GitOps 값 도구, workflow 정의 |
 
 `test/fixtures/`는 실패 조건 재현을 위한 입력 데이터입니다. 이 JSON을 runtime evidence로 제출할 수는
 없습니다. source 문자열 검사도 SHA pin·권한·단계 의존성 같은 실행 계약에 한정해 유지하고, 문서 문구의
@@ -225,7 +226,7 @@ runtime 모듈을 역할에 따라 읽으면 됩니다. 같은 파일을 여러 
 3. **전달 증거:** 해당 SHA의 GitHub run/attempt, scan·attestation artifact와 ECR digest.
 4. **운영 증거:** cluster/revision/시각이 결속된 deployment·SLO, 실제 복구 drill과 RPO/RTO.
 
-이번 변경에서 실행한 범위만 [검토 기록](production-readiness-review.md)에 적습니다. 프로세스 테스트나
+실행 명령과 검증 범위는 [README](../README.md#검증-범위)에 있습니다. 프로세스 테스트나
 과거 main의 성공을 현재 코드의 cloud rollout 성공으로 확대하지 않습니다.
 
 `verifyRestore`는 각 DB를 read-only repeatable-read transaction으로 읽어 한 DB 내부의 시점을

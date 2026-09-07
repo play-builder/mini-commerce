@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "engines": {
-    "node": ">=24.0.0"
+    "node": ">=24.2.0"
   },
   "scripts": {
     "start": "node --import ./src/register-instrumentation-hooks.js --import ./src/instrumentation.js src/server.js",
@@ -13,8 +13,8 @@
     "lint": "eslint .",
     "migrate:up": "node scripts/migrate.mjs",
     "test": "node --test --test-concurrency=1 test/**/*.test.js",
-    "test:integration": "node --test test/postgres.integration.test.js",
-    "test:postgres": "node --test --test-concurrency=1 test/postgres.integration.test.js test/commerce-concurrency.integration.test.js test/instrumentation-postgres.integration.test.js test/migration-ledger.integration.test.js test/compatibility.integration.test.js test/contract-003.integration.test.js test/restore-verifier.integration.test.js test/commerce-invariants.integration.test.js",
+    "test:integration": "node --import ./test/require-postgres.js --test --test-concurrency=1 test/integration/*.test.js",
+    "test:postgres": "npm run test:integration",
     "test:coverage": "node --test --experimental-test-coverage test/**/*.test.js",
     "test:ci": "node --import ./test/require-postgres.js --test --test-concurrency=1 test/**/*.test.js"
   },
