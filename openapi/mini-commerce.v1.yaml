@@ -21,6 +21,11 @@ paths:
         '503': { description: Database unavailable, content: { application/json: { schema: { type: object } } } }
   /orders:
     post:
+      description: >-
+        Internal caller API. Requires a unique Idempotency-Key per normalized order.
+        Reusing a key with different items returns 409. The JSON body is limited to 32 KiB,
+        100 item entries and a combined quantity of 100 per product; productId and quantity
+        must be positive JSON integers. No customer identity or order ownership is enforced.
       parameters:
         - name: Idempotency-Key
           in: header
@@ -38,7 +43,9 @@ paths:
       responses:
         '201': { description: Created order, content: { application/json: { schema: { type: object, properties: { order: { type: object } } } } } }
         '400': { description: Invalid order, content: { application/json: { schema: { type: object } } } }
-        '409': { description: Insufficient stock, content: { application/json: { schema: { type: object } } } }
+        '413': { description: Request body exceeds 32 KiB }
+        '415': { description: Unsupported charset or content encoding }
+        '409': { description: Insufficient stock or conflicting idempotency key, content: { application/json: { schema: { type: object } } } }
         '503': { description: Database unavailable, content: { application/json: { schema: { type: object } } } }
   /orders/{id}:
     get:

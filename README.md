@@ -1,324 +1,182 @@
 # Mini Commerce
 
-이 저장소는 PostgreSQL 기반 Mini Commerce production service의 Node.js 24 코드입니다.
-상품 조회·재고 확인·idempotent 주문 생성과 canonical 주문 조회를 제공합니다.
-CI는 ECR에 multi-architecture 이미지 인덱스를 푸시한 뒤 application과 migration image의
-index digest를 `argocd-gitops` 저장소에 반영합니다.
+PostgreSQL의 상품·재고·주문을 처리하는 Node.js 24 / Express 5 서비스입니다. 주문 생성은
+하나의 DB transaction에서 멱등성 확인, 재고 잠금, 주문 저장과 재고 차감을 수행합니다.
+컨테이너 배포와 DB migration은 같은 immutable image digest를 사용합니다.
 
-## 전체 흐름
+**운영 범위:** 이 코드는 신뢰된 내부 호출자를 위한 commerce API입니다. 고객 인증, 주문 소유자 확인,
+결제, 개인정보 처리, tenant 분리는 구현하지 않았습니다. 인터넷 고객에게 직접 노출하는 상용
+쇼핑몰로 사용할 수는 없으며, 해당 요구는 [아키텍처의 경계](docs/architecture.md#신뢰-경계와-미구현-기능)에서 먼저 확인해야 합니다.
 
-```text
-application PR merge
-        │
-        ▼
-lint + test → Buildx(amd64/arm64) → ECR index digest
-                                      │
-                   ┌──────────────────┴──────────────────┐
-                   ▼                                     ▼
-             dev digest PR                         prod promotion PR
-             validate + auto-merge                 CODEOWNERS approval
-                   │                                     │
-                   ▼                                     ▼
-             Argo CD Deployment                    Argo Rollouts Canary
-```
+## 목차
 
-이 그림에서 봐야 할 핵심은 prod에서 새 이미지를 다시 빌드하지 않는다는 점입니다. dev에서
-검증한 동일 digest를 복사해야 공급망과 승격 이력을 추적할 수 있습니다.
+- [구조와 책임](#구조와-책임)
+- [로컬 실행과 검증](#로컬-실행과-검증)
+- [런타임 설정](#런타임-설정)
+- [GitHub 전달 설정](#github-전달-설정)
+- [DB 변경과 운영 도구](#db-변경과-운영-도구)
+- [검증 범위](#검증-범위)
 
-## 런타임 listener와 endpoint
+## 구조와 책임
 
-| listener | 경로 | 역할 |
+애플리케이션 코드와 전달 자동화만 이 저장소가 소유합니다. 클러스터/IAM/RDS는 `EKS-infra`,
+Helm/Argo CD/롤아웃 정책과 배포 증빙은 `argocd-gitops`의 책임입니다.
+구체적인 함수, transaction 순서, 공급망 검증과 발표용 다이어그램은 [아키텍처](docs/architecture.md)에 있습니다.
+
+| 경로 | 소유하는 동작 |
 | --- | --- |
-| business `PORT` (기본 `3000`) | `GET /products` | 상품 목록 |
-| business `PORT` | `GET /products/:id/inventory` | 현재 재고 |
-| business `PORT` | `POST /orders` | idempotency key를 사용하는 재고 차감·주문 transaction |
-| business `PORT` | `GET /orders/:id` | PostgreSQL canonical order repository의 주문 조회 |
-| management `MANAGEMENT_PORT` (기본 `3001`) | `GET /healthz`, `GET /readyz` | process liveness, readiness |
-| management `MANAGEMENT_PORT` | `GET /metrics`, `GET /version` | Prometheus metrics, build metadata |
+| `src/` | HTTP API, 주문 규칙, PostgreSQL repository, readiness·종료, metrics·trace·log |
+| `migrations/` | 적용 후 바이트를 바꾸지 않는 forward-only schema 변경 |
+| `openapi/` | 공개 business API 계약과 backward compatibility 기준 |
+| `scripts/` | migration, 공급망·승격 증빙, 이미지/GitOps 값 검증, 복구·불변식 검사 |
+| `test/` | 실제 함수·HTTP·PostgreSQL 동시성·migration·전달 경계 회귀 테스트 |
+| `load/` | 명시적으로 선택한 Dev host의 제한된 k6 부하 |
+| `.github/workflows/` | PR 검증, main 이미지 발행·Dev 전달, 별도 Prod 승격 |
+| `docs/` | 코드 기반 아키텍처와 이번 검토의 실행 증거·미검증 범위 |
+| `Dockerfile`, `compose.yaml` | 비 root 실행 이미지, localhost에만 노출하는 개발용 PostgreSQL |
 
-business listener는 관리 endpoint를 노출하지 않으며 management listener는 주문 API를 노출하지 않습니다.
-`openapi/mini-commerce.v1.yaml`은 business의 네 operation만 문서화하는 파일 계약입니다. PR에서는 base
-revision과 비교하는 compatibility verifier가 operation/응답 제거를 차단합니다.
+테스트는 언어별로 삭제하지 않습니다. HTTP 오류, 재고 경쟁, migration 호환성, 공급망 검증처럼
+운영 위험을 잡는 테스트를 유지합니다. 문서에 특정 문장이 있는지만 확인하던 README 테스트는 제거했습니다.
 
-Runtime은 `node --import ./src/register-instrumentation-hooks.js --import ./src/instrumentation.js src/server.js`로
-시작합니다. HTTP, Express, PostgreSQL
-instrumentation은 management path를 제외하고 표준 span을 만들며, application은 order/create, inventory
-reserve, transaction의 bounded business span만 추가합니다. request header, request body, raw path ID, SQL과
-query parameter는 span 또는 Pino JSON event에 기록하지 않습니다.
+## 로컬 실행과 검증
 
-DB가 활성화된 production process는 bounded startup check가 성공한 뒤 readiness를 올립니다. 이후 DB가
-일시적으로 실패해도 startup-only policy는 이미 ready인 Pod를 내리지 않습니다. business request는 안전한
-`503 {"error":"database unavailable"}`로 실패하며 driver 오류와 SQL은 응답에 포함하지 않습니다.
-`READINESS_DEPENDENCY_POLICY=continuous`는 development/test에서만 명시적으로 사용할 수 있습니다.
-
-## 로컬 검증
-
-의존성은 lock 파일 그대로 설치합니다.
+기본 개발 모드는 DB를 사용하지 않으므로 listener와 telemetry만 점검할 수 있습니다.
+`/readyz`가 성공해도 DB가 꺼져 있으면 business API는 503을 반환합니다. 실제 주문 기능은 DB가 필요합니다.
 
 ```bash
-npm ci
+npm ci --ignore-scripts
 npm run lint
 npm test
 bash test/curl-loop.test.sh
 ```
 
-`dependency-review.yml`은 `package.json`, `package-lock.json`, 또는 dependency-review 정책 변경 PR에서
-runtime dependency의 high 이상 취약점과 허용되지 않은 변경을 차단합니다. 이 검사는 GitHub dependency
-graph와 private repository에 적용되는 GitHub Code Security entitlement가 필요합니다. 해당 capability가 없는
-repository에서는 required check을 선택 사항으로 낮추지 말고 repository 설정을 먼저 충족해야 합니다.
+`npm test`는 `DATABASE_TEST_URL`이 없으면 PostgreSQL integration test를 SKIP합니다.
+CI는 `npm run test:ci`를 사용하며, 해당 URL이 없거나 형식이 잘못되면 테스트 시작 전에 실패합니다.
+이 테스트들은 테이블을 초기화하고 임시 DB를 생성하므로 **폐기 가능한 테스트 DB에만 연결**해야 합니다.
 
-애플리케이션 실행:
-
-```bash
-npm start
-curl -fsS http://127.0.0.1:3001/readyz
-curl -fsS http://127.0.0.1:3001/version
-```
-
-종료 시 애플리케이션은 먼저 readiness를 내리고 business listener를 닫아 신규 요청을 차단한 뒤,
-`SHUTDOWN_DEADLINE_MS` 안에서 database pool과 telemetry exporter를 정리합니다. management listener는
-마지막에 닫히며, Kubernetes의 `terminationGracePeriodSeconds`는 이 deadline보다 커야 합니다.
-
-## Stateful Mini Commerce 로컬 실행
-
-DB 기능은 기본적으로 꺼져 있으므로 기존 stateless 실행 경로는 바뀌지 않습니다. 로컬 DB의
-기본 host port는 다른 PostgreSQL과의 충돌을 줄이기 위해 `55432`입니다.
+로컬 PostgreSQL을 사용할 때:
 
 ```bash
+export APP_ENV=development OTEL_TRACES_EXPORTER=none
 export DB_PASSWORD="$(openssl rand -hex 24)"
 docker compose up -d --wait postgres
-export DATABASE_ENABLED=true
-export DB_HOST=127.0.0.1
-export DB_PORT=55432
-export DB_NAME=commerce
-export DB_USER=commerce
+export DATABASE_ENABLED=true DB_SSL=false
+export DB_HOST=127.0.0.1 DB_PORT=55432 DB_NAME=commerce DB_USER=commerce
 npm run migrate:up -- --target 002_expand_product_display_name
 npm start
 ```
 
-현재 application은 `display_name`을 읽는 `v2prime` 계약이므로 초기 로컬 실행에는
-001과002까지 적용합니다. target003은 legacy column을 제거하므로 별도 rollback-candidate
-evidence가 준비되기 전 실행하지 않습니다. `--target` 생략은 전체 migration 자동 적용이 아니라
-`MIGRATION_TARGET_REQUIRED` 오류로 중단됩니다.
-
-다른 terminal에서 세 비즈니스 동작을 확인합니다.
+다른 터미널에서 확인합니다.
 
 ```bash
+curl -fsS http://127.0.0.1:3001/readyz
 curl -fsS http://127.0.0.1:3000/products
-curl -fsS http://127.0.0.1:3000/products/1/inventory
 curl -fsS -X POST http://127.0.0.1:3000/orders \
-  -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: order-001' \
+  -H 'Content-Type: application/json' -H 'Idempotency-Key: order-001' \
   -d '{"items":[{"productId":1,"quantity":2}]}'
-curl -fsS http://127.0.0.1:3000/orders/1
 ```
 
-동일한 `Idempotency-Key`로 주문을 다시 보내면 새 주문을 만들거나 재고를 다시 차감하지 않고 기존
-주문을 반환합니다. 주문 생성은 PostgreSQL transaction과 inventory row lock을 사용합니다.
+같은 키와 같은 정규화된 상품·수량 조합은 저장된 주문을 반환합니다. 같은 키에 다른 주문은
+`409`로 거부합니다. 이 규칙은 외부 재시도가 중복 차감이나 잘못된 주문 성공으로 처리되는 것을 막습니다.
+종료는 `docker compose down`으로 수행하며 volume을 삭제하지 않으면 개발 DB 데이터는 유지됩니다.
 
-Migration은 한 번 적용한 파일을 되돌리거나 수정하지 않는 forward-only 계약을 사용합니다.
-`pb_migration_ledger`가 적용 파일의 SHA-256을 기록하고, 동시 runner는 control row와
-`node-pg-migrate` advisory lock으로 직렬화됩니다.
+## 런타임 설정
 
-`002_expand_product_display_name.js`는 기존 `name`을 유지한 채 `display_name`을 추가하고
-backfill합니다. 이 Expand 구간에서는 v1과 v2 application query가 같은 schema에서 함께
-동작해야 합니다.
+production은 DB 활성화와 인증서를 검증하는 TLS를 강제합니다. 시작 시 현재 이미지에 필요한
+schema가 조회 가능한지 확인하고, 실패하면 listener와 pool을 정리하고 종료해 supervisor가 재시도하도록 합니다.
 
-`v2.0.1-hotfix-order-total` release는 수량 4개 이상인 주문의 합계도 `단가 × 수량`으로
-계산합니다. 이 regression은 공개 fault endpoint나 runtime flag가 아니라 별도 source commit으로
-재현합니다.
-
-`003_contract_product_name.js`는 모든 retained rollback candidate가 `v2prime` query contract를
-사용하는지 확인한 뒤 적용하는 Contract 단계입니다. `display_name` null gate를 통과해야만
-`NOT NULL`을 설정하고 legacy `name`을 제거합니다. Rollback window 판정은 revision 번호 차이가
-아니라 target과 stable 사이에 실제 남아 있는 non-Experiment ReplicaSet 수를 사용합니다.
-Migration Job은 GitOps runtime checker가 만든 `playbuilder.rollback-candidates/v1` JSON 경로를
-`ROLLBACK_CANDIDATES_FILE`로 받아야 합니다. 각 candidate의 image digest, source revert SHA,
-Rollout revision, Pod template hash와 `productReadContract=v2prime`을 검증하고, 입력 파일 SHA-256을
-`pb_migration_contract_gate`에 기록한 뒤에만 Contract 003을 실행합니다.
-
-```bash
-docker compose down --volumes
-```
-
-`--volumes`는 로컬 실습 DB를 삭제합니다. 보존할 데이터가 있는 Compose project에는 실행하지
-않습니다.
-
-## Evidence와 dependency-review 경계
-
-Supply-chain 및 DEV_READY evidence v2는 mutable `owner/repository` display text 대신 GitHub numeric
-`repositoryId`를 사용합니다.
-workflow API의 `repository.id`와 evidence ID가 일치해야 하므로 repository rename은 허용하지만 같은 이름을
-가진 다른 repository는 거부합니다. v1 evidence는 migration window 동안 canonical ID `1352247019`에 한해
-validator 입력으로만 허용되며, 새 emitter는 v2만 작성합니다. ECR repository identity는 별도로 검증합니다.
-
-아래 로컬 명령은 static, unit, 또는 container 수준의 검증일 뿐 GitHub Actions required check, ingress
-listener 차단, managed PostgreSQL 장애, AMP/trace export, 또는 cloud rollout을 증명하지 않습니다.
-
-```bash
-node --test test/openapi-contract.test.js test/repository-identity-migration.test.js
-node scripts/verify-openapi-backward-compatibility.mjs \
-  --base-ref 0f6e4ce79e102054fa63c8d07b53f24dbdbb4d \
-  --bootstrap-base-sha 0f6e4ce79e102054fa63c8d07b53f24dbdbb4d \
-  --candidate openapi/mini-commerce.v1.yaml
-```
-
-## Container image 계약
-
-Dockerfile은 Node `24.20.0-alpine3.23`의 multi-architecture index digest로 base image를
-고정합니다. 로컬 단일 아키텍처 확인은 다음과 같습니다.
-
-```bash
-docker build \
-  --build-arg APP_VERSION=local \
-  --build-arg GIT_SHA=local \
-  --build-arg BUILD_DATE=2026-09-01T00:00:00Z \
-  -t mini-commerce:local .
-```
-
-CI에서는 `linux/amd64,linux/arm64`를 동시에 push하며 action 출력의 digest를 다시 inspect합니다.
-
-## Bounded load와 release evidence
-
-`load/k6-baseline.js`는 명시한 Dev host의 HTTPS origin만 허용하며 초당 1~20회, 30~300초 범위의
-`constant-arrival-rate`만 실행합니다. path·query·credential·비표준 port가 포함된 URL과 운영
-endpoint, 공개 fault endpoint는 거부합니다.
-
-```bash
-TARGET_ENV=dev TARGET_URL="https://dev.example.com" \
-EXPECTED_DEV_HOST="dev.example.com" RATE_PER_SECOND=5 DURATION_SECONDS=60 \
-k6 run load/k6-baseline.js
-```
-
-부하 실행 뒤 invariant verifier는 application과 같은 `DATABASE_ENABLED`·`DB_*` 계약으로 DB에
-접속해 주문·주문 항목 수와 FK 위반, 중복 idempotency key, 음수 재고를 확인합니다.
-
-```bash
-DATABASE_ENABLED=true DB_HOST="127.0.0.1" DB_PORT=5432 DB_NAME="commerce" \
-DB_USER="commerce" DB_PASSWORD="[secret]" DB_SSL=false \
-node scripts/verify-commerce-invariants.mjs
-```
-
-운영 release 검증은 `scripts/write-supply-chain-evidence.mjs`,
-`scripts/verify-supply-chain.mjs`, `scripts/dev-ready-evidence.mjs`를 사용합니다.
-강의 incident·전체 cleanup 완료 증빙은 교육 워크스페이스의
-`course/tooling/mini-commerce/`에서 관리하며 앱 release의 필수 단계에 포함하지 않습니다.
-
-```bash
-docker buildx imagetools inspect \
-  <account>.dkr.ecr.<region>.amazonaws.com/mini-commerce@sha256:<digest>
-```
-
-정상 결과에는 `linux/amd64`와 `linux/arm64` platform manifest가 모두 보여야 합니다.
-
-## GitHub repository 설정
-
-Repository variables:
-
-| 이름 | 값 |
+| 설정 | 기본 / 운영 기준 |
 | --- | --- |
-| `AWS_REGION` | `us-east-1` 또는 `ap-northeast-2` |
-| `AWS_ROLE_ARN` | EKS-infra `environments/network/02-registry`의 `image_push_role_arn` 출력 |
-| `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra `environments/network/02-registry`의 `attest_verify_role_arn` 출력; ECR 조회 및 OCI attestation push 권한 |
-| `ECR_REPOSITORY` | `mini-commerce` (`image_repository_name` 출력) |
-| `GITOPS_APP_ID` | GitOps용 GitHub App ID |
-| `GITOPS_OWNER` | GitOps 저장소 owner |
-| `GITOPS_REPOSITORY_NAME` | GitOps 저장소 이름 |
+| `APP_ENV` | `NODE_ENV` 값을 따르고, 둘 다 없으면 `development`; 운영은 `production` 명시 |
+| `PORT`, `MANAGEMENT_PORT` | `3000`, `3001`; 서로 다른 값. 관리 포트는 외부 접근 차단 |
+| `DATABASE_ENABLED` | 개발 기본 `false`; production에서는 `true` 필수 |
+| `DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` | DB 활성화 시 모두 필수; runtime 전용 최소 권한 계정 |
+| `DB_PORT`, `DB_SSL` | `5432`, 개발 기본 `false`; production TLS `true` 필수 |
+| `NODE_EXTRA_CA_CERTS` | 사설/RDS CA가 기본 trust store에 없으면 읽기 전용 PEM 파일 경로 |
+| `DB_POOL_MAX` | Pod당 `10`, 허용 `1..100`; replica·surge·다른 DB 사용자의 총연결 예산과 함께 결정 |
+| `DB_CONNECTION_TIMEOUT_MS` | pool 연결 대기 `2000` ms |
+| `DB_LOCK_TIMEOUT_MS` | DB 서버 잠금 대기 `1000` ms |
+| `DB_STATEMENT_TIMEOUT_MS` | DB 서버 statement 실행 `2000` ms |
+| `DB_QUERY_TIMEOUT_MS` | client 응답 대기 `3000` ms; 서버 제한보다 여유 있게 설정 |
+| `DB_IDLE_TRANSACTION_TIMEOUT_MS` | 열린 transaction의 유휴 session `10000` ms |
+| `READINESS_DEPENDENCY_POLICY` | `startup-only`; `continuous`는 development/test 전용 |
+| `SHUTDOWN_DEADLINE_MS` | `30000` ms; Kubernetes 종료 유예시간은 이보다 길게 설정 |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP trace URL (`/v1/traces` 포함); 로컬 비활성화는 `OTEL_TRACES_EXPORTER=none` |
+| `APP_VERSION`, `GIT_SHA`, `BUILD_DATE` | 이미지 build metadata. 관리 포트 `/version`에서 확인 |
 
-GitOps environment secrets:
+production의 startup-only readiness는 초기 schema 확인 후 DB 장애만으로 모든 Pod를 동시에
+트래픽 대상에서 제거하지 않습니다. 대신 business 요청은 503으로 실패하고 DB 실패·pool 대기 metric을
+기록합니다. `/healthz`는 process 확인이며 DB 건전성 지표가 아닙니다.
 
-| Environment | 이름 | 값 |
-| --- | --- | --- |
-| `gitops-dev-delivery` | `GITOPS_APP_PRIVATE_KEY` | GitHub App private key PEM 전체 |
-| `gitops-production` | `GITOPS_APP_PRIVATE_KEY` | GitHub App private key PEM 전체 |
+## GitHub 전달 설정
 
-`GITOPS_APP_PRIVATE_KEY`는 repository secret이 아니라 GitHub의
-gitops-dev-delivery environment secret과 gitops-production environment secret으로 각각
-등록합니다. PEM을 화면에 출력하지 않고 등록하는 명령은 다음과 같습니다.
+`delivery-preflight`는 AWS credential 발급·빌드 전에 registry 변수의 누락과 형식을 검증합니다.
+GitOps job은 보호된 environment 안에서 App 설정과 RSA private key를 검증합니다.
+검증 오류에는 필드 이름만 기록하며 기본 Region·계정·secret을 임의로 채우지 않습니다.
 
-```bash
-gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-dev-delivery \
-  --repo "<owner>/mini-commerce" < "<GitHub-App-private-key.pem>"
+| Repository variable | 운영자가 확인할 원천 |
+| --- | --- |
+| `AWS_REGION` | 실제 배포 Region. 현재 증빙 schema는 `us-east-1`, `ap-northeast-2` 지원 |
+| `AWS_ROLE_ARN` | EKS-infra registry root의 `image_push_role_arn` 출력 |
+| `AWS_ATTEST_VERIFY_ROLE_ARN` | `attest_verify_role_arn` 출력; OCI attestation 쓰기와 검증 권한 |
+| `ECR_REPOSITORY` | `image_repository_name` 출력; registry URL이 아닌 repository 이름 |
+| `GITOPS_APP_ID` | 설치한 GitHub App ID; 필요하면 environment별 override |
+| `GITOPS_OWNER`, `GITOPS_REPOSITORY_NAME` | 실제 GitOps 저장소 식별자 |
 
-gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production \
-  --repo "<owner>/mini-commerce" < "<GitHub-App-private-key.pem>"
-```
+`GITOPS_APP_PRIVATE_KEY`는 `gitops-dev-delivery`와 `gitops-production` environment secret에 각각
+설정합니다. 두 environment의 deployment branch는 `main`으로 제한합니다. Dev 자동 전달에는
+승인자를 두지 않을 수 있지만 Prod에는 조직 정책과 지원되는 protection rule에 맞는 required reviewer를 둡니다.
 
-두 environment의 deployment branch를 `main`으로 제한합니다. `gitops-dev-delivery`는 main CI의
-자동 Dev 전달용이므로 required reviewer를 두지 않습니다. `gitops-production`은 해당 GitHub 요금제와
-repository visibility에서 protection rule을 지원하면 실행자와 다른 운영 담당자를 required reviewer로
-지정합니다. 기존 repository-level `GITOPS_APP_PRIVATE_KEY`가 있다면 두 environment secret 등록을
-확인한 뒤 삭제합니다. 이 경계로 인해 다른 ref에서는 credential을 읽을 수 없고, Prod promotion은
-승인 전에는 private key를 읽지 못합니다.
+GitHub App은 GitOps 저장소에만 설치하고 Contents / Pull requests read-write를 부여합니다.
+Ruleset bypass actor로 등록하지 않으며, Prod PR은 자동 merge하지 않습니다. Dev/Prod credential 자체를
+격리해야 하면 별도 App ID/private key를 사용합니다. **코드 검사로 실제 GitHub 설정을 증명할 수 없습니다.**
 
-동일한 신뢰 경계를 공유한다면 같은 GitHub App credential을 두 environment에 저장할 수 있습니다. 다만 main
-workflow가 침해되었을 때 credential 자체를 Dev와 Prod 사이에서 격리해야 하는 조직은 별도 GitHub App을
-사용해 App ID와 private key를 분리합니다. 어느 방식이든 GitHub App을 Ruleset bypass actor로 지정하지
-않고 CODEOWNERS와 required status check를 그대로 통과시킵니다.
+PR와 main은 실제 PostgreSQL 테스트, ESLint, runtime dependency `npm audit`를 수행합니다.
+PR의 `dependency-review` job은 lock 파일 기준 전체 production dependency graph를
+`npm audit --omit=dev --audit-level=high`로 검사합니다. High/Critical 취약점이나 검사 오류는
+job을 실패시킵니다. GitHub Dependency Review API의 403 오류를 해결하기 위해 npm 검사로 전환했으며,
+기존 required check 이름은 유지합니다. GitHub의 변경분 dependency review와는 검사 범위가 다릅니다.
+Required check를 특정 path 변경에만 실행되는 dependency-review에 단독 의존하지 마세요. 모든 PR에서 실행하는
+`test` job도 보호 규칙에 포함하고, 실제 조직/저장소 Ruleset에서 병합 차단 여부를 확인해야 합니다.
 
-GitHub App은 `argocd-gitops` 저장소에 설치하고 최소한 다음 repository permission을 줍니다.
+main CI는 AMD64/ARM64 이미지를 한 번 발행하고 각 child manifest를 scan합니다. provenance·SBOM attestation,
+OCI referrer, source SHA가 일치해야 Dev digest PR을 생성합니다. Dev 배포·SLO 증빙은 다른 저장소의
+runtime collector가 작성합니다. Prod workflow는 이 증빙과 정확한 CI run/attempt를 묶어 승인 PR을 만듭니다.
+워크플로 정의에는 이 GitOps 원격 쓰기가 포함되지만, 이번 로컬 검토에서 workflow를 실행하거나 push하지 않았습니다.
 
-- Contents: Read and write
-- Pull requests: Read and write
+## DB 변경과 운영 도구
 
-`ci.yml`의 AWS 접근은 장기 access key가 아니라 GitHub OIDC를 사용합니다. Trust policy는
-`main`과 `dev` branch ref만 허용하며 PR workflow에는 AWS 권한이 없습니다.
+`migrate:up`은 대상 migration을 반드시 명시해야 합니다. API process가 시작하면서 migration을 수행하지 않습니다.
+적용된 001–003 파일과 checksum ledger를 보존하고, 변경이 필요하면 새 migration으로 진행합니다.
 
-## Workflow 책임
+- `001_initial_commerce`: 테이블·FK·check constraint와 초기 4개 catalog/재고 seed. 실제 상품 전환은 승인된 데이터 작업으로 처리합니다.
+- `002_expand_product_display_name`: `name` 보존, `display_name` 추가/backfill. 현재 runtime의 `v2prime`은 `display_name`을 읽습니다.
+- `003_contract_product_name`: retained rollback candidate가 모두 `v2prime`인지 증명한 뒤 legacy `name` 제거.
+  운영자가 `ROLLBACK_CANDIDATES_FILE`과 기대 cluster/revision/region을 주입해야 합니다.
 
-Dev delivery는 application build와 검증 job의 AWS session을 공유하지 않습니다. Build 이후
-`attest-and-verify`가 별도의 OIDC Role로 ECR에 로그인하고, `linux/amd64`와 `linux/arm64`
-child manifest를 각각 Trivy로 검사합니다. GitHub build attestation과 ECR OCI referrer가 동일한
-index digest를 가리킬 때만 GitOps update job으로 넘어갑니다.
+`src/migration-ledger.js`는 파일 checksum, migration 직렬화, contract 증빙 hash를 검증합니다.
+Migration Job에는 별도의 DDL 계정을 사용하고, DB lock/statement 제한은 대상 테이블 크기와 승인된
+유지보수 시간에 맞게 검토합니다. runtime의 짧은 query timeout을 대규모 migration 시간 예산으로 오해하지 마세요.
 
-Trivy action과 scanner 버전은 `versions.lock.yaml`에 별도로 고정합니다. CI는 공식 Linux amd64
-release archive를 저장된 SHA-256과 비교한 뒤 설치하고 `skip-setup-trivy`로 전이 설치를 생략합니다.
-scanner 실행 파일을 고정해도 취약점 DB는 갱신되므로 같은 이미지의 이후 scan 결과가 달라질 수 있습니다.
-두 AWS Role이 같은 OIDC subject를 신뢰할 경우 별도 세션·감사 식별은 제공하지만 job 간 강제 격리는
-아닙니다. Attestation job은 OCI artifact를 쓰므로 read-only ECR Role을 사용할 수 없습니다.
+| 도구 | 사용하는 시점 |
+| --- | --- |
+| `scripts/verify-commerce-invariants.mjs` | 부하/복구 후 주문·FK·idempotency·재고 불변식 검증 |
+| `scripts/verify-restore.mjs` | `verifyRestore` 함수로 독립 recovery DB의 schema·row checksum을 원본과 비교 |
+| `scripts/verify-image-index.sh` | 정확한 digest의 AMD64/ARM64 index 확인 |
+| `scripts/verify-supply-chain.mjs` | scan·attestation·OCI referrer·immutable repository identity 확인 |
+| `scripts/dev-ready-evidence.mjs` | supply chain + 배포 + SLO와 CI run을 결속하고 Prod baseline 비교 |
+| `scripts/gitops-values.mjs` | Dev/Prod app·migration digest 변경, rollback에서는 app만 변경 |
+| `scripts/dispatch-and-watch.sh`, `scripts/wait-pr-terminal-state.sh` | 명시적으로 실행한 workflow/PR의 정확한 종료 상태 추적 |
+| `load/k6-baseline.js`, `load/k6-stateful.js` | 허용한 Dev HTTPS host에 제한된 읽기/주문 부하 |
 
-CI는 검증된 supply-chain evidence artifact까지만 보관합니다. Dev 배포 뒤 EKS-infra runtime
-checker와 SLO gate가 각각 GitOps 저장소에 기록한 deployment·SLO evidence를 promotion workflow가
-exact CI run의 supply-chain evidence와 교차 검증해 canonical DEV_READY를 조립합니다.
-`publish-dev-ready` 실행은 이 증거 파일만 PR로 게시하며 Prod image를 바꾸지 않습니다.
-증거 PR이 merge된 뒤 `promote-candidate`를 실행하면 동일 입력에서 다시 만든 canonical bytes가
-게시된 증거와 정확히 같은지 확인하고, 별도로 기록한 Prod runtime baseline과 digest·cluster
-identity가 다른 경우에만 Prod values 변경 PR을 생성합니다.
+이 도구들은 일부 실제 DB 쓰기·부하·workflow dispatch를 수행합니다. 운영 대상, 권한, 변경 승인과
+복구 계획을 먼저 확인해야 하며, fixture 테스트 통과를 실제 실행 증거로 사용하지 않습니다.
 
-```text
-schemaVersion, environment, region, sourceSha, workflow, image,
-attestation, gitops, cluster, slo, issuedAt, expiresAt
-```
+## 검증 범위
 
-root key를 평탄화하거나 이름을 바꾼 evidence는 호환 대상으로 처리하지 않습니다.
+이번 변경의 정확한 실행 결과와 남은 운영 승인 조건은 [검토 기록](docs/production-readiness-review.md)에 있습니다.
+과거 main의 성공한 CI 결과는 이번 변경의 성공 근거로 재사용하지 않습니다.
 
-| 파일 | 실행 시점 | 결과 |
-| --- | --- | --- |
-| `.github/workflows/test.yml` | application PR | lint, unit test, PostgreSQL transaction test, image build |
-| `.github/workflows/ci.yml` | `main` push | ECR push, Dev app·migration digest PR, validation 후 auto-merge |
-| `.github/workflows/promote.yml` | 수동 dispatch | DEV_READY 게시 PR 또는 검증된 Prod values 승인 PR |
-
-GitHub App token의 push가 GitOps validate workflow를 한 번 실행하는 것은 정상입니다. 자동화가
-같은 digest를 다시 쓰지 않도록 `gitops-values.mjs`가 idempotent하게 동작하므로 무한 trigger
-loop가 생기지 않습니다. `envs/dev/**`를 `paths-ignore`하거나 `[skip ci]`로 validation을
-우회하지 않습니다.
-
-## 정상 결과와 실패 확인
-
-정상 CI 결과:
-
-- `npm ci`, lint, test 모두 성공
-- ECR image가 immutable tag와 index digest를 가짐
-- Dev PR diff는 `envs/dev/values.yaml`의 application·migration repository/digest만 변경함
-- Prod promotion은 Dev에서 검증한 두 digest를 그대로 사용함
-- Fix-Backward는 application digest만 되돌리고 적용된 backward-compatible schema는 유지함
-
-주요 실패 원인:
-
-- `AccessDenied`: `AWS_ROLE_ARN`, OIDC subject, ECR push policy 확인
-- `ImageTagAlreadyExistsException`: 재실행 tag에 run ID/attempt가 포함됐는지 확인
-- `ImagePullBackOff`: index digest인지와 worker node role의 ECR pull policy 확인
-- GitOps PR 생성 실패: GitHub App 설치 대상과 Contents/PR permission 확인
-
-버전 계약은 [versions.lock.yaml](./versions.lock.yaml)에 있으며, 배포 manifest는 이 저장소가
-아니라 `argocd-gitops`에서 관리합니다.
+로컬 unit/HTTP 테스트, 실제 PostgreSQL transaction 테스트, Docker build, GitHub OIDC/ECR 전달,
+클러스터 배포·복구 drill은 서로 다른 증거입니다. 컨퍼런스에서는 아키텍처 다이어그램을 **코드에 정의된 흐름**으로
+소개하고, 실제 실행했다고 주장하는 부분은 해당 SHA/run ID·관측 시각·결과를 함께 제시해야 합니다.

@@ -53,6 +53,10 @@ test('독립 recovery DB의 schema, rows, checksum과 invariant를 source와 비
         [row.product_id, row.updated_at],
       );
     }
+    const duplicateSourcePool = new Pool({ connectionString: sourceUrl.toString() });
+    try {
+      await assert.rejects(verifyRestore({ sourcePool, recoveryPool: duplicateSourcePool }), /RESTORE_DATABASES_MUST_DIFFER/);
+    } finally { await duplicateSourcePool.end(); }
     const verified = await verifyRestore({ sourcePool, recoveryPool });
     assert.equal(verified.schemaVersion, '003_contract_product_name');
     assert.equal(verified.foreignKeyViolations, 0);

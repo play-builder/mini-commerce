@@ -1,8 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
 import { test } from 'node:test';
 
 import YAML from 'yaml';
@@ -232,26 +229,6 @@ test('DEV_READY 게시와 baseline 이후 candidate 승격은 독립 실행 모�
   assert.doesNotMatch(promotionPr.run, /Merge starts the production Canary/);
 });
 
-test('README는 production promotion secret과 environment protection 경계를 안내한다', () => {
-  const readme = fs.readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-  assert.match(readme, /gitops-dev-delivery environment secret/);
-  assert.match(readme, /gitops-production environment secret/);
-  assert.match(readme, /두 environment[^\n]*deployment branch[^\n]*main/);
-  assert.match(readme, /required reviewer/);
-  assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-dev-delivery/);
-  assert.match(readme, /gh secret set GITOPS_APP_PRIVATE_KEY --env gitops-production/);
-  assert.match(readme, /별도 GitHub App/);
-});
-
-test('dependency review action pin is recorded in the version contract', () => {
-  const versions = YAML.parse(fs.readFileSync(new URL('../versions.lock.yaml', import.meta.url), 'utf8'));
-  assert.equal(versions.delivery.dependencyReviewAction, '5.0.0');
-  assert.equal(
-    versions.delivery.dependencyReviewActionSha,
-    'a1d282b36b6f3519aa1f3fc636f609c47dddb294',
-  );
-});
-
 test('Dev와 Prod GitOps credential은 main-only environment 경계를 사용한다', () => {
   const ciJob = readWorkflow('ci.yml').jobs['update-dev-gitops'];
   assert.equal(ciJob.if, "${{ github.ref == 'refs/heads/main' }}");
@@ -268,7 +245,7 @@ test('PR과 main CI는 실제 PostgreSQL integration test를 실행한다', () =
     const job = name === 'test.yml' ? workflow.jobs.test : workflow.jobs.build;
     assert.ok(job.services.postgres);
     assert.ok(job.env.DATABASE_TEST_URL);
-    assert.ok(job.steps.some((step) => step.run?.includes('npm test')));
+    assert.ok(job.steps.some((step) => step.run?.includes('npm run test:ci')));
   }
 });
 
@@ -286,56 +263,21 @@ test('모든 third-party Action은 full commit SHA로 고정된다', () => {
   }
 });
 
-test('dependency review is a read-only pinned pull-request gate', () => {
+test('dependency review preserves a read-only blocking production audit gate', () => {
   const workflow = readWorkflow('dependency-review.yml');
   assert.deepEqual(workflow.permissions, { contents: 'read' });
-  assert.equal(
-    workflow.jobs['dependency-review'].steps.find((step) => (
-      step.uses?.startsWith('actions/dependency-review-action@')
-    )).uses,
-    'actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294',
-  );
   assertPinnedActions(workflow);
-});
-
-function simulateDependencyReview(changedPath) {
-  const workflow = readWorkflow('dependency-review.yml');
-  if (!workflow.on.pull_request.paths.some((pattern) => path.matchesGlob(changedPath, pattern))) {
-    return undefined;
+  const job = workflow.jobs['dependency-review'];
+  assert.notEqual(job['continue-on-error'], true);
+  const runSteps = job.steps.filter((step) => step.run);
+  assert.deepEqual(runSteps.map((step) => step.run), [
+    'npm ci --omit=dev --ignore-scripts',
+    'npm audit --omit=dev --audit-level=high',
+  ]);
+  for (const step of runSteps) {
+    assert.equal(step.if, undefined);
+    assert.notEqual(step['continue-on-error'], true);
   }
-  const workspace = fs.mkdtempSync(path.join(os.tmpdir(), 'dependency-review-'));
-  try {
-    for (const step of workflow.jobs['dependency-review'].steps) {
-      if (step.uses?.startsWith('actions/checkout@')) {
-        // Model a clean runner checkout using the actual tracked policy file.
-        const configPath = '.github/dependency-review-config.yml';
-        const content = execFileSync('git', ['show', `HEAD:${configPath}`], { encoding: 'utf8' });
-        fs.mkdirSync(path.join(workspace, '.github'), { recursive: true });
-        fs.writeFileSync(path.join(workspace, configPath), content);
-      }
-      if (step.uses?.startsWith('actions/dependency-review-action@')) {
-        return YAML.parse(fs.readFileSync(path.join(workspace, step.with['config-file']), 'utf8'));
-      }
-    }
-    assert.fail('triggered dependency review must consume its policy');
-  } finally {
-    fs.rmSync(workspace, { recursive: true, force: true });
-  }
-}
-
-test('dependency review reads its tracked local policy after checkout on a clean runner', () => {
-  for (const changedPath of ['package.json', 'package-lock.json', '.github/dependency-review-config.yml']) {
-    assert.deepEqual(simulateDependencyReview(changedPath), {
-      'fail-on-severity': 'high', 'fail-on-scopes': 'runtime',
-    });
-  }
-});
-
-test('dependency review validates changes to its own workflow and ignores unrelated source', () => {
-  assert.deepEqual(simulateDependencyReview('.github/workflows/dependency-review.yml'), {
-    'fail-on-severity': 'high', 'fail-on-scopes': 'runtime',
-  });
-  assert.equal(simulateDependencyReview('src/application.js'), undefined);
 });
 
 test('supply-chain and promotion evidence pass the immutable repository ID', () => {

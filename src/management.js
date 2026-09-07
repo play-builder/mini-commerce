@@ -13,5 +13,9 @@ export function createManagement({ readiness, metrics, build }) {
   });
   app.get('/version', (_req, res) => res.json(build));
   app.use((_req, res) => res.status(404).json({ error: 'not found' }));
+  app.use((_error, _req, res, next) => {
+    if (res.headersSent) return next(_error);
+    res.status(500).json({ error: 'internal server error' });
+  });
   return app;
 }

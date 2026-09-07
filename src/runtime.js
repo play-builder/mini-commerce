@@ -1,3 +1,5 @@
+import { createServer } from 'node:http';
+
 import { createApplication } from './application.js';
 import { createBusinessMetrics } from './business-metrics.js';
 import { createCommerceService, DatabaseUnavailableError } from './commerce-service.js';
@@ -8,6 +10,23 @@ import { createLogger } from './logger.js';
 import { createManagement } from './management.js';
 import { createReadiness } from './readiness.js';
 import { getTracer } from './telemetry.js';
+
+function listen(server, port) {
+  return new Promise((resolve, reject) => {
+    const onError = (error) => { server.off('listening', onListening); reject(error); };
+    const onListening = () => { server.off('error', onError); resolve(); };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(port);
+  });
+}
+
+// Check the schema required by this image, without scanning data or modifying it.
+const startupSchemaQuery = `
+  SELECT p.display_name, p.price_cents, i.available_quantity,
+         o.idempotency_key, o.total_cents, oi.quantity
+  FROM products p, inventory i, orders o, order_items oi LIMIT 0
+`;
 
 export function createRuntime({ runtimeConfig, dependencies = {} }) {
   const telemetry = dependencies.telemetry ?? {
@@ -24,12 +43,12 @@ export function createRuntime({ runtimeConfig, dependencies = {} }) {
     dependencyPolicy: runtimeConfig.readinessDependencyPolicy,
     failureThreshold: runtimeConfig.readinessFailureThreshold,
     recoveryThreshold: runtimeConfig.readinessRecoveryThreshold,
-    checkDependency: async () => !pool || (await pool.query('SELECT 1'), true),
+    checkDependency: async () => !pool || (await pool.query(startupSchemaQuery), true),
   }) ?? createReadiness({
     dependencyPolicy: runtimeConfig.readinessDependencyPolicy,
     failureThreshold: runtimeConfig.readinessFailureThreshold,
     recoveryThreshold: runtimeConfig.readinessRecoveryThreshold,
-    checkDependency: async () => !pool || (await pool.query('SELECT 1'), true),
+    checkDependency: async () => !pool || (await pool.query(startupSchemaQuery), true),
   });
   const observer = pool ? (dependencies.createDatabaseObservability?.({ pool, metrics, logger, readiness })
     ?? createDatabaseObservability({ pool, metrics, logger, readiness })) : null;
@@ -59,9 +78,26 @@ export function createRuntime({ runtimeConfig, dependencies = {} }) {
   return {
     application, management, commerceService, metrics, logger, observer, readiness, telemetry,
     async start() {
-      await readiness.initialize();
-      const publicServer = application.listen(runtimeConfig.publicPort);
-      const managementServer = management.listen(runtimeConfig.managementPort);
+      const publicServer = createServer(application);
+      const managementServer = createServer(management);
+      // Reject startup if a required schema/connection is unavailable. A supervisor retries;
+      // an indefinitely unready process must not wait for business traffic to recover.
+      try {
+        await readiness.initialize();
+        if (!readiness.snapshot().ready) throw new Error('dependency unavailable');
+        await listen(publicServer, runtimeConfig.publicPort);
+        await listen(managementServer, runtimeConfig.managementPort);
+      } catch {
+        readiness.markNotReady('startup failed');
+        await Promise.allSettled([
+          ...[publicServer, managementServer].map((server) => new Promise((resolve) => {
+            server.closeAllConnections();
+            server.close(resolve);
+          })),
+          pool?.end(), observer?.close(), telemetry.shutdown(),
+        ]);
+        throw new Error('application startup failed: check database schema, connectivity, and listener ports');
+      }
       const lifecycleFactory = dependencies.createLifecycle ?? createLifecycle;
       lifecycle = lifecycleFactory({
         readiness, publicServer, managementServer, pool, telemetry, observer, logger,

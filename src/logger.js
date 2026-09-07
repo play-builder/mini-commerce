@@ -13,7 +13,7 @@ const databaseOperations = new Set([
 ]);
 const databaseReasons = new Set(['query_failed', 'connection_failed']);
 const orderFailureReasons = new Set([
-  'validation', 'product_not_found', 'insufficient_stock', 'database', 'internal',
+  'validation', 'product_not_found', 'insufficient_stock', 'idempotency_conflict', 'database', 'internal',
 ]);
 
 function safeDetails(event, details) {

@@ -6,13 +6,13 @@ export function createApplication({ commerceService } = {}) {
   if (!commerceService) throw new TypeError('commerceService is required');
   const app = express();
   app.disable('x-powered-by');
-  app.use(express.json({ limit: '32kb' }));
   app.use((req, res, next) => {
     const spanContext = trace.getSpan(context.active())?.spanContext();
     const currentRequestId = requestId(req.get('x-request-id'));
     res.set('x-request-id', currentRequestId);
     runWithRequestContext({ requestId: currentRequestId, traceId: spanContext?.traceId }, next);
   });
+  app.use(express.json({ limit: '32kb' }));
   app.get('/products', async (_req, res, next) => {
     try { res.json({ products: await commerceService.listProducts() }); } catch (error) { next(error); }
   });
@@ -33,7 +33,21 @@ export function createApplication({ commerceService } = {}) {
   });
   app.use((_req, res) => res.status(404).json({ error: 'not found' }));
   app.use((error, _req, res, _next) => {
-    const status = error.statusCode ?? 500;
+    if (res.headersSent) return _next(error);
+    const parserErrors = {
+      'entity.parse.failed': [400, 'invalid JSON body'],
+      'entity.too.large': [413, 'request body too large'],
+      'encoding.unsupported': [415, 'unsupported content encoding'],
+      'charset.unsupported': [415, 'unsupported charset'],
+      'request.aborted': [400, 'request aborted'],
+      'request.size.invalid': [400, 'invalid request size'],
+    };
+    if (Object.hasOwn(parserErrors, error.type)) {
+      const [status, message] = parserErrors[error.type];
+      return res.status(status).json({ error: message });
+    }
+    const status = Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode <= 599
+      ? error.statusCode : 500;
     const message = error.name === 'DatabaseUnavailableError'
       ? 'database unavailable'
       : status >= 500 ? 'internal server error' : error.message;

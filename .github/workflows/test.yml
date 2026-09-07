@@ -9,6 +9,7 @@ permissions: {}
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     env:
@@ -32,6 +33,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Set up Node.js
@@ -41,7 +43,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --ignore-scripts
 
       - name: Lint
         run: npm run lint
@@ -54,11 +56,14 @@ jobs:
           --bootstrap-base-sha "0f6e4ce79e102054fa63c8d07b53f24dbdbb4d"
           --candidate openapi/mini-commerce.v1.yaml
 
-      - name: Unit tests
-        run: npm test
+      - name: Unit and required PostgreSQL integration tests
+        run: npm run test:ci
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
 
       - name: Curl loop integration test
         run: bash test/curl-loop.test.sh
 
       - name: Build the runtime image
-        run: docker build --tag sample-app:test .
+        run: docker build --tag mini-commerce:test .

@@ -55,9 +55,12 @@ export function createDatabasePool(databaseConfig) {
     user: databaseConfig.user,
     password: databaseConfig.password,
     ssl: databaseConfig.ssl ? { rejectUnauthorized: true } : false,
-    max: 10,
+    max: databaseConfig.poolMax ?? 10,
     connectionTimeoutMillis: databaseConfig.connectionTimeoutMs,
     query_timeout: databaseConfig.queryTimeoutMs,
+    statement_timeout: databaseConfig.statementTimeoutMs ?? 2000,
+    lock_timeout: databaseConfig.lockTimeoutMs ?? 1000,
+    idle_in_transaction_session_timeout: databaseConfig.idleTransactionTimeoutMs ?? 10000,
     application_name: 'mini-commerce',
   });
 }
@@ -163,6 +166,7 @@ export function createPostgresCommerceRepository(
     async withTransaction(callback) {
       return observeOperation('transaction', async (databaseCall) => {
         const client = await databaseCall(() => pool.connect(), 'connection_failed');
+        let discardClient = false;
         try {
           const transactionQuery = (text, values) => databaseCall(() => client.query(text, values));
           await transactionQuery('BEGIN');
@@ -250,11 +254,12 @@ export function createPostgresCommerceRepository(
           try {
             await databaseCall(() => client.query('ROLLBACK'));
           } catch {
-            // The original business operation error remains the stable boundary.
+            // A connection with an unconfirmed rollback must never return to the pool.
+            discardClient = true;
           }
           throw error;
         } finally {
-          client.release();
+          client.release(discardClient);
         }
       });
     },

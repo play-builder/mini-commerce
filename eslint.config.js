@@ -1,6 +1,6 @@
 export default [
   {
-    files: ['**/*.js'],
+    files: ['**/*.js', '**/*.mjs'],
     languageOptions: {
       ecmaVersion: 2024,
       sourceType: 'module',
@@ -10,6 +10,8 @@ export default [
         process: 'readonly',
         setTimeout: 'readonly',
         URL: 'readonly',
+        Buffer: 'readonly',
+        structuredClone: 'readonly',
       },
     },
     rules: {

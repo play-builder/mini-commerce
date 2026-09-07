@@ -14,8 +14,32 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  delivery-preflight:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout delivery validation
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.20.0
+      - name: Validate registry variables before requesting AWS credentials
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+          AWS_ATTEST_VERIFY_ROLE_ARN: ${{ vars.AWS_ATTEST_VERIFY_ROLE_ARN }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: node scripts/delivery-preflight.mjs registry
+
+  build:
+    needs: delivery-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -48,6 +72,8 @@ jobs:
 
       - name: Checkout application
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Set up Node.js
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
@@ -57,9 +83,10 @@ jobs:
 
       - name: Install and test
         run: |
-          npm ci
+          npm ci --ignore-scripts
           npm run lint
-          npm test
+          npm run test:ci
+          npm audit --omit=dev --audit-level=high
 
       - name: Configure AWS credentials with GitHub OIDC
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
@@ -73,7 +100,18 @@ jobs:
 
       - name: Set image repository
         id: image
-        run: echo "repository=${{ steps.ecr.outputs.registry }}/${{ vars.ECR_REPOSITORY }}" >> "$GITHUB_OUTPUT"
+        env:
+          ECR_REGISTRY: ${{ steps.ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+        run: |
+          echo "repository=$ECR_REGISTRY/$ECR_REPOSITORY" >> "$GITHUB_OUTPUT"
+          echo "built_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up pinned ARM64 emulation
+        uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a # v4.3.0
+        with:
+          platforms: arm64
+          image: docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
@@ -89,7 +127,7 @@ jobs:
           build-args: |
             APP_VERSION=${{ github.sha }}
             GIT_SHA=${{ github.sha }}
-            BUILD_DATE=${{ github.event.repository.updated_at }}
+            BUILD_DATE=${{ steps.image.outputs.built_at }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: mode=max
@@ -98,6 +136,7 @@ jobs:
   verify-image-index:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -107,6 +146,8 @@ jobs:
     steps:
       - name: Checkout image verifier
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Configure AWS credentials with GitHub OIDC
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
@@ -126,6 +167,7 @@ jobs:
   attest-and-verify:
     needs: [build, verify-image-index]
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -137,6 +179,8 @@ jobs:
     steps:
       - name: Checkout supply-chain verifier
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
 
       - name: Configure AWS credentials with GitHub OIDC
         uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
@@ -237,10 +281,11 @@ jobs:
           ATTESTATION_ID: ${{ steps.provenance-attestation.outputs.attestation-id }}
           ATTESTATION_URL: ${{ steps.provenance-attestation.outputs.attestation-url }}
           REPOSITORY_ID: ${{ github.event.repository.id }}
+          ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
         run: |
           gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://slsa.dev/provenance/v1"
           gh attestation verify "oci://$IMAGE_REPOSITORY@$IMAGE_DIGEST" --repo "$GITHUB_REPOSITORY" --bundle-from-oci --signer-workflow "$GITHUB_REPOSITORY/.github/workflows/ci.yml" --source-digest "$GITHUB_SHA" --predicate-type "https://spdx.dev/Document/v2.3"
-          aws ecr list-image-referrers --repository-name "${{ vars.ECR_REPOSITORY }}" --subject-id "imageDigest=$IMAGE_DIGEST" > ecr-referrers.json
+          aws ecr list-image-referrers --repository-name "$ECR_REPOSITORY" --subject-id "imageDigest=$IMAGE_DIGEST" > ecr-referrers.json
           node scripts/write-supply-chain-evidence.mjs image-index.json ecr-referrers.json supply-chain-evidence.json
           node scripts/verify-supply-chain.mjs supply-chain-evidence.json
 
@@ -256,6 +301,7 @@ jobs:
     if: ${{ github.ref == 'refs/heads/main' }}
     needs: attest-and-verify
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     environment: gitops-dev-delivery
     permissions:
       contents: read
@@ -266,7 +312,21 @@ jobs:
       - name: Checkout application scripts
         uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
+          persist-credentials: false
           path: app
+
+      - name: Set up Node.js for delivery scripts
+        uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: 24.20.0
+
+      - name: Validate GitOps delivery configuration
+        env:
+          GITOPS_APP_ID: ${{ vars.GITOPS_APP_ID }}
+          GITOPS_OWNER: ${{ vars.GITOPS_OWNER }}
+          GITOPS_REPOSITORY_NAME: ${{ vars.GITOPS_REPOSITORY_NAME }}
+          GITOPS_APP_PRIVATE_KEY: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+        run: node app/scripts/delivery-preflight.mjs gitops
 
       - name: Create GitHub App token
         id: app-token
