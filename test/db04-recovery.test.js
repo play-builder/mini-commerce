@@ -4,9 +4,9 @@ import { test } from 'node:test';
 
 import { verifyDb04RecoverySource } from '../scripts/export-release-evidence.mjs';
 
-const scope = { courseId: 'course-fixture', accountId: '123456789012', region: 'ap-northeast-2' };
-const repository = 'play-builder/cicd-course-sample-app';
-const imageRepository = '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/course/sample-app';
+const scope = { ownerId: 'mini-commerce-fixture', accountId: '123456789012', region: 'ap-northeast-2' };
+const repository = 'play-builder/mini-commerce';
+const imageRepository = '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/mini-commerce';
 const digest = (letter) => `sha256:${letter.repeat(64)}`;
 const sha = (letter) => letter.repeat(40);
 const releaseLineage = {
@@ -26,13 +26,13 @@ function source(strategy) {
     ? { repository, sourceSha: sha('3'), imageRepository, indexDigest: digest('3'), strategy }
     : { ...stable, strategy };
   return {
-    schemaVersion: 'course.db04-recovery/v1', evidenceGrade: 'INCIDENT_EVIDENCE',
+    schemaVersion: 'playbuilder.db04-recovery/v1', evidenceGrade: 'INCIDENT_EVIDENCE',
     incidentId: 'INC-DB-04', scenario: strategy, ...scope,
     executionId: `execution-${strategy}`, stable, faulty, recovered,
     workflow: {
       runId: strategy === 'git-revert' ? '1001' : strategy === 'break-glass-undo-plus-git' ? '1002' : '1003',
       runAttempt: 1,
-      runUrl: `https://github.com/play-builder/cicd-course-sample-app/actions/runs/${strategy === 'git-revert' ? '1001' : strategy === 'break-glass-undo-plus-git' ? '1002' : '1003'}`,
+      runUrl: `https://github.com/play-builder/mini-commerce/actions/runs/${strategy === 'git-revert' ? '1001' : strategy === 'break-glass-undo-plus-git' ? '1002' : '1003'}`,
     },
     gitopsRevision: sha(strategy === 'git-revert' ? 'a' : strategy === 'break-glass-undo-plus-git' ? 'b' : 'c'),
     rolloutRevision: strategy === 'git-revert' ? 5 : strategy === 'break-glass-undo-plus-git' ? 6 : 7,
@@ -80,7 +80,7 @@ test('DB04 recovery source는 strategy와 workflow URL identity가 다르면 거
   assert.throws(() => verify(wrongStrategy), /strategy\/scenario mismatch/);
 
   const wrongUrl = source('break-glass-undo-plus-git');
-  wrongUrl.workflow.runUrl = 'https://github.com/play-builder/cicd-course-sample-app/actions/runs/9999';
+  wrongUrl.workflow.runUrl = 'https://github.com/play-builder/mini-commerce/actions/runs/9999';
   assert.throws(() => verify(wrongUrl), /workflow identity is invalid/);
 });
 
@@ -89,9 +89,9 @@ test('DB04 recovery source는 canonical application, workflow, ECR scope만 승�
     ['numeric run ID', (value) => { value.workflow.runId = 1001; }],
     ['whitespace owner', (value) => {
       for (const name of ['stable', 'faulty', 'recovered']) {
-        value[name].repository = 'play builder/cicd-course-sample-app';
+        value[name].repository = 'play builder/mini-commerce';
       }
-      value.workflow.runUrl = 'https://github.com/play builder/cicd-course-sample-app/actions/runs/1001';
+      value.workflow.runUrl = 'https://github.com/play builder/mini-commerce/actions/runs/1001';
     }],
     ['arbitrary source repository', (value) => {
       for (const name of ['stable', 'faulty', 'recovered']) {
@@ -104,12 +104,12 @@ test('DB04 recovery source는 canonical application, workflow, ECR scope만 승�
     }],
     ['cross-region ECR repository', (value) => {
       for (const name of ['stable', 'faulty', 'recovered']) {
-        value[name].imageRepository = '123456789012.dkr.ecr.us-east-1.amazonaws.com/course/sample-app';
+        value[name].imageRepository = '123456789012.dkr.ecr.us-east-1.amazonaws.com/mini-commerce';
       }
     }],
     ['foreign-account ECR repository', (value) => {
       for (const name of ['stable', 'faulty', 'recovered']) {
-        value[name].imageRepository = '999999999999.dkr.ecr.ap-northeast-2.amazonaws.com/course/sample-app';
+        value[name].imageRepository = '999999999999.dkr.ecr.ap-northeast-2.amazonaws.com/mini-commerce';
       }
     }],
   ];

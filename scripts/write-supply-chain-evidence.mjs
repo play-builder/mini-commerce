@@ -15,7 +15,7 @@ const referrers = JSON.parse(fs.readFileSync(referrersFile, 'utf8')).referrers ?
 const { provenanceDigest, sbomDigest } = selectReferrerDigests(referrers);
 const repositoryId = normalizeRepositoryId(process.env.REPOSITORY_ID ?? '');
 const evidence = {
-  schemaVersion: 'course.supply-chain/v2',
+  schemaVersion: 'playbuilder.supply-chain/v2',
   repositoryId,
   repositoryName: process.env.GITHUB_REPOSITORY,
   sourceSha: process.env.GITHUB_SHA,

@@ -4,21 +4,21 @@ import path from 'node:path';
 
 async function ensureMigrationLedger(client) {
   const bootstrap = () => client.query(`
-      CREATE TABLE IF NOT EXISTS course_migration_ledger (
+      CREATE TABLE IF NOT EXISTS pb_migration_ledger (
         filename text PRIMARY KEY,
         sha256 text NOT NULL,
         applied_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
-      CREATE TABLE IF NOT EXISTS course_migration_ledger_control (
+      CREATE TABLE IF NOT EXISTS pb_migration_ledger_control (
         id smallint PRIMARY KEY CHECK (id = 1)
       );
-      CREATE TABLE IF NOT EXISTS course_migration_contract_gate (
+      CREATE TABLE IF NOT EXISTS pb_migration_contract_gate (
         migration_filename text PRIMARY KEY,
         evidence_sha256 text NOT NULL,
         evidence_source text NOT NULL,
         verified_at timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP
       );
-      INSERT INTO course_migration_ledger_control (id)
+      INSERT INTO pb_migration_ledger_control (id)
       VALUES (1)
       ON CONFLICT (id) DO NOTHING;
     `);
@@ -66,7 +66,7 @@ function verifyContract003RollbackCandidateSource(source, { expected, now = new 
     'schemaVersion', 'evidenceGrade', 'environment', 'region', 'clusterArn', 'rolloutName',
     'gitopsRevision', 'sourceEvidenceDigest', 'observedAt', 'expiresAt', 'candidates',
   ], 'rollback candidate evidence');
-  if (evidence.schemaVersion !== 'course.rollback-candidates/v1') {
+  if (evidence.schemaVersion !== 'playbuilder.rollback-candidates/v1') {
     throw new Error('ROLLBACK_CANDIDATES_SCHEMA_UNSUPPORTED');
   }
   if (evidence.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('ROLLBACK_CANDIDATES_MUST_BE_CLOUD_RUNTIME');
@@ -141,7 +141,7 @@ export function verifyContract003RollbackCandidates(evidenceFile, expected, now 
 export async function recordContract003Gate(client, evidence) {
   const filename = '003_contract_product_name.js';
   const existing = await client.query(
-    'SELECT evidence_sha256 FROM course_migration_contract_gate WHERE migration_filename = $1',
+    'SELECT evidence_sha256 FROM pb_migration_contract_gate WHERE migration_filename = $1',
     [filename],
   );
   if (existing.rowCount === 1 && existing.rows[0].evidence_sha256 !== evidence.sha256) {
@@ -149,7 +149,7 @@ export async function recordContract003Gate(client, evidence) {
   }
   if (existing.rowCount === 0) {
     await client.query(
-      `INSERT INTO course_migration_contract_gate
+      `INSERT INTO pb_migration_contract_gate
         (migration_filename, evidence_sha256, evidence_source)
        VALUES ($1, $2, $3)`,
       [filename, evidence.sha256, evidence.source],
@@ -179,7 +179,7 @@ export async function verifyAppliedMigrationLedger(client, migrationDirectory) {
   await ensureMigrationLedger(client);
   const sources = readMigrationSources(migrationDirectory);
   const applied = await readAppliedMigrations(client);
-  const ledger = await client.query('SELECT filename, sha256 FROM course_migration_ledger');
+  const ledger = await client.query('SELECT filename, sha256 FROM pb_migration_ledger');
   const recorded = new Map(ledger.rows.map(({ filename, sha256 }) => [filename, sha256]));
 
   for (const filename of applied) {
@@ -192,7 +192,7 @@ export async function verifyAppliedMigrationLedger(client, migrationDirectory) {
   if (applied.includes('003_contract_product_name.js')) {
     const gate = await client.query(`
       SELECT evidence_sha256, evidence_source
-      FROM course_migration_contract_gate
+      FROM pb_migration_contract_gate
       WHERE migration_filename = '003_contract_product_name.js'
     `);
     if (gate.rowCount !== 1) throw new Error('CONTRACT_003_GATE_EVIDENCE_MISSING');
@@ -218,7 +218,7 @@ export async function recordAppliedMigrationLedger(client, migrationDirectory) {
     const sourceSha256 = sources.get(filename);
     if (!sourceSha256) throw new Error(`APPLIED_MIGRATION_SOURCE_MISSING: ${filename}`);
     const existing = await client.query(
-      'SELECT sha256 FROM course_migration_ledger WHERE filename = $1',
+      'SELECT sha256 FROM pb_migration_ledger WHERE filename = $1',
       [filename],
     );
     if (existing.rowCount === 1 && existing.rows[0].sha256 !== sourceSha256) {
@@ -226,7 +226,7 @@ export async function recordAppliedMigrationLedger(client, migrationDirectory) {
     }
     if (existing.rowCount === 0) {
       await client.query(
-        'INSERT INTO course_migration_ledger (filename, sha256) VALUES ($1, $2)',
+        'INSERT INTO pb_migration_ledger (filename, sha256) VALUES ($1, $2)',
         [filename, sourceSha256],
       );
     }
@@ -239,7 +239,7 @@ export async function withLedgerSerialization(pool, operation) {
   try {
     await ensureMigrationLedger(client);
     await client.query('BEGIN');
-    await client.query('SELECT id FROM course_migration_ledger_control WHERE id = 1 FOR UPDATE');
+    await client.query('SELECT id FROM pb_migration_ledger_control WHERE id = 1 FOR UPDATE');
     const result = await operation(client);
     await client.query('COMMIT');
     return result;

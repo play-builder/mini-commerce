@@ -75,11 +75,11 @@ test('operator target gates 003 only while it is pending and records matching ev
   const observedAt = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const expiresAt = new Date(Date.now() + 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   fs.writeFileSync(evidenceFile, JSON.stringify({
-    schemaVersion: 'course.rollback-candidates/v1',
+    schemaVersion: 'playbuilder.rollback-candidates/v1',
     evidenceGrade: 'CLOUD_RUNTIME',
     environment: 'prod',
     region: 'ap-northeast-2',
-    clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod',
+    clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-prod',
     rolloutName: 'sample-app',
     gitopsRevision: '2'.repeat(40),
     sourceEvidenceDigest: `sha256:${'b'.repeat(64)}`,
@@ -113,7 +113,7 @@ test('operator target gates 003 only while it is pending and records matching ev
     assert.match(applied.stdout, /applied 1 migration/);
     const gate = await pool.query(`
       SELECT migration_filename, evidence_sha256
-      FROM course_migration_contract_gate
+      FROM pb_migration_contract_gate
     `);
     assert.deepEqual(gate.rows.map(({ migration_filename }) => migration_filename), [
       '003_contract_product_name.js',

@@ -1,8 +1,8 @@
 {
-  "schemaVersion": "course.incident-index/v1",
+  "schemaVersion": "playbuilder.incident-index/v1",
   "evidenceGrade": "STATIC",
   "curriculumVersion": "v3.4",
-  "courseId": "course-fixture",
+  "ownerId": "mini-commerce-fixture",
   "accountId": "123456789012",
   "region": "ap-northeast-2",
   "startedAt": "2026-09-03T00:00:00Z",
@@ -23,56 +23,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -95,56 +95,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -167,56 +167,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -247,56 +247,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -319,56 +319,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -399,56 +399,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -487,56 +487,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -559,56 +559,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -639,56 +639,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -719,56 +719,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -799,56 +799,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -871,56 +871,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -959,56 +959,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1031,56 +1031,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1127,56 +1127,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1199,56 +1199,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1262,56 +1262,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1325,56 +1325,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1397,56 +1397,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
@@ -1509,56 +1509,56 @@
           "lifecycle": {
             "baseline": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "inject": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "detect": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "mitigate": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "recover": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "reconcile": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "prevent": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }
             ],
             "cleanup": [
               {
-                "repository": "cicd-course-sample-app",
+                "repository": "mini-commerce",
                 "path": "test/fixtures/release-evidence/static-incident-artifact.txt",
                 "sha256": "9d205696bdd9049261c615c0ce2eef19c6e684dbd491a4faff32fcf76cf1a6d8"
               }

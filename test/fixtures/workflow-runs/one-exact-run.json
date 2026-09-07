@@ -2,7 +2,7 @@
   "runs": [
     {
       "id": 712,
-      "html_url": "https://github.com/play-builder/cicd-course-sample-app/actions/runs/712",
+      "html_url": "https://github.com/play-builder/mini-commerce/actions/runs/712",
       "head_sha": "1111111111111111111111111111111111111111",
       "event": "push",
       "name": "ci",

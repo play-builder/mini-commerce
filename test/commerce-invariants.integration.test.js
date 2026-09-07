@@ -39,7 +39,7 @@ test('commerce invariant verifier는 구조 위반과 명시적인 최소 worklo
     await client.query(`
       INSERT INTO order_items
         (order_id, product_id, sku, product_name, unit_price_cents, quantity)
-      VALUES ($1, 1, 'COURSE-LAPTOP', 'Course Laptop', 129900, 1)
+      VALUES ($1, 1, 'PB-LAPTOP', 'PlayBuilder Laptop', 129900, 1)
     `, [order.rows[0].id]);
     assert.equal((await verifyCommerceInvariants(client, { minimumOrderCount: 1 })).orderCount, 1);
     await client.query('ALTER TABLE inventory DROP CONSTRAINT inventory_available_quantity_check');

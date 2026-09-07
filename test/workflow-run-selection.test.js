@@ -27,7 +27,7 @@ test('exact workflow identity는 유일한 새 run만 선택한다', () => {
   });
   assert.deepEqual(selected, {
     id: 712,
-    htmlUrl: 'https://github.com/play-builder/cicd-course-sample-app/actions/runs/712',
+    htmlUrl: 'https://github.com/play-builder/mini-commerce/actions/runs/712',
     headSha: selection.headSha,
     event: selection.event,
     workflowName: selection.workflowName,
@@ -47,7 +47,7 @@ test('dispatch 출력의 유일한 run URL과 ID를 보존한다', () => {
   );
   assert.deepEqual(parseDispatchRunUrl(output), {
     runId: 1234567890,
-    runUrl: 'https://github.com/play-builder/cicd-course-sample-app/actions/runs/1234567890',
+    runUrl: 'https://github.com/play-builder/mini-commerce/actions/runs/1234567890',
   });
   assert.throws(() => parseDispatchRunUrl('no URL'), /DISPATCH_RUN_URL_NOT_FOUND/);
   assert.throws(

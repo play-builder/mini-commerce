@@ -13,7 +13,7 @@ import { parse as parseYaml } from 'yaml';
 import { classifyRollbackBoundary } from './gitops-values-lib.mjs';
 
 const requiredKeys = [
-  'schemaVersion', 'evidenceGrade', 'courseId', 'accountId', 'region',
+  'schemaVersion', 'evidenceGrade', 'ownerId', 'accountId', 'region',
   'observedAt', 'upstreamEvidence',
   'sourceSha', 'runUrl', 'runId', 'imageDigest', 'attestation', 'devGitopsSha',
   'prodGitopsSha', 'argoRevision', 'rolloutRevision', 'analysisRun', 'slo',
@@ -148,16 +148,16 @@ function verifyIncidentArtifact(bytes, {
 }) {
   const envelope = JSON.parse(bytes.toString('utf8'));
   assertExactKeys(envelope, [
-    'schemaVersion', 'evidenceGrade', 'incidentId', 'scenario', 'phase', 'courseId',
+    'schemaVersion', 'evidenceGrade', 'incidentId', 'scenario', 'phase', 'ownerId',
     'accountId', 'region', 'environment', 'producer', 'subject', 'sources', 'outcome', 'observedAt',
   ], 'incident artifact');
   assertExactKeys(envelope.producer, ['repository', 'revision'], 'incident artifact.producer');
   assertExactKeys(envelope.subject, ['kind', 'id'], 'incident artifact.subject');
   assertExactKeys(envelope.outcome, ['status', 'summary'], 'incident artifact.outcome');
-  if (envelope.schemaVersion !== 'course.incident-artifact/v1'
+  if (envelope.schemaVersion !== 'playbuilder.incident-artifact/v1'
     || envelope.evidenceGrade !== 'INCIDENT_EVIDENCE'
     || envelope.incidentId !== incident.id || envelope.scenario !== scenario.name
-    || envelope.phase !== phase || envelope.courseId !== expectedScope.courseId
+    || envelope.phase !== phase || envelope.ownerId !== expectedScope.ownerId
     || envelope.accountId !== expectedScope.accountId || envelope.region !== expectedScope.region
     || !['dev', 'prod', 'shared'].includes(envelope.environment)
     || !artifactRoots[envelope.producer.repository]
@@ -198,7 +198,7 @@ export function verifyDb04RecoverySource(bytes, {
     throw new Error('INC-DB-04 recovery source must be JSON');
   }
   assertExactKeys(value, [
-    'schemaVersion', 'evidenceGrade', 'incidentId', 'scenario', 'courseId', 'accountId',
+    'schemaVersion', 'evidenceGrade', 'incidentId', 'scenario', 'ownerId', 'accountId',
     'region', 'executionId', 'stable', 'faulty', 'recovered', 'workflow',
     'gitopsRevision', 'rolloutRevision', 'observedAt',
   ], 'INC-DB-04 recovery source');
@@ -208,17 +208,17 @@ export function verifyDb04RecoverySource(bytes, {
     ['recovered', ['repository', 'sourceSha', 'imageRepository', 'indexDigest', 'strategy']],
     ['workflow', ['runId', 'runAttempt', 'runUrl']],
   ]) assertExactKeys(value[name], keys, `INC-DB-04 recovery source.${name}`);
-  if (value.schemaVersion !== 'course.db04-recovery/v1'
+  if (value.schemaVersion !== 'playbuilder.db04-recovery/v1'
     || value.evidenceGrade !== 'INCIDENT_EVIDENCE'
     || value.incidentId !== incident.id || value.scenario !== scenario.name
-    || value.courseId !== expectedScope.courseId || value.accountId !== expectedScope.accountId
+    || value.ownerId !== expectedScope.ownerId || value.accountId !== expectedScope.accountId
     || value.region !== expectedScope.region || !isNonemptyString(value.executionId)
     || !shaPattern.test(value.gitopsRevision)
     || !Number.isSafeInteger(value.rolloutRevision) || value.rolloutRevision < 1) {
     throw new Error('INC-DB-04 recovery source identity mismatch');
   }
   const applicationRepository = value.stable.repository;
-  if (!/^[^/\s]+\/cicd-course-sample-app$/.test(applicationRepository)) {
+  if (!/^[^/\s]+\/mini-commerce$/.test(applicationRepository)) {
     throw new Error('INC-DB-04 recovery source application identity is invalid');
   }
   const image = parseEcrRepository(
@@ -226,7 +226,7 @@ export function verifyDb04RecoverySource(bytes, {
     'INC-DB-04 stable image repository',
   );
   if (image.accountId !== expectedScope.accountId || image.region !== expectedScope.region
-    || !/(^|\/)sample-app$/.test(image.name)) {
+    || !/(^|\/)mini-commerce$/.test(image.name)) {
     throw new Error('INC-DB-04 recovery source ECR identity is invalid');
   }
   for (const name of ['stable', 'faulty', 'recovered']) {
@@ -244,7 +244,7 @@ export function verifyDb04RecoverySource(bytes, {
   if (value.recovered.strategy !== scenario.name) {
     throw new Error('INC-DB-04 recovery strategy/scenario mismatch');
   }
-  const workflow = /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/.exec(
+  const workflow = /^https:\/\/github\.com\/([^/\s]+\/mini-commerce)\/actions\/runs\/(\d+)$/.exec(
     value.workflow.runUrl,
   );
   if (typeof value.workflow.runId !== 'string' || !/^\d+$/.test(value.workflow.runId)
@@ -293,17 +293,17 @@ function verifyIncidentIndex(source, {
 }) {
   const { value: index } = parseSource(source, expectedDigest, 'incident index');
   assertExactKeys(index, [
-    'schemaVersion', 'evidenceGrade', 'curriculumVersion', 'courseId', 'accountId',
+    'schemaVersion', 'evidenceGrade', 'curriculumVersion', 'ownerId', 'accountId',
     'region', 'startedAt', 'generatedAt', 'completionLevel', 'incidents',
   ], 'incident index');
-  if (index.schemaVersion !== 'course.incident-index/v1') {
+  if (index.schemaVersion !== 'playbuilder.incident-index/v1') {
     throw new Error('unsupported incident index schemaVersion');
   }
   if (index.curriculumVersion !== 'v3.4') throw new Error('incident curriculumVersion mismatch');
   if (index.evidenceGrade !== expectedGrade) throw new Error('incident index evidenceGrade mismatch');
-  if (!isNonemptyString(index.courseId) || !awsAccountPattern.test(index.accountId)
+  if (!isNonemptyString(index.ownerId) || !awsAccountPattern.test(index.accountId)
     || !supportedRegions.has(index.region)) throw new Error('invalid incident index scope');
-  if (expectedScope && (index.courseId !== expectedScope.courseId
+  if (expectedScope && (index.ownerId !== expectedScope.ownerId
     || index.accountId !== expectedScope.accountId || index.region !== expectedScope.region)) {
     throw new Error('incident index scope identity mismatch');
   }
@@ -475,7 +475,7 @@ function verifyIncidentIndex(source, {
 function verifyDevReady(value, {
   expectedRepositoryId, allowLegacyRepositoryIdentity = false,
 } = {}) {
-  const isV2 = value?.schemaVersion === 'course.dev-ready/v2';
+  const isV2 = value?.schemaVersion === 'playbuilder.dev-ready/v2';
   assertExactKeys(value, isV2 ? [
     'repositoryId', 'schemaVersion', 'environment', 'region', 'sourceSha', 'workflow', 'image',
     'attestation', 'gitops', 'cluster', 'slo', 'issuedAt', 'expiresAt',
@@ -491,7 +491,7 @@ function verifyDevReady(value, {
   assertExactKeys(value.gitops, ['devRevision'], 'DEV_READY.gitops');
   assertExactKeys(value.cluster, ['arn'], 'DEV_READY.cluster');
   assertExactKeys(value.slo, ['evidenceId'], 'DEV_READY.slo');
-  if (!['course.dev-ready/v1', 'course.dev-ready/v2'].includes(value.schemaVersion) || value.environment !== 'dev'
+  if (!['playbuilder.dev-ready/v1', 'playbuilder.dev-ready/v2'].includes(value.schemaVersion) || value.environment !== 'dev'
     || !supportedRegions.has(value.region) || value.workflow.name !== 'ci'
     || value.workflow.event !== 'push'
     || !Number.isSafeInteger(value.workflow.runAttempt) || value.workflow.runAttempt < 1
@@ -518,7 +518,7 @@ function verifyDevReady(value, {
   }
   const runMatch = (isV2
     ? /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)$/
-    : /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/
+    : /^https:\/\/github\.com\/([^/\s]+\/mini-commerce)\/actions\/runs\/(\d+)$/
   ).exec(value.workflow.runUrl);
   if (!runMatch || runMatch[2] !== String(value.workflow.runId)) {
     throw new Error('invalid DEV_READY workflow identity');
@@ -545,7 +545,7 @@ function verifyProdBaseline(value, mode) {
   ], 'Prod baseline');
   assertExactKeys(value.image, ['repository', 'indexDigest'], 'Prod baseline.image');
   assertExactKeys(value.rollout, ['stableHash', 'revision', 'trafficWeight'], 'Prod baseline.rollout');
-  if (value.schemaVersion !== 'course.prod-baseline/v1'
+  if (value.schemaVersion !== 'playbuilder.prod-baseline/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
     || !shaPattern.test(value.gitopsRevision) || !digestPattern.test(value.image.indexDigest)
     || !isNonemptyString(value.image.repository) || !isNonemptyString(value.rollout.stableHash)
@@ -597,7 +597,7 @@ function verifyProdSlo(value, mode) {
   if (JSON.stringify(metrics.map(({ name, phase }) => ({ name, phase }))) !== JSON.stringify([
     { name: 'request-rate', phase: 'Successful' }, { name: 'success-rate', phase: 'Successful' },
   ])) throw new Error('Prod SLO metrics are incomplete');
-  if (value.schemaVersion !== 'course.prod-slo/v1'
+  if (value.schemaVersion !== 'playbuilder.prod-slo/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
     || value.status !== 'PASS' || !shaPattern.test(value.source.sha)
     || !isNonemptyString(value.source.repository) || !isNonemptyString(value.image.repository)
@@ -719,7 +719,7 @@ function verifyFreeze(value, mode) {
   assertExactKeys(value.writers, [
     'loadGenerators', 'chaosResources', 'recoveryJobs', 'migrationJobs',
   ], 'GitOps freeze.writers');
-  if (value.schemaVersion !== 'course.gitops-freeze/v1'
+  if (value.schemaVersion !== 'playbuilder.gitops-freeze/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
     || value.status !== 'FROZEN' || !shaPattern.test(value.gitopsRevision)
     || Object.values(value.writers).some((count) => count !== 0)
@@ -797,7 +797,7 @@ function verifyRemoval(value, mode, freeze, freezeBytes) {
     'rollouts', 'deployments', 'statefulSets', 'jobs', 'externalSecrets', 'chaosResources',
   ], 'GitOps removal.remaining');
   assertExactKeys(value.providerSecrets, ['retained', 'inventorySha256'], 'GitOps removal.providerSecrets');
-  if (value.schemaVersion !== 'course.gitops-removal/v1'
+  if (value.schemaVersion !== 'playbuilder.gitops-removal/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
     || value.status !== 'REMOVED' || !shaPattern.test(value.gitopsRevision)
     || value.freezeEvidenceSha256 !== crypto.createHash('sha256').update(freezeBytes).digest('hex')
@@ -832,11 +832,11 @@ function verifyRemoval(value, mode, freeze, freezeBytes) {
 
 function verifyOwnership(value, mode, ownershipBytes) {
   assertExactKeys(value, [
-    'schemaVersion', 'evidenceGrade', 'courseId', 'accountId', 'region', 'resources', 'observedAt',
+    'schemaVersion', 'evidenceGrade', 'ownerId', 'accountId', 'region', 'resources', 'observedAt',
   ], 'cleanup ownership');
-  if (value.schemaVersion !== 'course.cleanup-ownership/v1'
+  if (value.schemaVersion !== 'playbuilder.cleanup-ownership/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
-    || !isNonemptyString(value.courseId) || !awsAccountPattern.test(value.accountId)
+    || !isNonemptyString(value.ownerId) || !awsAccountPattern.test(value.accountId)
     || !supportedRegions.has(value.region) || !Array.isArray(value.resources)) {
     throw new Error('invalid cleanup ownership evidence');
   }
@@ -852,7 +852,7 @@ function verifyOwnership(value, mode, ownershipBytes) {
       || resource.managedBy !== 'terraform'
       || typeof resource.billable !== 'boolean'
       || !['DELETE', 'RETAIN', 'EXTERNAL_SHARED'].includes(resource.decision)
-      || (resource.decision === 'DELETE' && resource.owner !== 'course')
+      || (resource.decision === 'DELETE' && resource.owner !== 'platform')
       || (resource.decision !== 'DELETE'
         && (!isNonemptyString(resource.reason) || !isNonemptyString(resource.followUpAction)))) {
       throw new Error('cleanup ownership resource is invalid');
@@ -881,15 +881,15 @@ function verifyOwnership(value, mode, ownershipBytes) {
 
 function verifyRetainDecisions(value, mode, ownership, ownershipResult) {
   assertExactKeys(value, [
-    'schemaVersion', 'evidenceGrade', 'status', 'courseId', 'accountId', 'region',
+    'schemaVersion', 'evidenceGrade', 'status', 'ownerId', 'accountId', 'region',
     'inventorySha256', 'decisions', 'approvedAt',
   ], 'cleanup retain decisions');
-  if (value.schemaVersion !== 'course.cleanup-retain-decisions/v1'
+  if (value.schemaVersion !== 'playbuilder.cleanup-retain-decisions/v1'
     // Retain decisions are a human-approved local-runtime artifact even when
     // the surrounding fixture set is static. Runtime mode still requires the
     // same taxonomy; a static marker would erase the approval boundary.
     || value.evidenceGrade !== 'LOCAL_RUNTIME'
-    || value.status !== 'APPROVED' || value.courseId !== ownership.courseId
+    || value.status !== 'APPROVED' || value.ownerId !== ownership.ownerId
     || value.accountId !== ownership.accountId || value.region !== ownership.region
     || value.inventorySha256 !== ownershipResult.inventoryDigest || !Array.isArray(value.decisions)) {
     throw new Error('invalid cleanup retain decisions');
@@ -921,7 +921,7 @@ function verifyRetainDecisions(value, mode, ownership, ownershipResult) {
 
 function verifyPreDestroy(value, mode, removal, removalBytes) {
   assertExactKeys(value, [
-    'schemaVersion', 'evidenceGrade', 'status', 'courseId', 'accountId', 'region',
+    'schemaVersion', 'evidenceGrade', 'status', 'ownerId', 'accountId', 'region',
     'gitopsRemovalSha256', 'clusters', 'remainingWriters', 'remainingWorkloads',
     'retainedStorage', 'observedAt',
   ], 'Kubernetes pre-destroy');
@@ -932,7 +932,7 @@ function verifyPreDestroy(value, mode, removal, removalBytes) {
     'applications', 'rollouts', 'deployments', 'statefulSets', 'jobs', 'externalSecrets',
     'chaosResources', 'volumeAttachments',
   ], 'Kubernetes pre-destroy.remainingWorkloads');
-  if (value.schemaVersion !== 'course.kubernetes-pre-destroy/v1'
+  if (value.schemaVersion !== 'playbuilder.kubernetes-pre-destroy/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
     || value.status !== 'PASS'
     || value.gitopsRemovalSha256 !== crypto.createHash('sha256').update(removalBytes).digest('hex')
@@ -966,18 +966,18 @@ function verifyResidual(value, mode, {
   removal, removalBytes, ownership, ownershipResult, retain, retainBytes, preDestroy, preDestroyBytes,
 }) {
   assertExactKeys(value, [
-    'schemaVersion', 'evidenceGrade', 'status', 'courseId', 'accountId', 'region',
+    'schemaVersion', 'evidenceGrade', 'status', 'ownerId', 'accountId', 'region',
     'inventorySha256', 'retainDecisionsSha256', 'kubernetesPreDestroySha256',
-    'gitopsRemovalSha256', 'unapprovedCourseOwned',
+    'gitopsRemovalSha256', 'unapprovedPlatformOwned',
     'externalShared', 'retained', 'observedAt',
   ], 'cleanup residual');
-  assertExactKeys(value.unapprovedCourseOwned, [
+  assertExactKeys(value.unapprovedPlatformOwned, [
     'loadBalancers', 'natGateways', 'eksClusters', 'ebsVolumes', 'ebsSnapshots',
     'ampWorkspaces', 'snsTopics', 'ecrRepositories', 'total',
-  ], 'cleanup residual.unapprovedCourseOwned');
-  if (value.schemaVersion !== 'course.cleanup-residual/v1'
+  ], 'cleanup residual.unapprovedPlatformOwned');
+  if (value.schemaVersion !== 'playbuilder.cleanup-residual/v1'
     || value.evidenceGrade !== (mode === 'runtime' ? 'CLOUD_RUNTIME' : 'STATIC')
-    || value.status !== 'PASS' || !isNonemptyString(value.courseId)
+    || value.status !== 'PASS' || !isNonemptyString(value.ownerId)
     || !awsAccountPattern.test(value.accountId)
     || !['ap-northeast-2', 'us-east-1'].includes(value.region)
     || !hexDigestPattern.test(value.inventorySha256)
@@ -987,7 +987,7 @@ function verifyResidual(value, mode, {
     || value.inventorySha256 !== ownershipResult.inventoryDigest
     || value.retainDecisionsSha256 !== crypto.createHash('sha256').update(retainBytes).digest('hex')
     || value.kubernetesPreDestroySha256 !== crypto.createHash('sha256').update(preDestroyBytes).digest('hex')
-    || Object.values(value.unapprovedCourseOwned).some((count) => count !== 0)) {
+    || Object.values(value.unapprovedPlatformOwned).some((count) => count !== 0)) {
     throw new Error('invalid cleanup residual evidence');
   }
   for (const item of value.externalShared) {
@@ -1007,8 +1007,8 @@ function verifyResidual(value, mode, {
       (field) => typeof field === 'string' && field.length > 0,
     ) || item.presentAfterCleanup !== true) throw new Error('retained cleanup item is incomplete');
   }
-  if (value.courseId !== ownership.courseId || value.courseId !== retain.courseId
-    || value.courseId !== preDestroy.courseId || value.accountId !== ownership.accountId
+  if (value.ownerId !== ownership.ownerId || value.ownerId !== retain.ownerId
+    || value.ownerId !== preDestroy.ownerId || value.accountId !== ownership.accountId
     || value.accountId !== retain.accountId || value.accountId !== preDestroy.accountId
     || value.region !== ownership.region || value.region !== retain.region
     || value.region !== preDestroy.region) throw new Error('cleanup evidence scope identity mismatch');
@@ -1106,7 +1106,7 @@ function verifyUpstreamEvidence(record, {
     now,
     artifactRoots,
     incidentCatalog,
-    expectedScope: { courseId: record.courseId, accountId: record.accountId, region: record.region },
+    expectedScope: { ownerId: record.ownerId, accountId: record.accountId, region: record.region },
     releaseLineage: rollback.value.releaseLineage,
   });
   verifyFreeze(freeze, mode);
@@ -1149,7 +1149,7 @@ function verifyUpstreamEvidence(record, {
     [devReady.cluster.arn, devCluster.clusterArn, 'Dev cluster ARN'],
     [prodSlo.clusterArn, prodCluster.clusterArn, 'Prod cluster ARN'],
     [prodSlo.region, residual.region, 'cleanup region'],
-    [record.courseId, residual.courseId, 'release courseId'],
+    [record.ownerId, residual.ownerId, 'release ownerId'],
     [record.accountId, residual.accountId, 'release accountId'],
     [record.region, residual.region, 'release region'],
     [record.region, devReady.region, 'DEV_READY region'],
@@ -1213,7 +1213,7 @@ export function exportReleaseEvidence(record, options = {}) {
   for (const key of requiredKeys) {
     if (isMissing(record[key])) throw new Error(`${key} is required`);
   }
-  if (record.schemaVersion !== 'course.release-evidence/v1') {
+  if (record.schemaVersion !== 'playbuilder.release-evidence/v1') {
     throw new Error('unsupported release evidence schemaVersion');
   }
   const expectedGrade = mode === 'fixture' ? 'STATIC' : 'INCIDENT_EVIDENCE';
@@ -1223,7 +1223,7 @@ export function exportReleaseEvidence(record, options = {}) {
       ? 'runtime release evidence requires INCIDENT_EVIDENCE'
       : 'fixture release evidence requires STATIC');
   }
-  if (!isNonemptyString(record.courseId) || !awsAccountPattern.test(record.accountId)
+  if (!isNonemptyString(record.ownerId) || !awsAccountPattern.test(record.accountId)
     || !supportedRegions.has(record.region)) throw new Error('invalid release evidence scope');
   const observedAt = parseTimestamp(record.observedAt, 'release evidence observedAt');
   if (observedAt > now) throw new Error('future release evidence is not allowed');
@@ -1418,7 +1418,7 @@ export function exportReleaseEvidenceFiles({
     mode: 'runtime',
     now,
     artifactRoots: {
-      'cicd-course-sample-app': sampleRepositoryRoot,
+      'mini-commerce': sampleRepositoryRoot,
       'argocd-gitops': gitopsRoot,
       'EKS-infra': infraRoot,
     },
@@ -1428,7 +1428,7 @@ export function exportReleaseEvidenceFiles({
   if (fs.existsSync(finalEvidencePath)) {
     const existing = JSON.parse(fs.readFileSync(finalEvidencePath, 'utf8'));
     const incoming = JSON.parse(serialized);
-    for (const key of ['courseId', 'sourceSha', 'runId', 'imageDigest']) {
+    for (const key of ['ownerId', 'sourceSha', 'runId', 'imageDigest']) {
       if (existing[key] !== incoming[key]) {
         throw new Error('refusing to overwrite a different release identity');
       }

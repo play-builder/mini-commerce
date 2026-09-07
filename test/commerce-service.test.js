@@ -22,8 +22,8 @@ function createRepository(overrides = {}) {
     async lockInventory(productIds) {
       calls.push(['lockInventory', productIds]);
       return [
-        { productId: 1, sku: 'COURSE-LAPTOP', name: 'Course Laptop', priceCents: 129900, availableQuantity: 5 },
-        { productId: 2, sku: 'COURSE-MOUSE', name: 'Course Mouse', priceCents: 3900, availableQuantity: 10 },
+        { productId: 1, sku: 'PB-LAPTOP', name: 'PlayBuilder Laptop', priceCents: 129900, availableQuantity: 5 },
+        { productId: 2, sku: 'PB-MOUSE', name: 'PlayBuilder Mouse', priceCents: 3900, availableQuantity: 10 },
       ].filter((item) => productIds.includes(item.productId));
     },
     async insertOrder(input) {
@@ -42,7 +42,7 @@ function createRepository(overrides = {}) {
   return {
     calls,
     async listProducts() {
-      return [{ id: 1, sku: 'COURSE-LAPTOP' }];
+      return [{ id: 1, sku: 'PB-LAPTOP' }];
     },
     async getInventory(productId) {
       return { productId, availableQuantity: 5 };
@@ -64,7 +64,7 @@ test('상품 조회와 재고 조회를 repository에 위임한다', async () =>
   const repository = createRepository();
   const service = createCommerceService(repository);
 
-  assert.equal((await service.listProducts())[0].sku, 'COURSE-LAPTOP');
+  assert.equal((await service.listProducts())[0].sku, 'PB-LAPTOP');
   assert.deepEqual(await service.getInventory(1), { productId: 1, availableQuantity: 5 });
 });
 
@@ -117,8 +117,8 @@ test('주문은 멱등성 lock과 재고 row lock을 잡고 하나의 transactio
   assert.equal(order.id, 77);
   assert.equal(order.totalCents, 393600);
   assert.deepEqual(order.items, [
-    { productId: 1, sku: 'COURSE-LAPTOP', name: 'Course Laptop', unitPriceCents: 129900, quantity: 3 },
-    { productId: 2, sku: 'COURSE-MOUSE', name: 'Course Mouse', unitPriceCents: 3900, quantity: 1 },
+    { productId: 1, sku: 'PB-LAPTOP', name: 'PlayBuilder Laptop', unitPriceCents: 129900, quantity: 3 },
+    { productId: 2, sku: 'PB-MOUSE', name: 'PlayBuilder Mouse', unitPriceCents: 3900, quantity: 1 },
   ]);
   assert.deepEqual(repository.calls.slice(0, 4), [
     'BEGIN',
@@ -153,7 +153,7 @@ test('재고가 부족하면 주문 전체를 거부한다', async () => {
   const repository = createRepository({
     transaction: {
       async lockInventory() {
-        return [{ productId: 1, sku: 'COURSE-LAPTOP', name: 'Course Laptop', priceCents: 129900, availableQuantity: 1 }];
+        return [{ productId: 1, sku: 'PB-LAPTOP', name: 'PlayBuilder Laptop', priceCents: 129900, availableQuantity: 1 }];
       },
     },
   });

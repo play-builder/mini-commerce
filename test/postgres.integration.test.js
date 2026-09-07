@@ -44,7 +44,7 @@ test('PostgreSQL migration과 실제 주문 transaction이 함께 동작한다',
 
     const products = await service.listProducts();
     assert.equal(products.length, 4);
-    assert.equal(products[0].sku, 'COURSE-LAPTOP');
+    assert.equal(products[0].sku, 'PB-LAPTOP');
 
     const first = await service.createOrder({
       idempotencyKey: 'postgres-integration-order',

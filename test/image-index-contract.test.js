@@ -7,7 +7,7 @@ const fixture = (name) => new URL(`./fixtures/oci-index/${name}`, import.meta.ur
 const digest = `sha256:${'c'.repeat(64)}`;
 
 function verify(name, candidateDigest = digest) {
-  return spawnSync('bash', [script, 'example.invalid/course/sample-app', candidateDigest], {
+  return spawnSync('bash', [script, 'example.invalid/mini-commerce', candidateDigest], {
     encoding: 'utf8',
     env: { ...process.env, IMAGE_INDEX_INSPECT_FILE: fixture(name) },
   });

@@ -88,10 +88,10 @@ test('operator target applies only its planned migration prefix and reports no w
       assert.deepEqual(await appliedMigrationNames(pool), ['001_initial_commerce.js']);
       const seedProducts = await pool.query('SELECT sku FROM products ORDER BY sku');
       assert.deepEqual(seedProducts.rows, [
-        { sku: 'COURSE-KEYBOARD' },
-        { sku: 'COURSE-LAPTOP' },
-        { sku: 'COURSE-MONITOR' },
-        { sku: 'COURSE-MOUSE' },
+        { sku: 'PB-KEYBOARD' },
+        { sku: 'PB-LAPTOP' },
+        { sku: 'PB-MONITOR' },
+        { sku: 'PB-MOUSE' },
       ]);
 
       const secondTarget = await runMigration(targetUrl, '002_expand_product_display_name');
@@ -143,11 +143,11 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
   const observedAt = new Date(Date.now() - 60_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const expiresAt = new Date(Date.now() + 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const validEvidence = {
-    schemaVersion: 'course.rollback-candidates/v1',
+    schemaVersion: 'playbuilder.rollback-candidates/v1',
     evidenceGrade: 'CLOUD_RUNTIME',
     environment: 'prod',
     region: 'ap-northeast-2',
-    clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod',
+    clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-prod',
     rolloutName: 'sample-app',
     gitopsRevision: '2'.repeat(40),
     sourceEvidenceDigest: `sha256:${'b'.repeat(64)}`,
@@ -197,7 +197,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
 
   const preflightPool = new Pool({ connectionString: targetUrl.toString() });
   await preflightPool.query(`
-    INSERT INTO course_migration_contract_gate
+    INSERT INTO pb_migration_contract_gate
       (migration_filename, evidence_sha256, evidence_source)
     VALUES ('003_contract_product_name.js', $1, '{}')
   `, ['0'.repeat(64)]);
@@ -211,7 +211,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     ORDER BY column_name
   `);
   await preflightPool.query(`
-    DELETE FROM course_migration_contract_gate
+    DELETE FROM pb_migration_contract_gate
     WHERE migration_filename = '003_contract_product_name.js'
   `);
   await preflightPool.end();
@@ -230,7 +230,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
   const pool = new Pool({ connectionString: targetUrl.toString() });
   const copiedDirectory = fs.mkdtempSync(path.join(os.tmpdir(), 'commerce-migrations-'));
   try {
-    const ledger = await pool.query('SELECT filename, sha256 FROM course_migration_ledger ORDER BY filename');
+    const ledger = await pool.query('SELECT filename, sha256 FROM pb_migration_ledger ORDER BY filename');
     assert.deepEqual(ledger.rows.map(({ filename }) => filename), [
       '001_initial_commerce.js',
       '002_expand_product_display_name.js',
@@ -239,7 +239,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     assert.ok(ledger.rows.every(({ sha256 }) => /^[0-9a-f]{64}$/.test(sha256)));
     const contractGate = await pool.query(`
       SELECT migration_filename, evidence_sha256
-      FROM course_migration_contract_gate
+      FROM pb_migration_contract_gate
     `);
     assert.deepEqual(contractGate.rows.map(({ migration_filename }) => migration_filename), [
       '003_contract_product_name.js',
@@ -251,7 +251,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
     assert.match(rerunWithoutExternalEvidence.stdout, /applied 0 migration/);
 
     await pool.query(`
-      UPDATE course_migration_contract_gate
+      UPDATE pb_migration_contract_gate
       SET evidence_sha256 = $1
       WHERE migration_filename = '003_contract_product_name.js'
     `, ['0'.repeat(64)]);
@@ -263,7 +263,7 @@ test('동시 migration을 직렬화하고 적용된 source checksum 변경을 �
       SELECT count(*)::int AS count
       FROM pg_locks l
       JOIN pg_class c ON c.oid = l.relation
-      WHERE c.relname = 'course_migration_ledger_control'
+      WHERE c.relname = 'pb_migration_ledger_control'
     `);
     assert.equal(locks.rows[0].count, 0);
 

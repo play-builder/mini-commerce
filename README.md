@@ -108,7 +108,7 @@ curl -fsS http://127.0.0.1:3000/products
 curl -fsS http://127.0.0.1:3000/products/1/inventory
 curl -fsS -X POST http://127.0.0.1:3000/orders \
   -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: course-order-001' \
+  -H 'Idempotency-Key: order-001' \
   -d '{"items":[{"productId":1,"quantity":2}]}'
 curl -fsS http://127.0.0.1:3000/orders/1
 ```
@@ -117,7 +117,7 @@ curl -fsS http://127.0.0.1:3000/orders/1
 주문을 반환합니다. 주문 생성은 PostgreSQL transaction과 inventory row lock을 사용합니다.
 
 Migration은 한 번 적용한 파일을 되돌리거나 수정하지 않는 forward-only 계약을 사용합니다.
-`course_migration_ledger`가 적용 파일의 SHA-256을 기록하고, 동시 runner는 control row와
+`pb_migration_ledger`가 적용 파일의 SHA-256을 기록하고, 동시 runner는 control row와
 `node-pg-migrate` advisory lock으로 직렬화됩니다.
 
 `002_expand_product_display_name.js`는 기존 `name`을 유지한 채 `display_name`을 추가하고
@@ -132,10 +132,10 @@ backfill합니다. 이 Expand 구간에서는 v1과 v2 application query가 같�
 사용하는지 확인한 뒤 적용하는 Contract 단계입니다. `display_name` null gate를 통과해야만
 `NOT NULL`을 설정하고 legacy `name`을 제거합니다. Rollback window 판정은 revision 번호 차이가
 아니라 target과 stable 사이에 실제 남아 있는 non-Experiment ReplicaSet 수를 사용합니다.
-Migration Job은 GitOps runtime checker가 만든 `course.rollback-candidates/v1` JSON 경로를
+Migration Job은 GitOps runtime checker가 만든 `playbuilder.rollback-candidates/v1` JSON 경로를
 `ROLLBACK_CANDIDATES_FILE`로 받아야 합니다. 각 candidate의 image digest, source revert SHA,
 Rollout revision, Pod template hash와 `productReadContract=v2prime`을 검증하고, 입력 파일 SHA-256을
-`course_migration_contract_gate`에 기록한 뒤에만 Contract 003을 실행합니다.
+`pb_migration_contract_gate`에 기록한 뒤에만 Contract 003을 실행합니다.
 
 ```bash
 docker compose down --volumes
@@ -200,7 +200,7 @@ node scripts/verify-commerce-invariants.mjs
 ```
 
 `scripts/export-release-evidence.mjs`는 source/run/image/attestation, Dev·Prod GitOps revision,
-Argo·Rollout·AnalysisRun·SLO, rollback candidate와 cleanup 결과를 `course.release-evidence/v1`
+Argo·Rollout·AnalysisRun·SLO, rollback candidate와 cleanup 결과를 `playbuilder.release-evidence/v1`
 canonical JSON으로 묶습니다. 최종 record는 만료되는 현재 상태가 아니라 보존할 audit artifact이므로
 `INCIDENT_EVIDENCE`, 관측 시각, DEV_READY·Prod baseline·Prod SLO·incident index의 SHA-256을
 기록합니다. 이 스크립트는 전달받은 증거를 검증·직렬화할 뿐 cloud 실행이나 cleanup을 수행하지

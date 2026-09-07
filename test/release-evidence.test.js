@@ -83,7 +83,7 @@ const ownershipMutationInput = (mutate) => {
 test('complete release evidence를 canonical JSON으로 보존한다', () => {
   const input = fixture('complete.json');
   const output = JSON.parse(exportReleaseEvidence(input, fixtureOptions));
-  assert.equal(output.schemaVersion, 'course.release-evidence/v1');
+  assert.equal(output.schemaVersion, 'playbuilder.release-evidence/v1');
   assert.equal(output.evidenceGrade, 'STATIC');
   assert.equal(output.sourceSha, input.sourceSha);
   assert.equal(output.imageDigest, input.imageDigest);
@@ -295,14 +295,14 @@ test('cleanup residual은 inventory의 EXTERNAL_SHARED와 RETAIN 결정을 빠�
   }
 });
 
-test('cleanup ownership은 canonical environment, Terraform manager, course delete owner만 승인한다', () => {
+test('cleanup ownership은 canonical environment, Terraform manager, platform delete owner만 승인한다', () => {
   const mutations = [
     ['unknown environment', (ownership) => { ownership.resources[0].environment = 'qa'; }],
     ['non-Terraform manager', (ownership) => { ownership.resources[0].managedBy = 'cloudformation'; }],
     ['external delete owner', (ownership) => {
       ownership.resources.push({
         kind: 'EksCluster',
-        id: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev',
+        id: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-dev',
         environment: 'dev',
         classification: 'runtime',
         owner: 'external',
@@ -328,10 +328,10 @@ test('cleanup ownership은 canonical environment, Terraform manager, course dele
 test('cleanup ownership은 중복 kind와 ID를 거부한다', () => {
   const duplicated = {
     kind: 'EksCluster',
-    id: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev',
+    id: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-dev',
     environment: 'dev',
     classification: 'runtime',
-    owner: 'course',
+    owner: 'platform',
     managedBy: 'terraform',
     billable: true,
     decision: 'DELETE',
@@ -355,7 +355,7 @@ test('cleanup ownership은 lone surrogate가 포함된 identity를 거부한다'
       id: 'invalid-\ud800-identity',
       environment: 'dev',
       classification: 'runtime',
-      owner: 'course',
+      owner: 'platform',
       managedBy: 'terraform',
       billable: true,
       decision: 'DELETE',
@@ -514,7 +514,7 @@ test('cluster-scoped retained resource는 빈 namespace와 canonical name으로 
     id: 'snapshot-content-dev',
     environment: 'dev',
     classification: 'recovery-evidence',
-    owner: 'course-fixture',
+    owner: 'mini-commerce-fixture',
     managedBy: 'terraform',
     billable: true,
     decision: 'RETAIN',
@@ -648,9 +648,9 @@ test('final exporter는 두 canonical image platform이 아닌 DEV_READY를 거�
 
 test('final exporter는 noncanonical DEV_READY AWS identity를 거부한다', () => {
   const mutations = [
-    (value) => { value.cluster.arn = 'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/course-dev'; },
-    (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-dev/garbage'; },
-    (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course dev'; },
+    (value) => { value.cluster.arn = 'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/mini-commerce-dev'; },
+    (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-dev/garbage'; },
+    (value) => { value.cluster.arn = 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce dev'; },
     (value) => { value.image.repository = value.image.repository.replace('.amazonaws.com/', '.amazonaws.com.cn/'); },
     (value) => { value.image.repository = '123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/a'; },
   ];
@@ -691,7 +691,7 @@ test('final exporter는 repository ID가 유지된 rename을 승인한다', () =
 test('final exporter requires canonical DEV_READY repository identity', () => {
   const input = fixture('complete.json');
   const devReady = JSON.parse(upstreamSources.devReadySource.toString('utf8'));
-  devReady.schemaVersion = 'course.dev-ready/v2';
+  devReady.schemaVersion = 'playbuilder.dev-ready/v2';
   devReady.repositoryId = '999';
   const devReadySource = Buffer.from(JSON.stringify(devReady));
   input.upstreamEvidence.devReadyDigest = `sha256:${rawSha256(devReadySource)}`;

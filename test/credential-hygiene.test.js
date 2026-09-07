@@ -14,7 +14,7 @@ test('tracked configuration은 고정된 database password를 포함하지 않�
   ];
 
   for (const path of paths) {
-    assert.doesNotMatch(read(path), /course-(?:ci|local)-only/, path);
+    assert.doesNotMatch(read(path), /playbuilder-(?:ci|local)-only/, path);
   }
 });
 

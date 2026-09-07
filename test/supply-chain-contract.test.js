@@ -31,7 +31,7 @@ test('검증된 두 platform과 일치하는 attestation/referrer를 승인한�
 test('v2 supply-chain evidence requires canonical identity even when caller context agrees', () => {
   const evidence = {
     ...fixture('verified.json'),
-    schemaVersion: 'course.supply-chain/v2',
+    schemaVersion: 'playbuilder.supply-chain/v2',
     repositoryId: '999',
     repositoryName: 'fork-owner/mini-commerce',
   };
@@ -97,7 +97,7 @@ test('legacy supply-chain identity requires an explicit canonical cutover allowl
 
 test('unknown supply-chain schemas cannot enter the legacy cutover path', () => {
   const evidence = fixture('verified.json');
-  evidence.schemaVersion = 'course.supply-chain/v3';
+  evidence.schemaVersion = 'playbuilder.supply-chain/v3';
   assert.throws(() => verifySupplyChain(evidence, {
     allowLegacyRepositoryIdentity: true,
     expectedRepositoryId: '1352247019',

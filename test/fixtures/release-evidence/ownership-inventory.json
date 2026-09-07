@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "course.cleanup-ownership/v1",
+  "schemaVersion": "playbuilder.cleanup-ownership/v1",
   "evidenceGrade": "STATIC",
-  "courseId": "course-fixture",
+  "ownerId": "mini-commerce-fixture",
   "accountId": "123456789012",
   "region": "ap-northeast-2",
   "resources": [
@@ -14,7 +14,7 @@
       "managedBy": "terraform",
       "billable": false,
       "decision": "EXTERNAL_SHARED",
-      "reason": "account-wide provider predates this course",
+      "reason": "account-wide provider predates this platform",
       "followUpAction": "retain and notify platform owner"
     },
     {
@@ -22,7 +22,7 @@
       "id": "app-dev/commerce-data",
       "environment": "dev",
       "classification": "source-pvc",
-      "owner": "course-fixture",
+      "owner": "mini-commerce-fixture",
       "managedBy": "terraform",
       "billable": true,
       "decision": "RETAIN",
@@ -31,10 +31,10 @@
     },
     {
       "kind": "SecretsManagerSecret",
-      "id": "course-fixture/dev/app",
+      "id": "mini-commerce-fixture/dev/app",
       "environment": "dev",
       "classification": "provider-secret",
-      "owner": "course-fixture",
+      "owner": "mini-commerce-fixture",
       "managedBy": "terraform",
       "billable": false,
       "decision": "RETAIN",

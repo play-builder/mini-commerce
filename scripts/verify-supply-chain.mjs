@@ -28,10 +28,10 @@ export function verifySupplyChain(evidence, {
   expectedRepositoryId, workflowRun, allowLegacyRepositoryIdentity = false,
 } = {}) {
   if (evidence.schemaVersion !== undefined
-    && !['course.supply-chain/v1', 'course.supply-chain/v2'].includes(evidence.schemaVersion)) {
+    && !['playbuilder.supply-chain/v1', 'playbuilder.supply-chain/v2'].includes(evidence.schemaVersion)) {
     throw new Error('unsupported supply-chain schemaVersion');
   }
-  if (evidence.schemaVersion === 'course.supply-chain/v2') {
+  if (evidence.schemaVersion === 'playbuilder.supply-chain/v2') {
     if (evidence.repositoryId === undefined) throw new Error('REPOSITORY_ID_REQUIRED');
     assertRepositoryIdentity({
       repositoryId: evidence.repositoryId,

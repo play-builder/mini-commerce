@@ -91,7 +91,7 @@ function validateRawDeployment(deployment) {
   assertExactKeys(deployment.status, ['sync', 'health'], 'deployment.status');
   assertExactKeys(deployment.source, ['repository', 'sha'], 'deployment.source');
   assertExactKeys(deployment.image, ['repository', 'indexDigest'], 'deployment.image');
-  if (deployment.schemaVersion !== 'course.dev-deployment/v1') throw new Error('unsupported deployment schemaVersion');
+  if (deployment.schemaVersion !== 'playbuilder.dev-deployment/v1') throw new Error('unsupported deployment schemaVersion');
   if (deployment.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('deployment evidenceGrade must equal CLOUD_RUNTIME');
   if (deployment.status.sync !== 'Synced' || deployment.status.health !== 'Healthy') {
     throw new Error('deployment must be Synced and Healthy');
@@ -103,7 +103,7 @@ function validateRawSlo(slo) {
   assertExactKeys(slo, sloKeys, 'slo evidence');
   assertExactKeys(slo.source, ['repository', 'sha'], 'slo.source');
   assertExactKeys(slo.image, ['repository', 'indexDigest'], 'slo.image');
-  if (slo.schemaVersion !== 'course.dev-slo/v1') throw new Error('unsupported SLO schemaVersion');
+  if (slo.schemaVersion !== 'playbuilder.dev-slo/v1') throw new Error('unsupported SLO schemaVersion');
   if (slo.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('SLO evidenceGrade must equal CLOUD_RUNTIME');
   if (slo.status !== 'PASS') throw new Error('SLO status must equal PASS');
   const observedAt = parseTimestamp(slo.observedAt, 'slo.observedAt');
@@ -112,10 +112,10 @@ function validateRawSlo(slo) {
 }
 
 export function createDevReadyEvidence(input, now = new Date()) {
-  const isV2 = input.schemaVersion === 'course.dev-ready/v2';
+  const isV2 = input.schemaVersion === 'playbuilder.dev-ready/v2';
   assertExactKeys(input, isV2 ? v2RootKeys : rootKeys, 'root');
   for (const [name, keys] of Object.entries(nestedKeys)) assertExactKeys(input[name], keys, name);
-  if (!['course.dev-ready/v1', 'course.dev-ready/v2'].includes(input.schemaVersion)) {
+  if (!['playbuilder.dev-ready/v1', 'playbuilder.dev-ready/v2'].includes(input.schemaVersion)) {
     throw new Error('unsupported DEV_READY schemaVersion');
   }
   if (isV2) normalizeRepositoryId(input.repositoryId);
@@ -130,7 +130,7 @@ export function createDevReadyEvidence(input, now = new Date()) {
   if (!Number.isInteger(input.workflow.runAttempt) || input.workflow.runAttempt < 1) throw new Error('invalid workflow.runAttempt');
   const runUrlPattern = isV2
     ? /^https:\/\/github\.com\/([^/\s]+\/[^/\s]+)\/actions\/runs\/(\d+)$/
-    : /^https:\/\/github\.com\/([^/\s]+\/cicd-course-sample-app)\/actions\/runs\/(\d+)$/;
+    : /^https:\/\/github\.com\/([^/\s]+\/mini-commerce)\/actions\/runs\/(\d+)$/;
   const runUrl = runUrlPattern.exec(input.workflow.runUrl);
   if (!runUrl || runUrl[2] !== input.workflow.runId) throw new Error('invalid workflow.runUrl');
   const ecr = parseEcrRepository(input.image.repository);
@@ -166,7 +166,7 @@ export function createDevReadyEvidence(input, now = new Date()) {
 
 export function verifyDevReadyEvidence(evidence, expected = {}, now = new Date()) {
   const verified = createDevReadyEvidence(evidence, now);
-  if (verified.schemaVersion === 'course.dev-ready/v2') {
+  if (verified.schemaVersion === 'playbuilder.dev-ready/v2') {
     assertRepositoryIdentity({
       repositoryId: verified.repositoryId,
       workflowRun: expected.workflowRun,
@@ -224,7 +224,7 @@ export function verifyProdBaselineEvidence({ prodBaseline, candidateEvidence }, 
   assertExactKeys(prodBaseline, prodBaselineKeys, 'Prod baseline');
   assertExactKeys(prodBaseline.image, ['repository', 'indexDigest'], 'Prod baseline.image');
   assertExactKeys(prodBaseline.rollout, ['stableHash', 'revision', 'trafficWeight'], 'Prod baseline.rollout');
-  if (prodBaseline.schemaVersion !== 'course.prod-baseline/v1') throw new Error('unsupported Prod baseline schemaVersion');
+  if (prodBaseline.schemaVersion !== 'playbuilder.prod-baseline/v1') throw new Error('unsupported Prod baseline schemaVersion');
   if (prodBaseline.evidenceGrade !== 'CLOUD_RUNTIME') throw new Error('Prod baseline evidenceGrade must equal CLOUD_RUNTIME');
   if (!['ap-northeast-2', 'us-east-1'].includes(prodBaseline.region)) throw new Error('unsupported Prod baseline region');
   if (!shaPattern.test(prodBaseline.gitopsRevision)) throw new Error('invalid Prod baseline gitopsRevision');
@@ -286,7 +286,7 @@ export function assembleDevReadyEvidence({
   }
   const evidence = createDevReadyEvidence({
     repositoryId: resolvedRepositoryId,
-    schemaVersion: 'course.dev-ready/v2',
+    schemaVersion: 'playbuilder.dev-ready/v2',
     environment: 'dev',
     region: deployment.region,
     sourceSha: supplyChain.sourceSha,

@@ -44,10 +44,10 @@ export async function up(pgm) {
 
   pgm.sql(`
     INSERT INTO products (id, sku, name, price_cents) VALUES
-      (1, 'COURSE-LAPTOP', 'Course Laptop', 129900),
-      (2, 'COURSE-MOUSE', 'Course Mouse', 3900),
-      (3, 'COURSE-KEYBOARD', 'Course Keyboard', 7900),
-      (4, 'COURSE-MONITOR', 'Course Monitor', 32900)
+      (1, 'PB-LAPTOP', 'PlayBuilder Laptop', 129900),
+      (2, 'PB-MOUSE', 'PlayBuilder Mouse', 3900),
+      (3, 'PB-KEYBOARD', 'PlayBuilder Keyboard', 7900),
+      (4, 'PB-MONITOR', 'PlayBuilder Monitor', 32900)
     ON CONFLICT (sku) DO UPDATE SET
       name = EXCLUDED.name,
       price_cents = EXCLUDED.price_cents;

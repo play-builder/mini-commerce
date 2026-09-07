@@ -7,11 +7,11 @@ import { test } from 'node:test';
 import { verifyContract003RollbackCandidates } from '../src/migration-ledger.js';
 
 const validEvidence = () => ({
-  schemaVersion: 'course.rollback-candidates/v1',
+  schemaVersion: 'playbuilder.rollback-candidates/v1',
   evidenceGrade: 'CLOUD_RUNTIME',
   environment: 'prod',
   region: 'ap-northeast-2',
-  clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod',
+  clusterArn: 'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-prod',
   rolloutName: 'sample-app',
   gitopsRevision: 'a'.repeat(40),
   sourceEvidenceDigest: `sha256:${'b'.repeat(64)}`,
@@ -48,9 +48,9 @@ test('rollback candidate evidence는 canonical commercial EKS ARN만 허용한�
   assert.doesNotThrow(() => verify(validEvidence()));
 
   for (const clusterArn of [
-    'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/course-prod',
-    'arn:aws:eks:ap-northeast-2:123456789012:cluster/course-prod/junk',
-    'arn:aws:eks:ap-northeast-2:123456789012:cluster/course prod',
+    'arn:aws-cn:eks:ap-northeast-2:123456789012:cluster/mini-commerce-prod',
+    'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce-prod/junk',
+    'arn:aws:eks:ap-northeast-2:123456789012:cluster/mini-commerce prod',
   ]) {
     const evidence = validEvidence();
     evidence.clusterArn = clusterArn;
