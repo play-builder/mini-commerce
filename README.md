@@ -208,7 +208,7 @@ canonical JSON으로 묶습니다. 최종 record는 만료되는 현재 상태�
 
 ```bash
 docker buildx imagetools inspect \
-  <account>.dkr.ecr.<region>.amazonaws.com/playdevops/mini-commerce@sha256:<digest>
+  <account>.dkr.ecr.<region>.amazonaws.com/mini-commerce@sha256:<digest>
 ```
 
 정상 결과에는 `linux/amd64`와 `linux/arm64` platform manifest가 모두 보여야 합니다.
@@ -220,9 +220,9 @@ Repository variables:
 | 이름 | 값 |
 | --- | --- |
 | `AWS_REGION` | `us-east-1` 또는 `ap-northeast-2` |
-| `AWS_ROLE_ARN` | EKS-infra의 `sample_app_push_role_arn` 출력 |
-| `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra의 `sample_app_attest_verify_role_arn` 출력; ECR 조회 및 OCI attestation push 권한 |
-| `ECR_REPOSITORY` | `playdevops/mini-commerce` |
+| `AWS_ROLE_ARN` | EKS-infra `environments/network/02-registry`의 `image_push_role_arn` 출력 |
+| `AWS_ATTEST_VERIFY_ROLE_ARN` | EKS-infra `environments/network/02-registry`의 `attest_verify_role_arn` 출력; ECR 조회 및 OCI attestation push 권한 |
+| `ECR_REPOSITORY` | `mini-commerce` (`image_repository_name` 출력) |
 | `GITOPS_APP_ID` | GitOps용 GitHub App ID |
 | `GITOPS_OWNER` | GitOps 저장소 owner |
 | `GITOPS_REPOSITORY_NAME` | GitOps 저장소 이름 |
