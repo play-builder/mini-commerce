@@ -101,8 +101,11 @@ schema가 조회 가능한지 확인하고, 실패하면 listener와 pool을 정
 | `DB_IDLE_TRANSACTION_TIMEOUT_MS` | 열린 transaction의 유휴 session `10000` ms |
 | `READINESS_DEPENDENCY_POLICY` | `startup-only`; `continuous`는 development/test 전용 |
 | `SHUTDOWN_DEADLINE_MS` | `30000` ms; Kubernetes 종료 유예시간은 이보다 길게 설정 |
+| `OTEL_TRACES_EXPORTER` | GitOps `telemetry.enabled=false`는 `none`, 활성화는 `otlp`; 비활성화 시 trace를 전송하지 않음 |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP trace URL (`/v1/traces` 포함); 로컬 비활성화는 `OTEL_TRACES_EXPORTER=none` |
 | `APP_VERSION`, `GIT_SHA`, `BUILD_DATE` | 이미지 build metadata. 관리 포트 `/version`에서 확인 |
+
+GitOps chart는 이미지에 기록된 `APP_VERSION`을 덮어쓰지 않는다. 기본 앱 종료 deadline은 30초, Pod 종료 유예시간은 60초이며 chart 렌더링에서 두 값의 관계를 검사한다. 남은 시간은 Kubernetes 종료 처리와 Istio sidecar drain에 사용하는 여유로, 실제 연결의 정상 종료는 클러스터에서 별도로 확인한다.
 
 production의 startup-only readiness는 초기 schema 확인 후 DB 장애만으로 모든 Pod를 동시에
 트래픽 대상에서 제거하지 않습니다. 대신 business 요청은 503으로 실패하고 DB 실패·pool 대기 metric을

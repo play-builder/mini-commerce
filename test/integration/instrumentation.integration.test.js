@@ -35,6 +35,42 @@ test('instrumentation preload installs explicit HTTP, Express, and PostgreSQL in
   assert.equal(result.status, 0, result.stderr);
 });
 
+for (const exporter of ['none', 'otlp']) {
+  test(`runtime OTEL_TRACES_EXPORTER=${exporter} controls actual trace delivery`, () => {
+    const result = spawnSync(process.execPath, ['--input-type=module', '-e', `
+      import assert from 'node:assert/strict';
+      import http from 'node:http';
+      import { trace } from '@opentelemetry/api';
+      let deliveries = 0;
+      const collector = http.createServer((request, response) => {
+        assert.equal(request.url, '/v1/traces');
+        deliveries += 1;
+        request.resume();
+        response.writeHead(200, { 'Content-Type': 'application/x-protobuf' });
+        response.end();
+      });
+      await new Promise((resolve) => collector.listen(0, '127.0.0.1', resolve));
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT =
+        'http://127.0.0.1:' + collector.address().port + '/v1/traces';
+      try {
+        const { shutdownInstrumentation } = await import('./src/instrumentation.js');
+        trace.getTracer('runtime-export-test').startSpan('runtime-check').end();
+        await shutdownInstrumentation();
+        console.log(JSON.stringify({ deliveries }));
+      } finally {
+        await new Promise((resolve, reject) => collector.close((error) => error ? reject(error) : resolve()));
+      }
+    `], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: { ...process.env, OTEL_TRACES_EXPORTER: exporter, OTEL_NODE_RESOURCE_DETECTORS: 'none' },
+    });
+    assert.equal(result.status, 0, result.error?.message ?? result.stderr);
+    const output = JSON.parse(result.stdout.trim().split('\n').at(-1));
+    assert.equal(output.deliveries, exporter === 'none' ? 0 : 1);
+  });
+}
+
 test('runtime telemetry exports route templates without HTTP or database secrets', () => {
   const [, ...arguments_] = dockerRuntimeCommand();
   const output = runTelemetry(arguments_.slice(0, 2));
