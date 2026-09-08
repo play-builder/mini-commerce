@@ -73,7 +73,7 @@ export function verifySupplyChain(evidence, {
   return evidence;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
   const input = process.argv[2];
   if (!input) throw new Error('usage: verify-supply-chain.mjs EVIDENCE_JSON');
   verifySupplyChain(JSON.parse(fs.readFileSync(input, 'utf8')), {

@@ -1,6 +1,6 @@
 # Mini Commerce
 
-PostgreSQL의 상품·재고·주문을 처리하는 Node.js 24 / Express 5 서비스입니다. 주문 생성은
+PostgreSQL의 상품·재고·주문을 처리하는 Node.js 24.2+ / Express 5 서비스입니다. 주문 생성은
 하나의 DB transaction에서 멱등성 확인, 재고 잠금, 주문 저장과 재고 차감을 수행합니다.
 컨테이너 배포와 DB migration은 같은 immutable image digest를 사용합니다.
 
@@ -29,14 +29,15 @@ Helm/Argo CD/롤아웃 정책과 배포 증빙은 `argocd-gitops`의 책임입�
 | `migrations/` | 적용 후 바이트를 바꾸지 않는 forward-only schema 변경 |
 | `openapi/` | 공개 business API 계약과 backward compatibility 기준 |
 | `scripts/` | migration, 공급망·승격 증빙, 이미지/GitOps 값 검증, 복구·불변식 검사 |
-| `test/` | 실제 함수·HTTP·PostgreSQL 동시성·migration·전달 경계 회귀 테스트 |
+| `test/unit/` | 서비스 함수·HTTP·설정·readiness |
+| `test/integration/` | 실제 PostgreSQL·transaction·migration·telemetry |
+| `test/delivery/` | 이미지·GitOps values·공급망·OpenAPI 호환성 |
 | `load/` | 명시적으로 선택한 Dev host의 제한된 k6 부하 |
 | `.github/workflows/` | PR 검증, main 이미지 발행·Dev 전달, 별도 Prod 승격 |
-| `docs/` | 코드 기반 아키텍처와 이번 검토의 실행 증거·미검증 범위 |
+| `docs/` | 지속적으로 관리하는 서비스 아키텍처 |
 | `Dockerfile`, `compose.yaml` | 비 root 실행 이미지, localhost에만 노출하는 개발용 PostgreSQL |
 
-테스트는 언어별로 삭제하지 않습니다. HTTP 오류, 재고 경쟁, migration 호환성, 공급망 검증처럼
-운영 위험을 잡는 테스트를 유지합니다. 문서에 특정 문장이 있는지만 확인하던 README 테스트는 제거했습니다.
+검증은 Node 기본 runner로 실행합니다. 파일 표현만 고정하던 검사와 별도 Shell 테스트 실행기는 제공하지 않습니다.
 
 ## 로컬 실행과 검증
 
@@ -47,7 +48,6 @@ Helm/Argo CD/롤아웃 정책과 배포 증빙은 `argocd-gitops`의 책임입�
 npm ci --ignore-scripts
 npm run lint
 npm test
-bash test/curl-loop.test.sh
 ```
 
 `npm test`는 `DATABASE_TEST_URL`이 없으면 PostgreSQL integration test를 SKIP합니다.
@@ -139,10 +139,11 @@ job을 실패시킵니다. GitHub Dependency Review API의 403 오류를 해결�
 Required check를 특정 path 변경에만 실행되는 dependency-review에 단독 의존하지 마세요. 모든 PR에서 실행하는
 `test` job도 보호 규칙에 포함하고, 실제 조직/저장소 Ruleset에서 병합 차단 여부를 확인해야 합니다.
 
-main CI는 AMD64/ARM64 이미지를 한 번 발행하고 각 child manifest를 scan합니다. provenance·SBOM attestation,
-OCI referrer, source SHA가 일치해야 Dev digest PR을 생성합니다. Dev 배포·SLO 증빙은 다른 저장소의
-runtime collector가 작성합니다. Prod workflow는 이 증빙과 정확한 CI run/attempt를 묶어 승인 PR을 만듭니다.
-워크플로 정의에는 이 GitOps 원격 쓰기가 포함되지만, 이번 로컬 검토에서 workflow를 실행하거나 push하지 않았습니다.
+main CI는 AMD64/ARM64 이미지를 한 번 발행하고 각 child manifest를 scan합니다. provenance·SBOM attestation과 OCI referrer를 확인한 뒤 Dev digest PR을 생성합니다. Argo CD가 GitOps main 변경을 감지해 Dev를 자동 sync합니다.
+
+Prod는 `promote-dev-digest-to-prod` workflow에 `ci_run_id`, `ci_run_attempt`와 선택적 `expected_digest`를 입력합니다. 성공한 main CI의 정확한 실행 결과와 Dev digest가 일치해야 승인 PR을 생성합니다. `gitops-production` 승인자는 Dev 상태·트래픽·관측 지표를 확인해야 합니다. Prod PR은 자동 merge하지 않으며, merge 후 Argo CD 수동 sync로 canary를 시작합니다.
+
+별도 DEV_READY 조립·증빙 게시·baseline JSON 단계는 없습니다. 실행 기록은 CI run, GitOps PR/SHA, Argo revision과 관측 결과로 추적합니다.
 
 ## DB 변경과 운영 도구
 
@@ -164,19 +165,22 @@ Migration Job에는 별도의 DDL 계정을 사용하고, DB lock/statement 제�
 | `scripts/verify-restore.mjs` | `verifyRestore` 함수로 독립 recovery DB의 schema·row checksum을 원본과 비교 |
 | `scripts/verify-image-index.sh` | 정확한 digest의 AMD64/ARM64 index 확인 |
 | `scripts/verify-supply-chain.mjs` | scan·attestation·OCI referrer·immutable repository identity 확인 |
-| `scripts/dev-ready-evidence.mjs` | supply chain + 배포 + SLO와 CI run을 결속하고 Prod baseline 비교 |
 | `scripts/gitops-values.mjs` | Dev/Prod app·migration digest 변경, rollback에서는 app만 변경 |
-| `scripts/dispatch-and-watch.sh`, `scripts/wait-pr-terminal-state.sh` | 명시적으로 실행한 workflow/PR의 정확한 종료 상태 추적 |
+| `scripts/wait-pr-terminal-state.sh` | Dev 자동 전달 PR의 merge/close 종료 대기 |
 | `load/k6-baseline.js`, `load/k6-stateful.js` | 허용한 Dev HTTPS host에 제한된 읽기/주문 부하 |
 
-이 도구들은 일부 실제 DB 쓰기·부하·workflow dispatch를 수행합니다. 운영 대상, 권한, 변경 승인과
+이 도구들은 일부 실제 DB 쓰기·부하를 수행합니다. 운영 대상, 권한, 변경 승인과
 복구 계획을 먼저 확인해야 하며, fixture 테스트 통과를 실제 실행 증거로 사용하지 않습니다.
 
 ## 검증 범위
 
-이번 변경의 정확한 실행 결과와 남은 운영 승인 조건은 [검토 기록](docs/production-readiness-review.md)에 있습니다.
-과거 main의 성공한 CI 결과는 이번 변경의 성공 근거로 재사용하지 않습니다.
+핵심 요약: 일반 테스트와 실제 DB 테스트를 구분합니다. 원격 CI/이미지 빌드/클러스터 검증은 해당 실행 결과로 확인합니다.
 
-로컬 unit/HTTP 테스트, 실제 PostgreSQL transaction 테스트, Docker build, GitHub OIDC/ECR 전달,
-클러스터 배포·복구 drill은 서로 다른 증거입니다. 컨퍼런스에서는 아키텍처 다이어그램을 **코드에 정의된 흐름**으로
-소개하고, 실제 실행했다고 주장하는 부분은 해당 SHA/run ID·관측 시각·결과를 함께 제시해야 합니다.
+```bash
+npm run lint
+npm test
+```
+
+폐기 가능한 PostgreSQL URL을 `DATABASE_TEST_URL`에 설정한 뒤 `npm run test:ci`를 실행하면 CI와 같은 필수 DB 검사를 수행합니다. URL이 없으면 `npm test`의 DB 검사는 SKIP이고, `test:ci`는 실패합니다. `npm run test:postgres`는 integration 그룹만 실행합니다.
+
+이미지 빌드는 `docker build --tag mini-commerce:test .`로 확인합니다. CI 성공, 실제 EKS 배포, 사용자 요청과 관측 지표 확인은 각각 별도의 결과입니다.

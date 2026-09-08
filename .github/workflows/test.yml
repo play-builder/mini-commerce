@@ -62,8 +62,5 @@ jobs:
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=high
 
-      - name: Curl loop integration test
-        run: bash test/curl-loop.test.sh
-
       - name: Build the runtime image
         run: docker build --tag mini-commerce:test .

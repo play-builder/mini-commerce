@@ -305,8 +305,6 @@ jobs:
     environment: gitops-dev-delivery
     permissions:
       contents: read
-    outputs:
-      gitops_revision: ${{ steps.revision.outputs.gitops_revision }}
 
     steps:
       - name: Checkout application scripts
@@ -387,17 +385,3 @@ jobs:
           echo "pr_url=$pr_url" >> "$GITHUB_OUTPUT"
           gh pr merge "$pr_url" --auto --squash --delete-branch
           bash app/scripts/wait-pr-terminal-state.sh "$pr_url" "$GH_REPO"
-
-      - name: Resolve exact Dev GitOps revision
-        id: revision
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          GH_REPO: ${{ vars.GITOPS_OWNER }}/${{ vars.GITOPS_REPOSITORY_NAME }}
-          PR_URL: ${{ steps.dev-pr.outputs.pr_url }}
-        run: |
-          if [[ "${{ steps.update.outputs.changed }}" == "true" ]]; then
-            gitops_revision=$(gh pr view "$PR_URL" --repo "$GH_REPO" --json mergeCommit --jq '.mergeCommit.oid')
-          else
-            gitops_revision=$(git -C gitops rev-parse HEAD)
-          fi
-          echo "gitops_revision=$gitops_revision" >> "$GITHUB_OUTPUT"

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { createPrivateKey } from 'node:crypto';
-import { pathToFileURL } from 'node:url';
 
 // Validate only configuration shape. This cannot prove IAM, region availability,
 // environment protection, or GitHub App installation/permission correctness.
@@ -33,7 +32,7 @@ export function validateDeliveryConfiguration(mode, env = process.env) {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (import.meta.main) {
   try {
     validateDeliveryConfiguration(process.argv[2]);
     console.log('Delivery configuration shape verified; remote permissions still require the live workflow.');

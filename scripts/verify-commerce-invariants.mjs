@@ -51,7 +51,7 @@ export async function verifyCommerceInvariants(pool, { minimumOrderCount = 0 } =
   return result;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (import.meta.main) {
   if (!config.databaseEnabled) throw new Error('DATABASE_ENABLED=true is required');
   const pool = createDatabasePool(config.database);
   try {
