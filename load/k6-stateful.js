@@ -35,8 +35,13 @@ export const options = {
 };
 
 export function setup() {
-  const response = http.get(`${config.targetUrl}/db/status`);
-  if (response.status !== 200) fail('Stateful load requires an enabled and ready database');
+  // Business routes answer 503 while the database is unavailable, so a 200 inventory read
+  // proves the DB-backed path is ready without exposing the management port to the load host.
+  const response = http.get(`${config.targetUrl}/products/${config.productId}/inventory`);
+  if (response.status !== 200) {
+    // 404 means PRODUCT_ID does not exist; 503 means the database is disabled or unavailable.
+    fail(`Stateful load precondition failed: GET /products/${config.productId}/inventory returned ${response.status} ${response.body}`);
+  }
 }
 
 export default function statefulOrderTraffic() {
