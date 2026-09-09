@@ -115,6 +115,17 @@ test('OpenAPI request schemas reject type and bound narrowing recursively', () =
   }), /OPENAPI_ENUM_NARROWED/);
 });
 
+test('OpenAPI compatibility CLI rejects a bootstrap SHA that is not a full 40-character SHA', () => {
+  const result = spawnSync(process.execPath, [
+    'scripts/verify-openapi-backward-compatibility.mjs',
+    '--base-ref', 'HEAD',
+    '--bootstrap-base-sha', '0f6e4ce79e102054fa63c8d07b53f24dbdbb4d',
+    '--candidate', 'openapi/mini-commerce.v1.yaml',
+  ], { encoding: 'utf8' });
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /OPENAPI_BOOTSTRAP_SHA_INVALID/);
+});
+
 test('OpenAPI compatibility CLI requires a base revision', () => {
   const result = spawnSync(process.execPath, [
     'scripts/verify-openapi-backward-compatibility.mjs',
