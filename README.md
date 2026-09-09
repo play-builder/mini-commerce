@@ -170,7 +170,7 @@ Migration Job에는 별도의 DDL 계정을 사용하고, DB lock/statement 제�
 | `scripts/verify-supply-chain.mjs` | scan·attestation·OCI referrer·immutable repository identity 확인 |
 | `scripts/gitops-values.mjs` | Dev/Prod app·migration digest 변경, rollback에서는 app만 변경 |
 | `scripts/wait-pr-terminal-state.sh` | Dev 자동 전달 PR의 merge/close 종료 대기 |
-| `load/k6-baseline.js`, `load/k6-stateful.js` | 허용한 Dev HTTPS host에 제한된 읽기/주문 부하 |
+| `load/k6-baseline.js`, `load/k6-stateful.js` | 허용한 Dev HTTPS host에 제한된 읽기/주문 부하. 두 스크립트 모두 DB가 활성화된 Dev(`database.enabled: true`)를 전제하며 setup()에서 `/products` 응답을 먼저 확인한다 |
 
 이 도구들은 일부 실제 DB 쓰기·부하를 수행합니다. 운영 대상, 권한, 변경 승인과
 복구 계획을 먼저 확인해야 하며, fixture 테스트 통과를 실제 실행 증거로 사용하지 않습니다.
