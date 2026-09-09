@@ -1,7 +1,26 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { test } from 'node:test';
 
 import { readLoadConfig, readStatefulLoadConfig } from '../../scripts/load-config.mjs';
+
+test('k6 load scripts only request routes the application router serves', () => {
+  const applicationSource = fs.readFileSync(new URL('../../src/application.js', import.meta.url), 'utf8');
+  const servedRoutes = new Set(
+    [...applicationSource.matchAll(/app\.(get|post)\('([^']+)'/g)]
+      .map((match) => `${match[1].toUpperCase()} ${match[2]}`),
+  );
+  assert.ok(servedRoutes.has('GET /products'), 'route table must be readable from src/application.js');
+  for (const script of ['k6-baseline.js', 'k6-stateful.js']) {
+    const source = fs.readFileSync(new URL(`../../load/${script}`, import.meta.url), 'utf8');
+    const requested = [...source.matchAll(/http\.(get|post)\(`\$\{config\.targetUrl\}([^`]*)`/g)]
+      .map((match) => `${match[1].toUpperCase()} ${match[2].replace(/\$\{config\.productId\}/g, ':id')}`);
+    assert.ok(requested.length > 0, `${script} must request at least one route`);
+    for (const route of requested) {
+      assert.ok(servedRoutes.has(route), `${script} requests ${route}, which src/application.js does not serve`);
+    }
+  }
+});
 
 const valid = {
   TARGET_ENV: 'dev',
