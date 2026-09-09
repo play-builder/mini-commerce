@@ -1,7 +1,7 @@
 /* global __ENV */
 
 import http from 'k6/http';
-import { check } from 'k6';
+import { check, fail } from 'k6';
 
 import { readLoadConfig } from '../scripts/load-config.mjs';
 
@@ -26,11 +26,21 @@ export const options = {
   },
 };
 
+export function setup() {
+  // Every business route is DB-backed and answers 503 while the database is disabled,
+  // so abort before the run instead of reporting the precondition as a latency regression.
+  const response = http.get(`${config.targetUrl}/products`);
+  if (response.status !== 200) {
+    fail(`Baseline load precondition failed: GET /products returned ${response.status} ${response.body}`);
+  }
+}
+
 export default function baselineTraffic() {
-  const response = http.get(`${config.targetUrl}/`, {
-    tags: { operation: 'stateless-root' },
+  // The application serves no `/`; the catalog listing is the cheapest DB-backed read path.
+  const response = http.get(`${config.targetUrl}/products`, {
+    tags: { operation: 'list-products' },
   });
   check(response, {
-    'root status is 200': (result) => result.status === 200,
+    'product list status is 200': (result) => result.status === 200,
   });
 }
