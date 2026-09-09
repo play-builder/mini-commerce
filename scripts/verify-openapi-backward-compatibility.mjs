@@ -93,6 +93,11 @@ if (import.meta.main) {
   const baseRef = valueAfter('--base-ref');
   const bootstrapBaseSha = valueAfter('--bootstrap-base-sha');
   if (!candidatePath || !baseRef) throw new Error('OPENAPI_COMPATIBILITY_USAGE');
+  // pull_request base.sha is always a full 40-character SHA; a shorter or malformed
+  // bootstrap value can never match it and would silently disable the bootstrap exception.
+  if (bootstrapBaseSha !== undefined && !/^[0-9a-f]{40}$/.test(bootstrapBaseSha)) {
+    throw new Error('OPENAPI_BOOTSTRAP_SHA_INVALID');
+  }
 
   const candidateDocument = YAML.parse(fs.readFileSync(candidatePath, 'utf8'));
   let baseSource;
